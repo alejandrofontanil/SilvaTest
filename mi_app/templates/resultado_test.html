@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="card shadow-sm">
+        <div class="card-body p-5 text-center">
+            <h1 class="display-4">Resultado del Test</h1>
+            <p class="fs-4 text-muted">Tema: {{ resultado.tema.nombre }}</p>
+            <hr>
+            <p class="display-1 fw-bold">{{ "%.2f"|format(resultado.nota) }} / 10</p>
+            <p class="text-muted">Realizado el: {{ resultado.fecha.strftime('%d-%m-%Y a las %H:%M') }}</p>
+
+            <div class="mt-4">
+                <a href="{{ url_for('repaso_test', resultado_id=resultado.id) }}" class="btn btn-primary btn-lg">Ver Repaso Detallado</a>
+                <a href="{{ url_for('hacer_test', tema_id=resultado.tema.id) }}" class="btn btn-secondary btn-lg">Repetir Test</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,16 +1,12 @@
-run =  ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+# Contenido para el archivo .replit
 entrypoint = "main.py"
 modules = ["python-3.11"]
 
-hidden = [".pythonlibs"]
+[run]
+command = ["python3", "main.py"]
 
 [nix]
-channel = "stable-24_05"
-
-[deployment]
-run =  ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
-deploymentTarget = "cloudrun"
 
 [[ports]]
-localPort = 5000
+localPort = 8080
 externalPort = 80

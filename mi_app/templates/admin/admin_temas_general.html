@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% macro render_tema_admin(tema) %}
+    <li class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center" data-aos="fade-left">
+            <span>{{ tema.nombre }} <span class="badge bg-secondary rounded-pill">{{ tema.total_preguntas }}</span></span>
+            <div class="btn-group">
+                <a href="{{ url_for('detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-info" title="Ver/Añadir Preguntas"><i class="bi bi-card-list"></i></a>
+                <a href="{{ url_for('editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-secondary" title="Editar Tema"><i class="bi bi-pencil-fill"></i></a>
+                <form method="POST" action="{{ url_for('eliminar_tema', tema_id=tema.id) }}" 
+                      onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema y TODOS sus subtemas y preguntas?');">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar Tema"><i class="bi bi-trash3-fill"></i></button>
+                </form>
+            </div>
+        </div>
+        {% if tema.subtemas %}
+            <ul class="list-group mt-2 ms-4 border-start">
+                {% for subtema in tema.subtemas %}
+                    {{ render_tema_admin(subtema) }}
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </li>
+{% endmacro %}
+
+
+{% block content %}
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-diagram-3-fill"></i> Vista General del Temario</h1>
+                <a href="{{ url_for('crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema</a>
+            </div>
+
+            {% for convocatoria in convocatorias %}
+                <div class="card mb-4" data-aos="fade-up">
+                    <div class="card-header">
+                        <h3 class="mb-0">{{ convocatoria.nombre }}</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if convocatoria.bloques %}
+                            {% for bloque in convocatoria.bloques %}
+                                <h4 class="h5 mt-3">{{ bloque.nombre }}</h4>
+                                <ul class="list-group list-group-flush">
+                                    {% set temas_principales = bloque.temas.filter_by(parent_id=None).all() %}
+                                    {% if temas_principales %}
+                                        {% for tema in temas_principales %}
+                                            {{ render_tema_admin(tema) }}
+                                        {% endfor %}
+                                    {% else %}
+                                        <li class="list-group-item text-muted">No hay temas en este bloque.</li>
+                                    {% endif %}
+                                </ul>
+                            {% endfor %}
+                        {% else %}
+                             <p class="text-muted">No hay bloques en esta convocatoria.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

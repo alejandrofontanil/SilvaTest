@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header"><h2>Editando Pregunta</h2></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('editar_pregunta', pregunta_id=pregunta.id) }}">
+                        {{ form.hidden_tag() }}
+                        <fieldset>
+                            <div class="mb-3">
+                                {{ form.texto.label(class="form-label") }}
+                                {{ form.texto(class="form-control", rows="3") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.dificultad.label(class="form-label") }}
+                                {{ form.dificultad(class="form-select") }}
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.respuesta1_texto.label(class="form-label") }}
+                                    {{ form.respuesta1_texto(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ form.respuesta2_texto.label(class="form-label") }}
+                                    {{ form.respuesta2_texto(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ form.respuesta3_texto.label(class="form-label") }}
+                                    {{ form.respuesta3_texto(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ form.respuesta4_texto.label(class="form-label") }}
+                                    {{ form.respuesta4_texto(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.respuesta_correcta.label(class="form-label") }}
+                                <div class="d-flex">
+                                {% for subfield in form.respuesta_correcta %}
+                                    <div class="form-check me-3">
+                                        {{ subfield(class="form-check-input") }}
+                                        {{ subfield.label(class="form-check-label") }}
+                                    </div>
+                                {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.retroalimentacion.label(class="form-label") }}
+                                {{ form.retroalimentacion(class="form-control", rows="2") }}
+                            </div>
+                        </fieldset>
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary", value="Actualizar Pregunta") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

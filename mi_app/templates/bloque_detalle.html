@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% macro render_tema_publico(tema) %}
+    <div class="list-group-item" data-aos="fade-up">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fs-5 text-body">{{ tema.nombre }}</span>
+                <span class="badge bg-secondary rounded-pill ms-2">{{ tema.total_preguntas }} preguntas</span>
+
+                {% if tema.notas %}
+                    <div class="mt-2">
+                    {% for nota in tema.notas %}
+                        <p class="mb-0 text-muted fst-italic"><small><i class="bi bi-pin-angle-fill"></i> {{ nota.texto }}</small></p>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('hacer_test', tema_id=tema.id) }}" class="btn btn-success"><i class="bi bi-play-circle-fill"></i> Hacer Test</a>
+        </div>
+        {% if tema.subtemas %}
+            <div class="list-group mt-3 ms-4">
+                {% for subtema in tema.subtemas %}
+                    {{ render_tema_publico(subtema) }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block content %}
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <a href="{{ url_for('convocatoria_detalle', convocatoria_id=bloque.convocatoria.id) }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a los bloques de {{ bloque.convocatoria.nombre }}</a>
+            <h1 class="display-5">{{ bloque.nombre }}</h1>
+            <p class="fs-4 text-muted">Temario de este bloque.</p>
+            <hr class="my-4">
+            <div class="list-group list-group-flush">
+                {% if temas %}
+                    {% for tema in temas %}
+                        {{ render_tema_publico(tema) }}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center text-muted mt-4">Aún no hay temas para este bloque.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

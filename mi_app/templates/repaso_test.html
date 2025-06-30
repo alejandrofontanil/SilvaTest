@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <a href="{{ url_for('cuenta') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Mi Historial</a>
+        <h1 class="display-5">Repaso del Test</h1>
+        <p class="fs-4 text-muted">Tema: {{ resultado.tema.nombre }}</p>
+        <p class="text-muted">Realizado el {{ resultado.fecha.strftime('%d-%m-%Y') }} con una nota de <strong class="fs-5">{{ "%.2f"|format(resultado.nota) }}</strong>.</p>
+        <hr class="my-4">
+
+        {% for r_usuario in resultado.desglose_respuestas %}
+        <div class="card mb-3 {% if not r_usuario.es_correcta %}border-danger border-2{% endif %}" data-aos="fade-up">
+            <div class="card-header">
+                <strong>Pregunta {{ loop.index }}:</strong>
+            </div>
+            <div class="card-body">
+                <p class="fs-5">{{ r_usuario.pregunta.texto }}</p>
+                <ul class="list-group list-group-flush">
+                    {% for opcion in r_usuario.pregunta.respuestas %}
+                        {# Comprobamos el estado de cada opción para darle un estilo u otro #}
+                        {% set es_la_marcada_por_usuario = (opcion.id == r_usuario.respuesta_seleccionada_id) %}
+                        {% set es_la_correcta_de_verdad = opcion.es_correcta %}
+
+                        <li class="list-group-item 
+                            {# Si es la correcta, la pintamos de verde #}
+                            {% if es_la_correcta_de_verdad %} 
+                                list-group-item-success 
+                            {# Si es la que marcó el usuario Y ADEMÁS es incorrecta, la pintamos de rojo #}
+                            {% elif es_la_marcada_por_usuario and not r_usuario.es_correcta %} 
+                                list-group-item-danger 
+                            {% endif %}">
+
+                            {{ opcion.texto }}
+
+                            {# Añadimos insignias para que quede aún más claro #}
+                            {% if es_la_correcta_de_verdad %}
+                                <span class="badge bg-success float-end"><i class="bi bi-check-circle-fill"></i> Correcta</span>
+                            {% endif %}
+                            {% if es_la_marcada_por_usuario and not r_usuario.es_correcta %}
+                                <span class="badge bg-danger float-end"><i class="bi bi-x-circle-fill"></i> Tu respuesta</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

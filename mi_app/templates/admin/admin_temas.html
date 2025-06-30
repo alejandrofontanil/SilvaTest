@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% macro render_tema(tema) %}
+    <li class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center" data-aos="fade-left">
+            {# CAMBIO: Hemos envuelto el nombre en un enlace con clases que respetan el tema #}
+            <a href="{{ url_for('detalle_tema', tema_id=tema.id) }}" class="text-body text-decoration-none fs-5">
+                {{ tema.nombre }}
+            </a>
+            <div class="btn-group">
+                <a href="{{ url_for('editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
+                <form method="POST" action="{{ url_for('eliminar_tema', tema_id=tema.id) }}" 
+                      onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema? ¡Esta acción no se puede deshacer!');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3-fill"></i> Eliminar</button>
+                </form>
+            </div>
+        </div>
+        {% if tema.subtemas %}
+            <ul class="list-group mt-2 ms-4 border-start">
+                {% for subtema in tema.subtemas %}
+                    {{ render_tema(subtema) }}
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </li>
+{% endmacro %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-list-nested"></i> Gestionar Temas</h1>
+        <a href="{{ url_for('crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Tema</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                {% for tema in temas %}
+                    {{ render_tema(tema) }}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="text-center mb-5" data-aos="zoom-in">
+        <h1 class="display-5">Panel de Administrador</h1>
+        <p class="fs-4 text-muted">Bienvenido, {{ current_user.nombre }}. Desde aquí puedes gestionar el contenido de la plataforma.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title"><i class="bi bi-calendar-check-fill"></i> Gestionar Convocatorias</h5>
+                    <p class="card-text">Crear y editar las diferentes convocatorias (Asturias, Castilla y León, etc.).</p>
+                    <a href="{{ url_for('admin_convocatorias') }}" class="btn btn-primary mt-auto">Ir a Convocatorias</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title"><i class="bi bi-list-nested"></i> Gestionar Temario</h5>
+                    <p class="card-text">Vista general para añadir, editar y estructurar todos los temas.</p>
+                    <a href="{{ url_for('admin_temas') }}" class="btn btn-primary mt-auto">Ir al Temario</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title"><i class="bi bi-people-fill"></i> Gestionar Usuarios</h5>
+                    <p class="card-text">Ver la lista de estudiantes y asignarles permisos a las convocatorias.</p>
+                    <a href="{{ url_for('admin_usuarios') }}" class="btn btn-primary mt-auto">Ir a Usuarios</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-warning">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title"><i class="bi bi-flag-fill"></i> Preguntas a Revisar
+                        {% if preguntas_reportadas > 0 %}
+                            <span class="badge bg-danger rounded-pill ms-2">{{ preguntas_reportadas }}</span>
+                        {% endif %}
+                    </h5>
+                    <p class="card-text">Preguntas reportadas por los usuarios que pueden contener errores.</p>
+                    <a href="{{ url_for('preguntas_a_revisar') }}" class="btn btn-warning mt-auto">Revisar Preguntas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

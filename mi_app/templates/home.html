@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="text-center" data-aos="zoom-in">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo de SilvaTest" class="mb-4" style="max-width: 180px; height: auto;">
+        <h1 class="display-5 fw-bold">Bienvenido a tu Plataforma de Tests</h1>
+        <p class="fs-4 text-muted">Elige tu convocatoria para empezar a prepararte.</p>
+    </div>
+
+    <hr class="my-5">
+
+    <div class="row g-4">
+        {% if convocatorias %}
+            {% for convocatoria in convocatorias %}
+                <div class="col-lg-6" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+                    <a href="{{ url_for('convocatoria_detalle', convocatoria_id=convocatoria.id) }}" class="text-decoration-none">
+                        <div class="card card-convocatoria h-100">
+                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                <h3 class="card-title">{{ convocatoria.nombre }}</h3>
+                                <p class="mb-0 mt-2">Acceder al temario <i class="bi bi-arrow-right-circle"></i></p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                {% if current_user.is_authenticated %}
+                <p class="text-center text-muted">Parece que aún no tienes acceso a ninguna convocatoria. Ponte en contacto con el administrador.</p>
+                {% else %}
+                <p class="text-center text-muted">Aún no hay convocatorias disponibles.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <style>
+        .card-convocatoria {
+            transition: all 0.3s ease;
+            border-width: 2px;
+        }
+        .card-convocatoria:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
+            border-color: var(--bs-primary);
+        }
+        .card-convocatoria h3 {
+            color: var(--bs-secondary-text-emphasis);
+        }
+        .card-convocatoria p {
+            color: var(--bs-primary);
+        }
+    </style>
+{% endblock %}

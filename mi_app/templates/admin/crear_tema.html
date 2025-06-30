@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header"><h4>Añadir Nuevo Tema</h4></div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.bloque.label(class="form-label") }}
+                            {{ form.bloque(class="form-select") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.nombre.label(class="form-label") }}
+                            {{ form.nombre(class="form-control form-control-lg") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.parent.label(class="form-label") }}
+                            {{ form.parent(class="form-select") }}
+                        </div>
+                        <hr>
+                        <div class="form-check form-switch mb-3">
+                            {{ form.es_simulacro(class="form-check-input") }}
+                            {{ form.es_simulacro.label(class="form-check-label") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.tiempo_limite_minutos.label(class="form-label") }}
+                            {{ form.tiempo_limite_minutos(class="form-control") }}
+                        </div>
+                        <div class="d-grid mt-4">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

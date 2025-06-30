@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{{ url_for('admin_convocatorias') }}" class="text-muted text-decoration-none d-block mb-2"><i class="bi bi-arrow-left"></i> Volver a Convocatorias</a>
+            <h1>Gestionar Bloques de {{ convocatoria.nombre }}</h1>
+        </div>
+        <a href="{{ url_for('crear_bloque', convocatoria_id=convocatoria.id) }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Bloque</a>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                {% for bloque in convocatoria.bloques %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ bloque.nombre }}
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin_temas') }}" class="btn btn-sm btn-success">Gestionar Temas</a>
+                            <a href="{{ url_for('editar_bloque', bloque_id=bloque.id) }}" class="btn btn-sm btn-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
+                            <form method="POST" action="{{ url_for('eliminar_bloque', bloque_id=bloque.id) }}" onsubmit="return confirm('¿Estás seguro? Se borrará el bloque y todos los temas que contiene.');">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash3-fill"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="list-group-item">Aún no has creado ningún bloque para esta convocatoria.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}

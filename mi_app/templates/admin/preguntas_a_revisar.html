@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <h1 class="mb-4"><i class="bi bi-flag-fill"></i> Preguntas Reportadas para Revisión</h1>
+        <p class="text-muted">Aquí aparecen las preguntas que los usuarios han marcado con algún posible error.</p>
+
+        {% for pregunta in preguntas %}
+        <div class="list-group-item my-3 p-3">
+            <p><strong>Pregunta #{{ pregunta.id }}:</strong> {{ pregunta.texto }}</p>
+            <p class="text-muted mb-2">Pertenece al tema: <strong>{{ pregunta.tema.nombre }}</strong></p>
+            <a href="{{ url_for('editar_pregunta', pregunta_id=pregunta.id) }}" class="btn btn-secondary">Revisar/Editar Pregunta</a>
+        </div>
+        {% else %}
+        <p class="text-center text-muted mt-4">¡Genial! No hay preguntas reportadas.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

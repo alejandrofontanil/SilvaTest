@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <a href="{{ url_for('home') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Convocatorias</a>
+            <h1 class="display-5">{{ convocatoria.nombre }}</h1>
+            <p class="fs-4 text-muted">Selecciona un bloque para ver el temario y comenzar a estudiar.</p>
+            <hr class="my-4">
+
+            <div class="row g-4">
+                {% if convocatoria.bloques %}
+                    {% for bloque in convocatoria.bloques %}
+                        <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+                            <a href="{{ url_for('bloque_detalle', bloque_id=bloque.id) }}" class="text-decoration-none">
+                                <div class="card card-convocatoria h-100">
+                                    <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                        <h3 class="card-title h4">{{ bloque.nombre }}</h3>
+                                        <p class="mb-0 mt-2">Ver temario <i class="bi bi-arrow-right-circle"></i></p>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12">
+                        <p class="text-center text-muted">Aún no hay bloques disponibles para esta convocatoria.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">Panel de Estudiante</h5>
+            </div>
+            <div class="list-group list-group-flush" id="panel-menu" role="tablist">
+                <a class="list-group-item list-group-item-action active" data-bs-toggle="list" href="#estadisticas" role="tab"><i class="bi bi-graph-up-arrow me-2"></i>Evolución</a>
+                <a class="list-group-item list-group-item-action" data-bs-toggle="list" href="#historial" role="tab"><i class="bi bi-list-task me-2"></i>Historial Detallado</a>
+                <a href="{{ url_for('repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
+                <a href="{{ url_for('preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="tab-content" id="nav-tabContent">
+
+            <div class="tab-pane fade show active" id="estadisticas" role="tabpanel">
+                <div class="card shadow-sm mb-4">
+                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                        <h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3>
+                        <div class="btn-group btn-group-sm mt-2 mt-md-0">
+                            <a href="{{ url_for('cuenta', periodo='mes') }}" class="btn {% if periodo_activo == 'mes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Este Mes</a>
+                            <a href="{{ url_for('cuenta', periodo='siempre') }}" class="btn {% if periodo_activo == 'siempre' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Siempre</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if datos_grafico %}
+                            <canvas id="graficoNotas" style="min-height: 300px;"></canvas>
+                        {% else %}
+                            <p class="text-center text-muted p-4">Necesitas completar al menos dos tests para que podamos dibujar tu gráfico de evolución.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                 <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h3 class="h5 mb-0">Estadísticas Globales</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Tests Realizados:</span>
+                            <span class="badge text-bg-primary rounded-pill fs-6">{{ resultados|length }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Preguntas Contestadas:</span>
+                            <span class="badge text-bg-secondary rounded-pill fs-6">{{ total_preguntas_hechas }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Nota Media:</span>
+                            <span class="badge fs-6 {% if nota_media_global >= 5 %}text-bg-success{% else %}text-bg-danger{% endif %} rounded-pill">
+                                {{ "%.2f"|format(nota_media_global) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="historial" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header"><h3 class="h5 mb-0">Historial de Tests</h3></div>
+                    <div class="card-body">
+                        {% if resultados %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Tema</th>
+                                        <th>Nota</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for resultado in resultados|reverse %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-bold">{{ resultado.tema.nombre }}</span><br>
+                                            <small class="text-muted">{{ resultado.tema.bloque.convocatoria.nombre }} > {{ resultado.tema.bloque.nombre }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge fs-6 {% if resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">
+                                                {{ "%.2f"|format(resultado.nota) }}
+                                            </span>
+                                        </td>
+                                        <td><small>{{ resultado.fecha.strftime('%d/%m/%Y') }}</small></td>
+                                        <td>
+                                            <a href="{{ url_for('repaso_test', resultado_id=resultado.id) }}" class="btn btn-sm btn-outline-secondary">Ver Repaso</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted p-4">Aún no has completado ningún test.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('graficoNotas')) {
+        const ctx = document.getElementById('graficoNotas').getContext('2d');
+        const labels = {{ labels_grafico|tojson }};
+        const data = {{ datos_grafico|tojson }};
+        const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+        const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+        const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+        new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-calendar-check-fill"></i> Gestionar Convocatorias</h1>
+        <a href="{{ url_for('crear_convocatoria') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Convocatoria</a>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                {% for convo in convocatorias %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ convo.nombre }}
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin_bloques', convocatoria_id=convo.id) }}" class="btn btn-sm btn-success">Gestionar Bloques</a>
+                            <a href="{{ url_for('editar_convocatoria', convocatoria_id=convo.id) }}" class="btn btn-sm btn-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
+                            <form method="POST" action="{{ url_for('eliminar_convocatoria', convocatoria_id=convo.id) }}" onsubmit="return confirm('¿Estás MUY seguro? Se borrará la convocatoria y TODOS sus bloques, temas y preguntas.');">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash3-fill"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="list-group-item">Aún no has creado ninguna convocatoria.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}
