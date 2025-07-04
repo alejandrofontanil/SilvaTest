@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 import os
 import cloudinary
 import cloudinary.uploader
+from flask_migrate import upgrade
 
 from mi_app import db
 # LÍNEA DE IMPORTACIÓN CORREGIDA para incluir todo lo necesario para el borrado
@@ -443,3 +444,17 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/super-secreto-admin-setup-db-12345')
+def super_secreto_db_setup():
+    """
+    Ruta temporal y secreta para ejecutar la migración de la base de datos en producción.
+    """
+    try:
+        print("Intentando ejecutar db upgrade...")
+        upgrade()
+        print("¡Migración completada con éxito!")
+        return "<h1>¡Base de datos migrada con éxito!</h1><p>Esta ruta ya puede ser eliminada.</p>"
+    except Exception as e:
+        print(f"Error durante la migración: {e}")
+        return f"<h1>Error durante la migración:</h1><p>{e}</p>", 500
