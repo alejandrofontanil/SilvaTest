@@ -408,3 +408,38 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
+
+@admin_bp.route('/super-secreto-probar-db-conexion-56789')
+def test_db_connection():
+    """
+    Ruta de diagnóstico para probar la conexión con la base de datos en producción.
+    """
+    try:
+        # Intentamos la consulta más simple posible
+        print("--- PROBANDO CONEXIÓN A LA BASE DE DATOS ---")
+        db.session.execute(db.text('SELECT 1'))
+        print("--- ¡'SELECT 1' FUNCIONÓ! LA CONEXIÓN ES BUENA. ---")
+
+        # Ahora intentamos contar usuarios para ver si las tablas existen
+        count = Usuario.query.count()
+        print(f"--- Conteo de usuarios exitoso. Hay {count} usuarios. ---")
+
+        return f"""
+            <h1>¡ÉXITO!</h1>
+            <p>La conexión con la base de datos PostgreSQL funciona.</p>
+            <p>Las tablas existen y se ha podido hacer una consulta (se encontraron {count} usuarios).</p>
+            <p>Esto es muy extraño. El problema debe ser otro muy sutil.</p>
+        """
+
+    except Exception as e:
+        # Si cualquiera de los pasos anteriores falla, veremos este error.
+        print(f"!!!!!!!!!! ERROR DE CONEXIÓN O CONSULTA A LA BASE DE DATOS !!!!!!!!!!!")
+        print(e)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        return f"""
+            <h1>ERROR DE BASE DE DATOS</h1>
+            <p>La aplicación no puede conectar o consultar la base de datos. Aquí está el culpable.</p>
+            <p>El error es:</p>
+            <pre><code>{e}</code></pre>
+        """, 500
