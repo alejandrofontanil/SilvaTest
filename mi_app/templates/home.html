@@ -13,7 +13,7 @@
         {% if convocatorias %}
             {% for convocatoria in convocatorias %}
                 <div class="col-lg-6" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
-                    <a href="{{ url_for('convocatoria_detalle', convocatoria_id=convocatoria.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id) }}" class="text-decoration-none">
                         <div class="card card-convocatoria h-100">
                             <div class="card-body text-center d-flex flex-column justify-content-center p-4">
                                 <h3 class="card-title">{{ convocatoria.nombre }}</h3>

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <a href="{{ url_for('admin.admin_temas') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a la Vista General</a>
+    <h1 class="mb-4">Gestionar Tema: {{ tema.nombre }}</h1>
+    <hr>
+
+    <div class="card mb-5" data-aos="fade-up">
+        <div class="card-header">
+            <h2 class="h4 mb-0"><i class="bi bi-journal-text"></i> Notas / Referencias del Tema</h2>
+        </div>
+        <div class="card-body">
+            {% if tema.notas %}
+                <ul class="list-group list-group-flush">
+                {% for nota in tema.notas %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fst-italic">{{ nota.texto }}</span>
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin.editar_nota', nota_id=nota.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-fill"></i></a>
+                            <form method="POST" action="{{ url_for('admin.eliminar_nota', nota_id=nota.id) }}" onsubmit="return confirm('¿Estás seguro?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3-fill"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No hay notas para este tema.</p>
+            {% endif %}
+            <hr class="my-4">
+            <h3 class="h5">Añadir Nueva Nota</h3>
+            <form method="POST" action="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" name="form_nota">
+                {{ form_nota.hidden_tag() }}
+                <div class="input-group">
+                    {{ form_nota.texto(class="form-control", placeholder="Ej: Referencia a Normativa...") }}
+                    <button type="submit" name="submit_nota" class="btn btn-secondary">Añadir Nota</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" data-aos="fade-up" data-aos-delay="100">
+        <div class="card-header">
+             <h2 class="h4 mb-0"><i class="bi bi-patch-question-fill"></i> Preguntas del Tema</h2>
+        </div>
+        <div class="card-body">
+
+            <h3 class="h5">Añadir Nueva Pregunta</h3>
+            <form method="POST" action="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" enctype="multipart/form-data" name="form_pregunta">
+                {{ form_pregunta.hidden_tag() }}
+                <fieldset>
+                    <div class="mb-3">{{ form_pregunta.texto.label(class="form-label") }} {{ form_pregunta.texto(class="form-control", rows="3") }}</div>
+
+                    <div class="mb-3">
+                        {{ form_pregunta.imagen.label(class="form-label") }}
+                        {{ form_pregunta.imagen(class="form-control") }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">{{ form_pregunta.dificultad.label(class="form-label") }} {{ form_pregunta.dificultad(class="form-select") }}</div>
+                        <div class="col-md-6 mb-3">
+                            {{ form_pregunta.tipo_pregunta.label(class="form-label") }}
+                            {{ form_pregunta.tipo_pregunta(class="form-select", id="pregunta-tipo_pregunta") }} 
+                        </div>
+                    </div>
+                    <hr>
+
+                    <div id="campos-opcion-multiple">
+                        <p class="fw-bold">Opciones para Pregunta de Opción Múltiple:</p>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">{{ form_pregunta.respuesta1_texto.label(class="form-label") }} {{ form_pregunta.respuesta1_texto(class="form-control") }}</div>
+                            <div class="col-md-6 mb-3">{{ form_pregunta.respuesta2_texto.label(class="form-label") }} {{ form_pregunta.respuesta2_texto(class="form-control") }}</div>
+                            <div class="col-md-6 mb-3">{{ form_pregunta.respuesta3_texto.label(class="form-label") }} {{ form_pregunta.respuesta3_texto(class="form-control") }}</div>
+                            <div class="col-md-6 mb-3">{{ form_pregunta.respuesta4_texto.label(class="form-label") }} {{ form_pregunta.respuesta4_texto(class="form-control") }}</div>
+                        </div>
+                        <div class="mb-3">{{ form_pregunta.respuesta_correcta.label(class="form-label") }}<div class="d-flex">{% for subfield in form_pregunta.respuesta_correcta %}<div class="form-check me-3">{{ subfield(class="form-check-input") }} {{ subfield.label(class="form-check-label") }}</div>{% endfor %}</div></div>
+                    </div>
+
+                    <div id="campo-respuesta-texto" style="display: none;">
+                        <p class="fw-bold">Respuesta para Pregunta de Texto (Visu):</p>
+                        <div class="mb-3">
+                            {{ form_pregunta.respuesta_correcta_texto.label(class="form-label") }}
+                            {{ form_pregunta.respuesta_correcta_texto(class="form-control") }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">{{ form_pregunta.retroalimentacion.label(class="form-label") }} {{ form_pregunta.retroalimentacion(class="form-control", rows="2") }}</div>
+                </fieldset>
+                <div class="d-grid">
+                    <button type="submit" name="submit_pregunta" class="btn btn-primary">Guardar Pregunta</button>
+                </div>
+            </form>
+
+            <hr class="my-4">
+
+            <h3 class="h5">Preguntas Existentes</h3>
+            <form method="POST" action="{{ url_for('admin.eliminar_preguntas_masivo') }}" id="form-borrado-masivo">
+
+                <input type="hidden" name="tema_id" value="{{ tema.id }}">
+
+                {% if tema.preguntas %}
+                    <div class="list-group">
+                        <div class="list-group-item">
+                            <input class="form-check-input" type="checkbox" id="seleccionar-todo">
+                            <label class="form-check-label fw-bold" for="seleccionar-todo">
+                                Seleccionar Todo
+                            </label>
+                        </div>
+
+                        {% for pregunta in tema.preguntas %}
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div>
+                                    <input class="form-check-input pregunta-checkbox" type="checkbox" name="preguntas_ids" value="{{ pregunta.id }}">
+                                    <span class="fw-bold ms-2">{{ loop.index }}. {{ pregunta.texto }}</span>
+                                </div>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.editar_pregunta', pregunta_id=pregunta.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
+
+                                    <form method="POST" action="{{ url_for('admin.eliminar_pregunta', pregunta_id=pregunta.id) }}" class="ms-1" onsubmit="return confirm('¿Seguro que quieres eliminar esta pregunta?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    </form>
+
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-danger mt-3" onclick="return confirm('¿Estás seguro de que quieres eliminar TODAS las preguntas seleccionadas? Esta acción no se puede deshacer.');">
+                        <i class="bi bi-trash3-fill"></i> Eliminar Seleccionadas
+                    </button>
+                {% else %}
+                    <p class="text-muted">No hay preguntas en este tema.</p>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+<script>
+// Script para mostrar/ocultar campos del formulario según el tipo de pregunta
+document.addEventListener('DOMContentLoaded', function() {
+    const selector = document.getElementById('pregunta-tipo_pregunta');
+    const camposOpcionMultiple = document.getElementById('campos-opcion-multiple');
+    const campoRespuestaTexto = document.getElementById('campo-respuesta-texto');
+
+    function toggleFields() {
+        if (!selector) return; 
+        if (selector.value === 'opcion_multiple') {
+            camposOpcionMultiple.style.display = 'block';
+            campoRespuestaTexto.style.display = 'none';
+        } else {
+            camposOpcionMultiple.style.display = 'none';
+            campoRespuestaTexto.style.display = 'block';
+        }
+    }
+
+    if (selector) {
+        toggleFields();
+        selector.addEventListener('change', toggleFields);
+    }
+});
+
+// Script para la funcionalidad de 'Seleccionar Todo' en los checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const seleccionarTodoCheckbox = document.getElementById('seleccionar-todo');
+    if (!seleccionarTodoCheckbox) return; // Salir si el checkbox no existe
+
+    const checkboxes = document.querySelectorAll('.pregunta-checkbox');
+
+    seleccionarTodoCheckbox.addEventListener('change', function() {
+        checkboxes.forEach(chk => {
+            chk.checked = seleccionarTodoCheckbox.checked;
+        });
+    });
+
+    checkboxes.forEach(chk => {
+        chk.addEventListener('change', function() {
+            if (!chk.checked) {
+                seleccionarTodoCheckbox.checked = false;
+            } else {
+                const allChecked = Array.from(checkboxes).every(c => c.checked);
+                seleccionarTodoCheckbox.checked = allChecked;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

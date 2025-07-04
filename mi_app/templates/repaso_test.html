@@ -3,49 +3,34 @@
 {% block content %}
 <div class="card shadow-sm">
     <div class="card-body p-4">
-        <a href="{{ url_for('cuenta') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Mi Historial</a>
-        <h1 class="display-5">Repaso del Test</h1>
-        <p class="fs-4 text-muted">Tema: {{ resultado.tema.nombre }}</p>
-        <p class="text-muted">Realizado el {{ resultado.fecha.strftime('%d-%m-%Y') }} con una nota de <strong class="fs-5">{{ "%.2f"|format(resultado.nota) }}</strong>.</p>
-        <hr class="my-4">
+        <a href="{{ url_for('main.cuenta') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Mi Historial</a>
+        <h1 class="mb-2">Repaso del Test: {{ resultado.tema.nombre }}</h1>
+        <p class="text-muted mb-4">Fecha: {{ resultado.fecha.strftime('%d/%m/%Y') }} - Nota: {{ "%.2f"|format(resultado.nota) }}</p>
+        <hr>
 
-        {% for r_usuario in resultado.desglose_respuestas %}
-        <div class="card mb-3 {% if not r_usuario.es_correcta %}border-danger border-2{% endif %}" data-aos="fade-up">
-            <div class="card-header">
-                <strong>Pregunta {{ loop.index }}:</strong>
-            </div>
-            <div class="card-body">
-                <p class="fs-5">{{ r_usuario.pregunta.texto }}</p>
-                <ul class="list-group list-group-flush">
-                    {% for opcion in r_usuario.pregunta.respuestas %}
-                        {# Comprobamos el estado de cada opción para darle un estilo u otro #}
-                        {% set es_la_marcada_por_usuario = (opcion.id == r_usuario.respuesta_seleccionada_id) %}
-                        {% set es_la_correcta_de_verdad = opcion.es_correcta %}
+        {% for respuesta_usuario in resultado.desglose_respuestas %}
+            <div class="card my-4">
+                <div class="card-body">
+                    <p class="fw-bold">{{ loop.index }}. {{ respuesta_usuario.pregunta.texto }}</p>
 
-                        <li class="list-group-item 
-                            {# Si es la correcta, la pintamos de verde #}
-                            {% if es_la_correcta_de_verdad %} 
-                                list-group-item-success 
-                            {# Si es la que marcó el usuario Y ADEMÁS es incorrecta, la pintamos de rojo #}
-                            {% elif es_la_marcada_por_usuario and not r_usuario.es_correcta %} 
-                                list-group-item-danger 
-                            {% endif %}">
-
-                            {{ opcion.texto }}
-
-                            {# Añadimos insignias para que quede aún más claro #}
-                            {% if es_la_correcta_de_verdad %}
-                                <span class="badge bg-success float-end"><i class="bi bi-check-circle-fill"></i> Correcta</span>
-                            {% endif %}
-                            {% if es_la_marcada_por_usuario and not r_usuario.es_correcta %}
-                                <span class="badge bg-danger float-end"><i class="bi bi-x-circle-fill"></i> Tu respuesta</span>
-                            {% endif %}
-                        </li>
+                    {% for respuesta in respuesta_usuario.pregunta.respuestas %}
+                        <div class="p-2 rounded {% if respuesta.es_correcta %}bg-success-subtle{% elif respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}bg-danger-subtle{% endif %}">
+                            <input class="form-check-input" type="radio" name="pregunta-{{ respuesta_usuario.pregunta.id }}" disabled {% if respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}checked{% endif %}>
+                            <label class="form-check-label">{{ respuesta.texto }}</label>
+                            {% if respuesta.es_correcta %} <i class="bi bi-check-circle-fill text-success"></i> (Correcta) {% endif %}
+                            {% if not respuesta.es_correcta and respuesta.id == respuesta_usuario.respuesta_seleccionada_id %} <i class="bi bi-x-circle-fill text-danger"></i> (Tu respuesta) {% endif %}
+                        </div>
                     {% endfor %}
-                </ul>
+
+                    {% if not respuesta_usuario.es_correcta and respuesta_usuario.pregunta.retroalimentacion %}
+                        <div class="alert alert-info mt-3">
+                            <strong>Pista:</strong> {{ respuesta_usuario.pregunta.retroalimentacion }}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-        </div>
         {% endfor %}
+
     </div>
 </div>
 {% endblock %}

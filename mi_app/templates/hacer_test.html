@@ -1,105 +1,243 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-    {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
-    <div id="barra-temporizador" class="sticky-top py-2 px-3 mb-4 rounded shadow-sm text-center">
-        <h4 class="mb-0"><i class="bi bi-clock-history"></i> Tiempo Restante: <span id="cronometro" class="fw-bold">--:--</span></h4>
-    </div>
     <style>
-        #barra-temporizador { top: 70px; background-color: var(--bs-light-bg-subtle, #FFFFFF); border: 1px solid var(--bs-border-color, #dee2e6); z-index: 1000; }
-        #cronometro.poco-tiempo { color: #D93025; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .visu-image {
+            max-height: 350px;
+            width: auto;
+            max-width: 100%;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .feedback-container {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+        .feedback-correcto {
+            border: 2px solid var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+            color: var(--bs-success-text-emphasis);
+        }
+        .feedback-incorrecto {
+            border: 2px solid var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+            color: var(--bs-danger-text-emphasis);
+        }
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            z-index: 1050;
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+            font-weight: 500;
+        }
+        .toast-notification.show {
+            bottom: 40px;
+            opacity: 1;
+        }
     </style>
-    {% endif %}
 
     <div class="card shadow-sm">
         <div class="card-body p-4">
             <h1 class="mb-2">Test: {{ tema.nombre }}</h1>
-            <p class="text-muted mb-4">Selecciona una respuesta para cada pregunta y pulsa "Finalizar" cuando termines.</p>
+            <p class="text-muted mb-4">
+                {% if tema.es_simulacro %}
+                    Estás en modo simulacro. Deberás finalizar el test para ver los resultados.
+                {% else %}
+                    Selecciona o escribe una respuesta. Puedes usar los botones de cada pregunta para obtener feedback.
+                {% endif %}
+            </p>
             <hr>
 
-            <form id="test-form" method="POST" action="{{ url_for('corregir_test', tema_id=tema.id) }}">
+            <form id="test-form" method="POST" action="{{ url_for('main.corregir_test', tema_id=tema.id) }}">
+
                 {% for pregunta in preguntas %}
                     <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
                             <div class="btn-group">
-                                {% if pregunta.retroalimentacion %}
-                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-pista" title="Mostrar Pista"><i class="bi bi-lightbulb-fill"></i></button>
+                                {% if not tema.es_simulacro %}
+                                    <button type="button" class="btn btn-sm btn-outline-info btn-comprobar" data-pregunta-id="{{ pregunta.id }}" title="Comprobar Respuesta"><i class="bi bi-check-circle-fill"></i></button>
                                 {% endif %}
-                                <button type="button" class="btn btn-sm btn-outline-info btn-comprobar" title="Comprobar Respuesta"><i class="bi bi-check-circle-fill"></i></button>
-
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ pregunta.id }}" title="Marcar como favorita">
-                                    {# Comprobamos si el usuario ya la tiene como favorita para mostrar la estrella llena o vacía #}
-                                    <i class="bi {% if current_user.es_favorita(pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
-                                </button>
-
-                                <button type="button" class="btn btn-sm btn-outline-warning btn-reportar" data-pregunta-id="{{ pregunta.id }}" title="Reportar error en esta pregunta">
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-reportar" data-pregunta-id="{{ pregunta.id }}" title="Reportar error">
                                     <i class="bi bi-flag-fill"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ pregunta.id }}" title="Marcar como favorita">
+                                    <i class="bi {% if current_user.is_authenticated and current_user.es_favorita(pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
+                            {% if pregunta.imagen_url %}
+                                <div class="text-center mb-3">
+                                    <img src="{{ pregunta.imagen_url }}" alt="Imagen de la pregunta" class="img-fluid visu-image shadow-sm">
+                                </div>
+                            {% endif %}
                             <p class="card-text fs-5">{{ pregunta.texto }}</p>
 
-                            {% if pregunta.retroalimentacion %}
-                            <div class="pista-texto alert alert-info mt-2" style="display: none;"><strong>Pista:</strong> {{ pregunta.retroalimentacion }}</div>
+                            <div class="feedback-container mt-3" style="display: none;"></div>
+
+                            {% if pregunta.tipo_pregunta == 'respuesta_texto' %}
+                                <div class="mt-3">
+                                    <input type="text" name="pregunta-{{ pregunta.id }}" class="form-control form-control-lg" placeholder="Escribe aquí tu respuesta..." required>
+                                </div>
+                            {% else %}
+                                <div class="list-group mt-3">
+                                    {% for respuesta in pregunta.respuestas_barajadas %}
+                                        <label class="list-group-item list-group-item-action">
+                                            <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}" required>
+                                            {{ respuesta.texto }}
+                                        </label>
+                                    {% endfor %}
+                                </div>
                             {% endif %}
-
-                            <div class="feedback-texto mt-2"></div>
-
-                            <div class="list-group mt-3">
-                                {% for respuesta in pregunta.respuestas_barajadas %}
-                                    <label class="list-group-item list-group-item-action"><input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}" required> {{ respuesta.texto }}</label>
-                                {% endfor %}
-                            </div>
                         </div>
                     </div>
                 {% endfor %}
 
                 <div class="d-grid mt-4">
-                    <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-check2-circle"></i> Finalizar y Corregir Test</button>
+                    <button id="submit-test-btn" type="submit" class="btn btn-success btn-lg">
+                        <svg class="tree-spinner" width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                            <g transform="translate(50, 50)">
+                                <rect x="-5" y="10" width="10" height="20" fill="#8B5A2B" rx="2" />
+                                <g>
+                                  <circle r="20" cy="-15" fill="#4CAF50" />
+                                  <circle r="15" cx="-15" cy="-10" fill="#43A047" />
+                                  <circle r="15" cx="15" cy="-10" fill="#388E3C" />
+                                  <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.5s" repeatCount="indefinite" />
+                                </g>
+                            </g>
+                        </svg>
+                        <span class="button-text"><i class="bi bi-check2-circle"></i> Finalizar y Corregir Test</span>
+                    </button>
                 </div>
+
             </form>
         </div>
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- Lógica del CRONÓMETRO ---
-        // ... (código del cronómetro) ...
 
-        // --- Lógica para el botón de REPORTE ---
-        // ... (código del botón de reporte) ...
+        // LÓGICA PARA EL BOTÓN DE ENVIAR (ACTUALIZADA)
+        const testForm = document.getElementById('test-form');
+        const submitBtn = document.getElementById('submit-test-btn');
+        if (submitBtn) { 
+            // Buscamos la nueva clase '.tree-spinner'
+            const spinner = submitBtn.querySelector('.tree-spinner');
+            const buttonText = submitBtn.querySelector('.button-text');
 
-        // --- ¡NUEVA LÓGICA PARA EL BOTÓN DE FAVORITO! ---
-        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            testForm.addEventListener('submit', function() {
+                submitBtn.disabled = true;
+                if(buttonText) buttonText.style.display = 'none';
+                if(spinner) spinner.style.display = 'inline-block';
+            });
+        }
+
+        // --- LÓGICA PARA COMPROBAR RESPUESTA (tu código original) ---
+        document.querySelectorAll('.btn-comprobar').forEach(function(boton) {
             boton.addEventListener('click', function() {
                 const preguntaId = this.dataset.preguntaId;
-                const icono = this.querySelector('i');
-
-                // Llamamos a la nueva ruta que hemos creado en main.py
-                fetch(`/pregunta/${preguntaId}/toggle_favorito`, { 
+                const card = document.getElementById(`card-pregunta-${preguntaId}`);
+                const respuestaSeleccionada = card.querySelector(`input[name="pregunta-${preguntaId}"]:checked`);
+                const feedbackContainer = card.querySelector('.feedback-container');
+                if (!respuestaSeleccionada) {
+                    alert('Por favor, selecciona una respuesta antes de comprobar.');
+                    return;
+                }
+                fetch("{{ url_for('main.comprobar_respuesta') }}", { 
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    feedbackContainer.style.display = 'block';
+                    if (data.es_correcta) {
+                        feedbackContainer.className = 'feedback-container feedback-correcto';
+                        feedbackContainer.innerHTML = `<strong>¡Correcto!</strong> ${data.retroalimentacion || ''}`;
+                    } else {
+                        feedbackContainer.className = 'feedback-container feedback-incorrecto';
+                        feedbackContainer.innerHTML = `<strong>Incorrecto.</strong> ${data.retroalimentacion || ''}`;
+                    }
+                });
+            });
+        });
+
+        // --- LÓGICA PARA REPORTAR (CORREGIDA) ---
+        document.querySelectorAll('.btn-reportar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                if (!confirm('¿Estás seguro de que quieres reportar esta pregunta para su revisión?')) { return; }
+                const url_template = "{{ url_for('main.reportar_pregunta', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}
                 })
                 .then(response => response.json())
                 .then(data => {
                     if(data.success) {
-                        // Cambiamos el icono según la respuesta del servidor
-                        if (data.es_favorita) {
-                            icono.className = 'bi bi-star-fill text-warning';
-                        } else {
-                            icono.className = 'bi bi-star';
-                        }
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+                        showToast(data.message);
+                        this.classList.remove('btn-outline-warning');
+                        this.classList.add('btn-warning', 'disabled');
+                    } else { alert('Hubo un error al reportar la pregunta.'); }
+                });
             });
         });
 
-        // ... (lógica de Pista y Comprobar) ...
+        // --- LÓGICA PARA FAVORITO (CORREGIDA) ---
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url_template = "{{ url_for('main.toggle_favorito', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        let message = '';
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                            message = 'Añadida a favoritos';
+                        } else {
+                            icono.className = 'bi bi-star';
+                            message = 'Quitada de favoritos';
+                        }
+                        showToast(message);
+                    }
+                })
+                .catch(error => console.error("Error en la operación de favorito:", error));
+            });
+        });
+
+        // --- Función para crear y mostrar la notificación "toast" ---
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
     });
     </script>
 {% endblock %}

@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-header"><h2>Editando Pregunta</h2></div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('editar_pregunta', pregunta_id=pregunta.id) }}">
+                    <form method="POST" action="{{ url_for('admin.editar_pregunta', pregunta_id=pregunta.id) }}">
                         {{ form.hidden_tag() }}
                         <fieldset>
                             <div class="mb-3">

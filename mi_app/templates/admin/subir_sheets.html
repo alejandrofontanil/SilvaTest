@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="bi bi-cloud-upload-fill"></i> Importar Preguntas desde Google Sheets</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Pega aquí la URL de tu hoja de cálculo de Google Sheets. Asegúrate de que tiene las columnas correctas y de que la has compartido con el email de servicio.</p>
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.sheet_url.label(class="form-label") }}
+                        {{ form.sheet_url(class="form-control form-control-lg", placeholder="https://docs.google.com/spreadsheets/d/...") }}
+                    </div>
+                    <div class="d-grid mt-4">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SilvaTest - Plataforma de Tests</title>
+    <title>{% if title %}{{ title }} - {% endif %}SilvaTest</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -16,7 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-      /* Paleta de Colores para el MODO CLARO */
       :root {
         --bs-body-bg: #F8F9FA;
         --bs-body-color: #212529;
@@ -26,9 +25,7 @@
         --bs-secondary-text-emphasis: #5D4037;
         --bs-border-color: #dee2e6;
         --bs-btn-color: #FFFFFF;
-        --bs-light-bg-subtle: #FFFFFF;
       }
-      /* Paleta de Colores para el MODO OSCURO "GEMINI" */
       [data-bs-theme="dark"] {
         --bs-body-bg: #1F1F1F;
         --bs-body-color: #DADCE0;
@@ -40,22 +37,14 @@
         --bs-light-bg-subtle: #2A2A2E;
         --bs-btn-color: #1F1F1F;
       }
-
-      /* Estilos Generales */
-      html {
-        background-color: var(--bs-body-bg);
-      }
       body {
         font-family: 'Lato', sans-serif;
         font-size: 1.1rem;
         line-height: 1.6;
-        color: var(--bs-body-color);
-        background-color: transparent; /* Hacemos el body transparente para que se vea el fondo del html */
+        padding-bottom: 120px;
         position: relative;
-        padding-bottom: 80px; /* Espacio para el borde inferior */
+        background-color: var(--bs-body-bg);
       }
-
-      /* Componentes */
       .navbar {
         background-color: var(--bs-light-bg-subtle, #FFFFFF) !important;
         border-bottom: 1px solid var(--bs-border-color);
@@ -63,63 +52,51 @@
         backdrop-filter: blur(10px);
       }
       .navbar .navbar-brand { color: var(--bs-secondary-text-emphasis) !important; font-weight: 700; }
-      .navbar .nav-link { color: var(--bs-nav-texto, #495057) !important; font-weight: 700; }
-      .navbar .nav-link:hover, .navbar .nav-link.active { color: var(--bs-nav-hover, var(--bs-secondary)) !important; }
-
       .card, .list-group-item, .alert {
         background-color: var(--bs-light-bg-subtle) !important;
         border: 1px solid var(--bs-border-color);
         border-radius: 0.75rem;
         color: var(--bs-body-color);
       }
-      .list-group-flush > .list-group-item {
-        border-width: 0 0 1px;
-      }
-      .list-group-flush > .list-group-item:last-child {
-        border-bottom-width: 0;
-      }
-
       h1, h2, h3, h4, h5, h6 { color: var(--bs-secondary-text-emphasis); font-weight: 700; }
-
-      /* Borde Decorativo */
       .footer-border {
-        position: fixed; /* Lo fijamos a la ventana */
+        position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
         height: 80px;
-        z-index: -1; /* Detrás de todo */
+        z-index: -1;
         pointer-events: none;
         color: var(--bs-border-color);
       }
     </style>
   </head>
-  <body>
+  <body class="d-flex flex-column min-vh-100">
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
-          <a class="navbar-brand fw-bold" href="{{ url_for('home') }}">SilvaTest</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">SilvaTest</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
           </button>
           <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('home') }}">Inicio</a>
+                    <a class="nav-link fw-bold" href="{{ url_for('main.home') }}">Inicio</a>
                 </li>
                  {% if current_user.is_authenticated and current_user.es_admin %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a>
+                        <a class="nav-link fw-bold" href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
                     </li>
                  {% endif %}
             </ul>
-            <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+            <ul class="navbar-nav ms-auto align-items-center">
                 {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
                 {% else %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
                 {% endif %}
                 <li class="nav-item ms-2">
                     <button id="theme-toggle" class="btn"><i id="theme-toggle-icon" class="bi"></i></button>
@@ -128,73 +105,64 @@
           </div>
         </div>
     </nav>
+
     <main class="container mt-4" data-aos="fade-up" data-aos-delay="100">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-            {% block content %}{% endblock %}
-        </main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="container mt-auto py-4">
+        <ul class="nav justify-content-center border-top pt-3 mb-3">
+          <li class="nav-item"><a href="{{ url_for('main.home') }}" class="nav-link px-2 text-body-secondary">Home</a></li>
+          <li class="nav-item"><a href="{{ url_for('main.terminos_condiciones') }}" class="nav-link px-2 text-body-secondary">Términos</a></li>
+          <li class="nav-item"><a href="{{ url_for('main.politica_privacidad') }}" class="nav-link px-2 text-body-secondary">Privacidad</a></li>
+        </ul>
+        <p class="text-center text-body-secondary">© 2025 SilvaTest</p>
+    </footer>
 
-        <div class="footer-border">
-            <svg
-                width="100%"
-                height="100%"
-                viewBox="0 0 1440 80"
-                preserveAspectRatio="xMidYMax meet"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M-5 65 C 40 20, 80 90, 150 70 C 220 50, 280 95, 320 45 C 330 20, 350 25, 360 50 C 370 75, 390 90, 440 70 C 490 50, 530 85, 590 65 C 650 45, 690 90, 760 70 C 830 50, 870 95, 940 75 C 970 65, 990 90, 1040 70 C 1050 65, 1055 60, 1060 62 C 1075 70, 1090 50, 1130 85, 1190 65 C 1250 45, 1290 90, 1360 70 C 1410 55, 1430 80, 1445 65"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                />
-                <path
-                    d="M-5 78 C 30 40, 70 95, 140 75 C 210 55, 270 100, 310 55 C 320 30, 340 35, 350 60 C 360 85, 380 95, 430 75 C 480 55, 520 90, 580 70 C 640 50, 680 95, 750 75 C 820 55, 860 100, 930 80 C 960 70, 980 95, 1030 75 C 1040 70, 1045 65, 1050 67 C 1065 75, 1080 55, 1120 90, 1180 70 C 1240 50, 1280 95, 1350 75 C 1400 60, 1420 85, 1445 78"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    opacity="0.6"
-                />
-            </svg>
-        </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-        <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
-        <script>
-          (function() {
-            const htmlElement = document.documentElement;
-            const themeToggleBtn = document.getElementById('theme-toggle');
-            const themeToggleIcon = document.getElementById('theme-toggle-icon');
-            function applyTheme(theme) {
-              htmlElement.setAttribute('data-bs-theme', theme);
-              if (theme === 'dark') {
-                themeToggleIcon.className = 'bi bi-sun-fill';
-              } else {
-                themeToggleIcon.className = 'bi bi-moon-fill';
-              }
-            }
-            themeToggleBtn.addEventListener('click', function() {
-              const currentTheme = htmlElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-              localStorage.setItem('theme', currentTheme);
-              applyTheme(currentTheme);
-            });
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
-          })();
-        </script>
-      </body>
-    </html>
+    <div class="footer-border">
+        <svg width="100%" height="100%" viewBox="0 0 1440 80" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+            <path d="M-5 65 C 40 20, 80 90, 150 70 C 220 50, 280 95, 320 45 C 330 20, 350 25, 360 50 C 370 75, 390 90, 440 70 C 490 50, 530 85, 590 65 C 650 45, 690 90, 760 70 C 830 50, 870 95, 940 75 C 970 65, 990 90, 1040 70 C 1050 65, 1055 60, 1060 62 C 1075 70, 1090 50, 1130 85, 1190 65 C 1250 45, 1290 90, 1360 70 C 1410 55, 1430 80, 1445 65" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M-5 78 C 30 40, 70 95, 140 75 C 210 55, 270 100, 310 55 C 320 30, 340 35, 350 60 C 360 85, 380 95, 430 75 C 480 55, 520 90, 580 70 C 640 50, 680 95, 750 75 C 820 55, 860 100, 930 80 C 960 70, 980 95, 1030 75 C 1040 70, 1045 65, 1050 67 C 1065 75, 1080 55, 1120 90, 1180 70 C 1240 50, 1280 95, 1350 75 C 1400 60, 1420 85, 1445 78" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+        </svg>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
+    <script>
+      (function() {
+        const htmlElement = document.documentElement;
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleIcon = document.getElementById('theme-toggle-icon');
+        function applyTheme(theme) {
+          htmlElement.setAttribute('data-bs-theme', theme);
+          if (theme === 'dark') {
+            themeToggleIcon.className = 'bi bi-sun-fill';
+          } else {
+            themeToggleIcon.className = 'bi bi-moon-fill';
+          }
+        }
+        themeToggleBtn.addEventListener('click', function() {
+          const currentTheme = htmlElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('theme', currentTheme);
+          applyTheme(currentTheme);
+        });
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+  </body>
+</html>

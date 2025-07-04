@@ -17,6 +17,10 @@ email-validator = "2.2.0"
 wtforms-sqlalchemy = "^0.4.2"
 flask-migrate = "4.0.7"
 sqlalchemy = "^2.0.41"
+cloudinary = "^1.44.1"
+gspread = "6.1.4"
+google-auth-oauthlib = "1.2.1"
+google-auth = "^2.40.3"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
