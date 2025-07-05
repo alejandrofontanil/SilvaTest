@@ -17,21 +17,32 @@
     </div>
 
     <div class="col-md-9">
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.cuenta') }}" class="row g-3 align-items-end">
+                    {{ form.hidden_tag() }}
+                    <div class="col-md">
+                        {{ form.convocatoria.label(class="form-label fw-bold") }}
+                        {{ form.convocatoria(class="form-select") }}
+                    </div>
+                    <div class="col-md-auto">
+                        {{ form.submit(class="btn btn-primary w-100") }}
+                    </div>
+                </form>
+            </div>
+        </div>
         <div class="tab-content">
             <div class="tab-pane fade show active" id="estadisticas" role="tabpanel">
                 <div class="card shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
                         <h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3>
-                        <div class="btn-group btn-group-sm mt-2 mt-md-0">
-                             <a href="{{ url_for('main.cuenta', periodo='mes') }}" class="btn {% if periodo_activo == 'mes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Este Mes</a>
-                             <a href="{{ url_for('main.cuenta', periodo='siempre') }}" class="btn {% if periodo_activo == 'siempre' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Siempre</a>
-                        </div>
                     </div>
                     <div class="card-body">
                         {% if datos_grafico %}
                             <canvas id="graficoNotas" style="min-height: 300px;"></canvas>
                         {% else %}
-                            <p class="text-center text-muted p-4">No hay datos para mostrar en este periodo.</p>
+                            <p class="text-center text-muted p-4">No hay datos de tests para mostrar en la convocatoria seleccionada.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -74,7 +85,7 @@
                             </table>
                         </div>
                         {% else %}
-                        <p class="text-center text-muted p-4">Aún no has completado ningún test.</p>
+                        <p class="text-center text-muted p-4">Aún no has completado ningún test en la convocatoria seleccionada.</p>
                         {% endif %}
                     </div>
                 </div>
