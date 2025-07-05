@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import date
 import random
+from collections import defaultdict # <-- Importación añadida
+from itertools import groupby      # <-- Importación añadida
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
@@ -10,20 +12,20 @@ from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, Resul
 main_bp = Blueprint('main', __name__)
 
 def obtener_preguntas_recursivas(tema):
-        preguntas = []
-        preguntas.extend(tema.preguntas)
-        for subtema in tema.subtemas:
-            preguntas.extend(obtener_preguntas_recursivas(subtema))
-        return preguntas
+    preguntas = []
+    preguntas.extend(tema.preguntas)
+    for subtema in tema.subtemas:
+        preguntas.extend(obtener_preguntas_recursivas(subtema))
+    return preguntas
 
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-        if current_user.is_authenticated and not current_user.es_admin:
-            convocatorias = current_user.convocatorias_accesibles.all()
-        else:
-            convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-        return render_template('home.html', convocatorias=convocatorias)
+    if current_user.is_authenticated and not current_user.es_admin:
+        convocatorias = current_user.convocatorias_accesibles.all()
+    else:
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+    return render_template('home.html', convocatorias=convocatorias)
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
@@ -42,27 +44,43 @@ def bloque_detalle(bloque_id):
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
     return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
 
+# --- FUNCIÓN 'CUENTA' ACTUALIZADA Y CORREGIDA ---
 @main_bp.route('/cuenta')
 @login_required
 def cuenta():
     periodo = request.args.get('periodo', 'mes')
-    query_base = db.session.query(
-        func.strftime('%d/%m/%Y', ResultadoTest.fecha).label('fecha_dia_formateada'),
-        func.avg(ResultadoTest.nota).label('nota_media')
-    ).filter(ResultadoTest.usuario_id == current_user.id)
+    query_base = ResultadoTest.query.filter_by(autor=current_user).order_by(ResultadoTest.fecha.asc())
+
     if periodo == 'mes':
         hoy = date.today()
         primer_dia_mes = hoy.replace(day=1)
         query_base = query_base.filter(ResultadoTest.fecha >= primer_dia_mes)
-    resultados_agrupados = query_base.group_by(func.date(ResultadoTest.fecha)).order_by(func.date(ResultadoTest.fecha)).all()
-    labels_grafico = [resultado.fecha_dia_formateada for resultado in resultados_agrupados]
-    datos_grafico = [round(resultado.nota_media, 2) for resultado in resultados_agrupados]
+
+    # 1. Obtenemos todos los resultados en bruto del periodo
+    resultados_del_periodo = query_base.all()
+
+    # 2. Agrupamos los resultados por día y calculamos la media en Python
+    resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
+    for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
+        notas_del_dia = [r.nota for r in grupo]
+        if notas_del_dia:
+            resultados_agrupados[fecha]['notas'].extend(notas_del_dia)
+            resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
+
+    # 3. Preparamos los datos para el gráfico, ordenando los días
+    dias_ordenados = sorted(resultados_agrupados.keys())
+    labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
+    datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
+
+    # 4. Obtenemos datos para la tabla y estadísticas generales
     resultados_tabla = ResultadoTest.query.filter_by(autor=current_user).order_by(ResultadoTest.fecha.desc()).all()
     total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
+
     if resultados_tabla:
         nota_media_global = sum([r.nota for r in resultados_tabla]) / len(resultados_tabla)
     else:
         nota_media_global = 0
+
     return render_template(
         'cuenta.html', 
         title='Mi Cuenta', 
@@ -73,6 +91,7 @@ def cuenta():
         total_preguntas_hechas=total_preguntas_hechas,
         nota_media_global=nota_media_global
     )
+# --- FIN DE LA FUNCIÓN ACTUALIZADA ---
 
 @main_bp.route('/cuenta/favoritas')
 @login_required
@@ -107,9 +126,14 @@ def corregir_test(tema_id):
     preguntas_en_test = obtener_preguntas_recursivas(tema)
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
+    if not preguntas_en_test:
+        flash('No se puede corregir un test sin preguntas.', 'warning')
+        return redirect(url_for('main.home'))
+
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
+
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -118,7 +142,6 @@ def corregir_test(tema_id):
                 respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
                 if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
                     es_correcta = True
-                # LÍNEA CORREGIDA 1
                 respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=respuesta_seleccionada.id, resultado_test=nuevo_resultado)
                 db.session.add(respuesta_usuario)
         elif pregunta.tipo_pregunta == 'respuesta_texto':
@@ -127,11 +150,11 @@ def corregir_test(tema_id):
                respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
                 es_correcta = True
             if respuesta_texto_usuario is not None:
-                # LÍNEA CORREGIDA 2
                 respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
                 db.session.add(respuesta_usuario)
         if es_correcta:
             aciertos += 1
+
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     db.session.commit()
@@ -227,9 +250,6 @@ def toggle_favorito(pregunta_id):
 @main_bp.route('/pregunta/<int:pregunta_id>/reportar', methods=['POST'])
 @login_required
 def reportar_pregunta(pregunta_id):
-    """
-    Permite a un usuario logueado marcar una pregunta para revisión.
-    """
     pregunta = Pregunta.query.get_or_404(pregunta_id)
     pregunta.necesita_revision = True
     db.session.commit()
