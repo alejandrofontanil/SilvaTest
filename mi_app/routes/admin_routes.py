@@ -9,7 +9,8 @@ import cloudinary
 import cloudinary.uploader
 
 from mi_app import db
-from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario
+# Línea de importación completa para asegurar que todo está disponible
+from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario, ResultadoTest
 from mi_app.forms import GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, PreguntaForm, NotaForm, PermisosForm
 
 admin_bp = Blueprint('admin', __name__,
@@ -94,13 +95,55 @@ def editar_convocatoria(convocatoria_id):
         return redirect(url_for('admin.admin_convocatorias'))
     return render_template('editar_convocatoria.html', title="Editar Convocatoria", form=form, convocatoria=convocatoria)
 
+# --- FUNCIÓN DE BORRADO DE CONVOCATORIA CORREGIDA ---
 @admin_bp.route('/convocatoria/<int:convocatoria_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_convocatoria(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    db.session.delete(convocatoria)
-    db.session.commit()
-    flash('La convocatoria ha sido eliminada.', 'success')
+    try:
+        # 1. Recolectar todos los IDs que necesitamos borrar en cascada
+        bloque_ids = [bloque.id for bloque in convocatoria.bloques]
+        tema_ids = []
+        if bloque_ids:
+            temas = Tema.query.filter(Tema.bloque_id.in_(bloque_ids)).all()
+            tema_ids = [tema.id for tema in temas]
+
+        pregunta_ids = []
+        if tema_ids:
+            preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
+            pregunta_ids = [pregunta.id for pregunta in preguntas]
+
+        # 2. Borrar las dependencias más profundas primero (SQL puro)
+        if pregunta_ids:
+            print(f"Borrando dependencias de {len(pregunta_ids)} preguntas...")
+            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+
+        # 3. Borrar las dependencias de nivel medio
+        if tema_ids:
+            print(f"Borrando dependencias de {len(tema_ids)} temas...")
+            db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
+            db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
+            db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
+
+        # 4. Borrar bloques
+        if bloque_ids:
+             print(f"Borrando {len(bloque_ids)} bloques...")
+             db.session.execute(Bloque.__table__.delete().where(Bloque.id.in_(bloque_ids)))
+
+        # 5. Finalmente, borramos la convocatoria principal
+        print("Borrando la convocatoria principal...")
+        db.session.delete(convocatoria)
+
+        db.session.commit()
+        flash('La convocatoria y todo su contenido han sido eliminados con éxito.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al borrar la convocatoria: {e}', 'danger')
+        print(f"ERROR al borrar convocatoria: {e}")
+
     return redirect(url_for('admin.admin_convocatorias'))
 
 @admin_bp.route('/convocatoria/<int:convocatoria_id>/bloques')
@@ -170,13 +213,11 @@ def detalle_tema(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     form_pregunta = PreguntaForm(prefix='pregunta')
     form_nota = NotaForm(prefix='nota')
-
     if 'submit_pregunta' in request.form and form_pregunta.validate_on_submit():
         imagen_url_segura = None
         if form_pregunta.imagen.data:
             upload_result = cloudinary.uploader.upload(form_pregunta.imagen.data)
             imagen_url_segura = upload_result.get('secure_url')
-
         nueva_pregunta = Pregunta(
             texto=form_pregunta.texto.data, 
             dificultad=form_pregunta.dificultad.data, 
@@ -187,27 +228,22 @@ def detalle_tema(tema_id):
             respuesta_correcta_texto=form_pregunta.respuesta_correcta_texto.data
         )
         db.session.add(nueva_pregunta)
-
         if form_pregunta.tipo_pregunta.data == 'opcion_multiple':
             respuestas_texto = [form_pregunta.respuesta1_texto.data, form_pregunta.respuesta2_texto.data, form_pregunta.respuesta3_texto.data, form_pregunta.respuesta4_texto.data]
             for i, texto_respuesta in enumerate(respuestas_texto, 1):
                 es_correcta = (str(i) == form_pregunta.respuesta_correcta.data)
                 respuesta = Respuesta(texto=texto_respuesta, es_correcta=es_correcta, pregunta=nueva_pregunta)
                 db.session.add(respuesta)
-
         db.session.commit()
         flash('¡Pregunta añadida con éxito!', 'success')
         return redirect(url_for('admin.detalle_tema', tema_id=tema.id))
-
     if 'submit_nota' in request.form and form_nota.validate_on_submit():
         nueva_nota = Nota(texto=form_nota.texto.data, tema_id=tema.id)
         db.session.add(nueva_nota)
         db.session.commit()
         flash('¡Nota añadida con éxito!', 'success')
         return redirect(url_for('admin.detalle_tema', tema_id=tema.id))
-
     return render_template('detalle_tema.html', title=tema.nombre, tema=tema, form_pregunta=form_pregunta, form_nota=form_nota)
-
 
 @admin_bp.route('/tema/<int:tema_id>/editar', methods=['GET', 'POST'])
 @admin_required
@@ -231,7 +267,7 @@ def editar_tema(tema_id):
     return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
-@admin_required
+@admin_redirequired
 def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     db.session.delete(tema_a_eliminar)
@@ -244,7 +280,7 @@ def eliminar_tema(tema_id):
 def editar_pregunta(pregunta_id):
     pregunta = Pregunta.query.get_or_404(pregunta_id)
     form = PreguntaForm(obj=pregunta)
-    # Aquí iría la lógica completa de edición
+    # Aquí iría la lógica completa de edición, que no hemos desarrollado aún
     return render_template('editar_pregunta.html', title="Editar Pregunta", form=form, pregunta=pregunta)
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/eliminar', methods=['POST'])
@@ -265,7 +301,7 @@ def eliminar_nota(nota_id):
     db.session.delete(nota)
     db.session.commit()
     flash('La nota ha sido eliminada.', 'success')
-    return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
+    return redirect(url_for('admin.detalle_tema', tema_id=tema.id))
 
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
@@ -365,7 +401,7 @@ def subir_sheets():
             db.session.rollback()
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
             return redirect(url_for('admin.subir_sheets'))
-    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
+    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
@@ -408,61 +444,3 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
-
-
-@admin_bp.route('/super-secreto-probar-db-conexion-56789')
-def test_db_connection():
-    """
-    Ruta de diagnóstico para probar la conexión con la base de datos en producción.
-    """
-    try:
-        # Intentamos la consulta más simple posible
-        print("--- PROBANDO CONEXIÓN A LA BASE DE DATOS ---")
-        db.session.execute(db.text('SELECT 1'))
-        print("--- ¡'SELECT 1' FUNCIONÓ! LA CONEXIÓN ES BUENA. ---")
-
-        # Ahora intentamos contar usuarios para ver si las tablas existen
-        count = Usuario.query.count()
-        print(f"--- Conteo de usuarios exitoso. Hay {count} usuarios. ---")
-
-        return f"""
-            <h1>¡ÉXITO!</h1>
-            <p>La conexión con la base de datos PostgreSQL funciona.</p>
-            <p>Las tablas existen y se ha podido hacer una consulta (se encontraron {count} usuarios).</p>
-            <p>Esto es muy extraño. El problema debe ser otro muy sutil.</p>
-        """
-
-    except Exception as e:
-        # Si cualquiera de los pasos anteriores falla, veremos este error.
-        print(f"!!!!!!!!!! ERROR DE CONEXIÓN O CONSULTA A LA BASE DE DATOS !!!!!!!!!!!")
-        print(e)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        return f"""
-            <h1>ERROR DE BASE DE DATOS</h1>
-            <p>La aplicación no puede conectar o consultar la base de datos. Aquí está el culpable.</p>
-            <p>El error es:</p>
-            <pre><code>{e}</code></pre>
-        """, 500
-
-@admin_bp.route('/super-secreto-hacerme-admin-ahora-7890')
-def make_me_admin():
-    # Email de la cuenta que ya has creado en la web de Render
-    email_del_admin = 'alejandrofontanil@gmail.com'
-
-    usuario = Usuario.query.filter_by(email=email_del_admin).first()
-
-    if not usuario:
-        return "<h1>Error: No se encontró el usuario con ese email. Asegúrate de que te has registrado primero.</h1>", 404
-
-    if usuario.es_admin:
-        return "<h1>Info: Este usuario ya es administrador.</h1>"
-
-    try:
-        usuario.es_admin = True
-        db.session.commit()
-        print(f"ÉXITO: El usuario {usuario.email} ahora es administrador.")
-        return f"<h1>¡Éxito!</h1><p>El usuario {usuario.email} ahora es administrador.</p><p>Por favor, borra esta ruta de tu código ahora.</p>"
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error al hacer admin al usuario: {e}")
-        return f"<h1>Error al actualizar la base de datos:</h1><p>{e}</p>", 500
