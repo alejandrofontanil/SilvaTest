@@ -62,18 +62,16 @@ def google_login():
 def google_callback():
     """
     Gestiona la respuesta de Google después de que el usuario se loguea.
+    VERSIÓN CORREGIDA Y FINAL.
     """
     try:
+        # Esta línea obtiene el token de acceso
         token = oauth.google.authorize_access_token()
-        user_info = oauth.google.parse_id_token(token)
-    except Exception as e:
-        # --- CÓDIGO DE DEPURACIÓN AÑADIDO ---
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("!!! ERROR DURANTE EL CALLBACK DE GOOGLE (OAUTH) !!!")
-        print(e)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # ------------------------------------
+        # Usamos el método recomendado .userinfo() que se encarga de todo
+        user_info = oauth.google.userinfo(token=token)
 
+    except Exception as e:
+        print(f"Error en el callback de Google: {e}")
         flash('Hubo un error al intentar iniciar sesión con Google. Por favor, inténtalo de nuevo.', 'danger')
         return redirect(url_for('auth.login'))
 
@@ -86,6 +84,7 @@ def google_callback():
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google')
         )
+        # Le asignamos una contraseña aleatoria y segura
         random_password = secrets.token_urlsafe(16)
         usuario.set_password(random_password)
 
@@ -93,7 +92,7 @@ def google_callback():
         db.session.commit()
         flash('¡Cuenta creada con éxito a través de Google!', 'success')
 
-    # Iniciamos sesión con el usuario (sea el existente o el recién creado)
+    # Iniciamos sesión con el usuario (existente o recién creado)
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))
