@@ -11,25 +11,20 @@ auth_bp = Blueprint('auth', __name__)
 def registro():
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
-
     form = RegistrationForm()
     if form.validate_on_submit():
         nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data)
         nuevo_usuario.set_password(form.password.data)
-
         db.session.add(nuevo_usuario)
         db.session.commit()
-
         flash('¡Tu cuenta ha sido creada! Ya puedes iniciar sesión.', 'success')
         return redirect(url_for('auth.login'))
-
     return render_template('registro.html', title='Registro', form=form)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
-
     form = LoginForm()
     if form.validate_on_submit():
         usuario = Usuario.query.filter_by(email=form.email.data).first()
@@ -40,7 +35,6 @@ def login():
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
             flash('Inicio de sesión fallido. Por favor, comprueba tu email y contraseña.', 'danger')
-
     return render_template('login.html', title='Iniciar Sesión', form=form)
 
 @auth_bp.route('/logout')
@@ -51,32 +45,19 @@ def logout():
 
 @auth_bp.route('/login/google')
 def google_login():
-    """
-    Redirige al usuario a la página de inicio de sesión de Google.
-    """
     redirect_uri = url_for('auth.google_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
-
 @auth_bp.route('/login/google/callback')
 def google_callback():
-    """
-    Gestiona la respuesta de Google después de que el usuario se loguea.
-    """
     try:
         token = oauth.google.authorize_access_token()
         user_info = oauth.google.userinfo(token=token)
-
     except Exception as e:
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("!!! ERROR DURANTE EL CALLBACK DE GOOGLE (OAUTH) !!!")
-        print(e)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"Error en el callback de Google: {e}")
         flash('Hubo un error al intentar iniciar sesión con Google. Por favor, inténtalo de nuevo.', 'danger')
         return redirect(url_for('auth.login'))
-
     usuario = Usuario.query.filter_by(email=user_info['email']).first()
-
     if not usuario:
         usuario = Usuario(
             email=user_info['email'],
@@ -84,11 +65,9 @@ def google_callback():
         )
         random_password = secrets.token_urlsafe(16)
         usuario.set_password(random_password)
-
         db.session.add(usuario)
         db.session.commit()
         flash('¡Cuenta creada con éxito a través de Google!', 'success')
-
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))

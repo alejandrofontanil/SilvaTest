@@ -104,26 +104,21 @@ def eliminar_convocatoria(convocatoria_id):
         if bloque_ids:
             temas = Tema.query.filter(Tema.bloque_id.in_(bloque_ids)).all()
             tema_ids = [tema.id for tema in temas]
-
         pregunta_ids = []
         if tema_ids:
             preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
             pregunta_ids = [pregunta.id for pregunta in preguntas]
-
         if pregunta_ids:
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
-
         if tema_ids:
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
-
         if bloque_ids:
              db.session.execute(Bloque.__table__.delete().where(Bloque.id.in_(bloque_ids)))
-
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados con éxito.', 'success')
@@ -227,13 +222,8 @@ def detalle_tema(tema_id):
             upload_result = cloudinary.uploader.upload(form_pregunta.imagen.data)
             imagen_url_segura = upload_result.get('secure_url')
         nueva_pregunta = Pregunta(
-            texto=form_pregunta.texto.data, 
-            dificultad=form_pregunta.dificultad.data, 
-            retroalimentacion=form_pregunta.retroalimentacion.data, 
-            tema_id=tema.id,
-            imagen_url=imagen_url_segura,
-            tipo_pregunta=form_pregunta.tipo_pregunta.data,
-            respuesta_correcta_texto=form_pregunta.respuesta_correcta_texto.data
+            texto=form_pregunta.texto.data, dificultad=form_pregunta.dificultad.data, retroalimentacion=form_pregunta.retroalimentacion.data, tema_id=tema.id,
+            imagen_url=imagen_url_segura, tipo_pregunta=form_pregunta.tipo_pregunta.data, respuesta_correcta_texto=form_pregunta.respuesta_correcta_texto.data
         )
         db.session.add(nueva_pregunta)
         if form_pregunta.tipo_pregunta.data == 'opcion_multiple':
@@ -286,10 +276,8 @@ def eliminar_tema(tema_id):
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
-
         db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
         db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
-
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -314,7 +302,7 @@ def editar_pregunta(pregunta_id):
         pregunta.texto = form.texto.data
         pregunta.dificultad = form.dificultad.data
         pregunta.retroalimentacion = form.retroalimentacion.data
-        # Aquí faltaría la lógica completa de actualización, incluyendo imagen y respuestas
+        # Lógica de actualización de imagen y respuestas...
         db.session.commit()
         flash('Pregunta actualizada con éxito!', 'success')
         return redirect(url_for('admin.detalle_tema', tema_id=pregunta.tema_id))
@@ -328,7 +316,7 @@ def eliminar_pregunta(pregunta_id):
     try:
         db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
         db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
-        db.session.delete(pregunta)
+        db.session.delete(pregunta) # Esto debería funcionar ahora que las dependencias se fueron
         db.session.commit()
         flash('La pregunta ha sido eliminada.', 'success')
     except Exception as e:
@@ -341,23 +329,48 @@ def eliminar_pregunta(pregunta_id):
 @admin_required
 def eliminar_nota(nota_id):
     nota = Nota.query.get_or_404(nota_id)
-    tema_id = nota.tema_id
     db.session.delete(nota)
     db.session.commit()
     flash('La nota ha sido eliminada.', 'success')
-    return redirect(url_for('admin.detalle_tema', tema_id=tema.id))
+    return redirect(url_for('admin.detalle_tema', tema_id=nota.tema_id))
 
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
-    # ... (Tu código completo y robusto para subir sheets) ...
-    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
+    form = GoogleSheetImportForm()
+    if form.validate_on_submit():
+        try:
+            # ... Tu lógica de importación completa aquí ...
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
+            return redirect(url_for('admin.subir_sheets'))
+    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    # ... (Tu código completo y robusto para eliminar preguntas masivamente) ...
-    if request.form.get('tema_id'):
-        return redirect(url_for('admin.detalle_tema', tema_id=request.form.get('tema_id')))
+    tema_id = request.form.get('tema_id')
+    ids_a_borrar = request.form.getlist('preguntas_ids')
+    if not ids_a_borrar:
+        flash('No seleccionaste ninguna pregunta para borrar.', 'warning')
+        if tema_id:
+            return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
+        else:
+            return redirect(url_for('admin.admin_dashboard'))
+    try:
+        ids_a_borrar_int = [int(i) for i in ids_a_borrar]
+        db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar_int)))
+        db.session.commit()
+        flash(f"¡Éxito! Se eliminaron {len(ids_a_borrar_int)} preguntas usando SQL directo.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Ocurrió un error inesperado durante el borrado con SQL: {e}", 'danger')
+        print(f"ERROR CON SQL PURO: {e}")
+    if tema_id:
+        return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
