@@ -8,7 +8,7 @@ from itertools import groupby
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-from mi_app.forms import FiltroCuentaForm # <-- IMPORTAMOS EL NUEVO FORMULARIO
+from mi_app.forms import FiltroCuentaForm
 
 main_bp = Blueprint('main', __name__)
 
@@ -45,60 +45,38 @@ def bloque_detalle(bloque_id):
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
     return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
 
-# --- FUNCIÓN 'CUENTA' ACTUALIZADA CON LÓGICA DE FILTRADO ---
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
     form = FiltroCuentaForm()
-
-    # Preparamos las opciones para el menú desplegable del formulario
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
-
-    # Obtenemos la convocatoria seleccionada desde la URL (si existe)
     convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
-
-    # Base de la consulta: todos los resultados del usuario
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
-
-    # Si el usuario ha filtrado por una convocatoria específica, modificamos la consulta
     if convocatoria_id != 0:
         query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
-
-    # --- El resto de la lógica para calcular estadísticas y gráficos ---
-
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
-
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
         notas_del_dia = [r.nota for r in grupo]
         if notas_del_dia:
             resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
-
     dias_ordenados = sorted(resultados_agrupados.keys())
     labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
-
     resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
     total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
-
     nota_media_global = 0
     if resultados_tabla:
-        # Recalculamos la nota media global solo con los resultados filtrados
         nota_media_global = sum([r.nota for r in resultados_tabla]) / len(resultados_tabla)
-
-    # Si se envía el formulario, redirigimos a la misma página con el filtro en la URL
     if form.validate_on_submit():
         id_seleccionado = form.convocatoria.data
         return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado))
-
-    # Pre-seleccionamos el valor del dropdown según la URL
     form.convocatoria.data = convocatoria_id
-
     return render_template(
         'cuenta.html', 
         title='Mi Cuenta', 
-        form=form, # Pasamos el formulario a la plantilla
+        form=form, 
         resultados=resultados_tabla,
         labels_grafico=labels_grafico,
         datos_grafico=datos_grafico,
@@ -112,24 +90,39 @@ def preguntas_favoritas():
     preguntas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).all()
     return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
-# (El resto de tus funciones: hacer_test, corregir_test, etc. no cambian)
-# ...
+# --- FUNCIÓN 'hacer_test' ACTUALIZADA CON DEPURACIÓN ---
 @main_bp.route('/tema/<int:tema_id>/test')
 @login_required
 def hacer_test(tema_id):
+    print(f"--- [DEBUG] Iniciando test para tema ID: {tema_id} ---")
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
+
     preguntas_test = obtener_preguntas_recursivas(tema)
+    print(f"--- [DEBUG] Se han encontrado {len(preguntas_test)} preguntas en total para el tema.")
+
     if not preguntas_test:
         flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
         return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
+
     random.shuffle(preguntas_test)
-    for pregunta in preguntas_test:
+
+    print("--- [DEBUG] Procesando preguntas para barajar respuestas...")
+    for i, pregunta in enumerate(preguntas_test):
+        print(f"  > Procesando pregunta {i+1}/{len(preguntas_test)} (ID: {pregunta.id}, Tipo: {pregunta.tipo_pregunta})")
         if pregunta.tipo_pregunta == 'opcion_multiple':
-            respuestas_barajadas = list(pregunta.respuestas)
-            random.shuffle(respuestas_barajadas)
-            pregunta.respuestas_barajadas = respuestas_barajadas
+            lista_respuestas = list(pregunta.respuestas)
+            print(f"    - Se han encontrado {len(lista_respuestas)} respuestas para esta pregunta en la BD.")
+
+            random.shuffle(lista_respuestas)
+            pregunta.respuestas_barajadas = lista_respuestas
+            if not lista_respuestas:
+                 print(f"    - ¡ADVERTENCIA! No hay respuestas para la pregunta {pregunta.id}")
+        else:
+            print("    - Es una pregunta de texto. No se barajan respuestas.")
+
+    print("--- [DEBUG] Preparación de preguntas finalizada. Renderizando plantilla. ---")
     return render_template('hacer_test.html', title=f"Test de {tema.nombre}", tema=tema, preguntas=preguntas_test)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['GET', 'POST'])
@@ -144,11 +137,9 @@ def corregir_test(tema_id):
     if not preguntas_en_test:
         flash('No se puede corregir un test sin preguntas.', 'warning')
         return redirect(url_for('main.home'))
-
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
-
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -157,7 +148,7 @@ def corregir_test(tema_id):
                 respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
                 if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
                     es_correcta = True
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=respuesta_seleccionada.id, resultado_test=nuevo_resultado)
+                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado)
                 db.session.add(respuesta_usuario)
         elif pregunta.tipo_pregunta == 'respuesta_texto':
             respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta.id}')
@@ -169,7 +160,6 @@ def corregir_test(tema_id):
                 db.session.add(respuesta_usuario)
         if es_correcta:
             aciertos += 1
-
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     db.session.commit()
