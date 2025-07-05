@@ -443,3 +443,26 @@ def test_db_connection():
             <p>El error es:</p>
             <pre><code>{e}</code></pre>
         """, 500
+
+@admin_bp.route('/super-secreto-hacerme-admin-ahora-7890')
+def make_me_admin():
+    # Email de la cuenta que ya has creado en la web de Render
+    email_del_admin = 'alejandrofontanil@gmail.com'
+
+    usuario = Usuario.query.filter_by(email=email_del_admin).first()
+
+    if not usuario:
+        return "<h1>Error: No se encontró el usuario con ese email. Asegúrate de que te has registrado primero.</h1>", 404
+
+    if usuario.es_admin:
+        return "<h1>Info: Este usuario ya es administrador.</h1>"
+
+    try:
+        usuario.es_admin = True
+        db.session.commit()
+        print(f"ÉXITO: El usuario {usuario.email} ahora es administrador.")
+        return f"<h1>¡Éxito!</h1><p>El usuario {usuario.email} ahora es administrador.</p><p>Por favor, borra esta ruta de tu código ahora.</p>"
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al hacer admin al usuario: {e}")
+        return f"<h1>Error al actualizar la base de datos:</h1><p>{e}</p>", 500
