@@ -12,7 +12,20 @@
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
                         {{ form.sheet_url.label(class="form-label") }}
-                        {{ form.sheet_url(class="form-control form-control-lg", placeholder="https://docs.google.com/spreadsheets/d/...") }}
+
+                        {% set field_class = "form-control form-control-lg" %}
+                        {% if form.sheet_url.errors %}
+                            {% set field_class = field_class + " is-invalid" %}
+                        {% endif %}
+                        {{ form.sheet_url(class=field_class, placeholder="https://docs.google.com/spreadsheets/d/...") }}
+
+                        {% if form.sheet_url.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.sheet_url.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="d-grid mt-4">
                         {{ form.submit(class="btn btn-primary btn-lg") }}
