@@ -69,6 +69,15 @@
         pointer-events: none;
         color: var(--bs-border-color);
       }
+
+      /* --- BLOQUE CSS AÑADIDO PARA SOLUCIONAR EL PROBLEMA DE CONTRASTE --- */
+      [data-bs-theme="light"] .nav-pills .nav-link.active,
+      [data-bs-theme="light"] .list-group-item.active {
+          background-color: var(--bs-primary);
+          color: white;
+      }
+      /* ----------------------------------------------------------------- */
+
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
@@ -120,7 +129,7 @@
 
         {% block content %}{% endblock %}
     </main>
-    
+
     <footer class="container mt-auto py-4">
         <ul class="nav justify-content-center border-top pt-3 mb-3">
           <li class="nav-item"><a href="{{ url_for('main.home') }}" class="nav-link px-2 text-body-secondary">Home</a></li>
