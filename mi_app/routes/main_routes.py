@@ -3,11 +3,12 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import date
 import random
-from collections import defaultdict # <-- Importación añadida
-from itertools import groupby      # <-- Importación añadida
+from collections import defaultdict
+from itertools import groupby
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
+from mi_app.forms import FiltroCuentaForm # <-- IMPORTAMOS EL NUEVO FORMULARIO
 
 main_bp = Blueprint('main', __name__)
 
@@ -44,54 +45,66 @@ def bloque_detalle(bloque_id):
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
     return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
 
-# --- FUNCIÓN 'CUENTA' ACTUALIZADA Y CORREGIDA ---
-@main_bp.route('/cuenta')
+# --- FUNCIÓN 'CUENTA' ACTUALIZADA CON LÓGICA DE FILTRADO ---
+@main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
-    periodo = request.args.get('periodo', 'mes')
-    query_base = ResultadoTest.query.filter_by(autor=current_user).order_by(ResultadoTest.fecha.asc())
+    form = FiltroCuentaForm()
 
-    if periodo == 'mes':
-        hoy = date.today()
-        primer_dia_mes = hoy.replace(day=1)
-        query_base = query_base.filter(ResultadoTest.fecha >= primer_dia_mes)
+    # Preparamos las opciones para el menú desplegable del formulario
+    opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
+    form.convocatoria.choices = opciones
 
-    # 1. Obtenemos todos los resultados en bruto del periodo
-    resultados_del_periodo = query_base.all()
+    # Obtenemos la convocatoria seleccionada desde la URL (si existe)
+    convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
 
-    # 2. Agrupamos los resultados por día y calculamos la media en Python
+    # Base de la consulta: todos los resultados del usuario
+    query_resultados = ResultadoTest.query.filter_by(autor=current_user)
+
+    # Si el usuario ha filtrado por una convocatoria específica, modificamos la consulta
+    if convocatoria_id != 0:
+        query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+
+    # --- El resto de la lógica para calcular estadísticas y gráficos ---
+
+    resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
+
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
         notas_del_dia = [r.nota for r in grupo]
         if notas_del_dia:
-            resultados_agrupados[fecha]['notas'].extend(notas_del_dia)
             resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
 
-    # 3. Preparamos los datos para el gráfico, ordenando los días
     dias_ordenados = sorted(resultados_agrupados.keys())
     labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
 
-    # 4. Obtenemos datos para la tabla y estadísticas generales
-    resultados_tabla = ResultadoTest.query.filter_by(autor=current_user).order_by(ResultadoTest.fecha.desc()).all()
+    resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
     total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
 
+    nota_media_global = 0
     if resultados_tabla:
+        # Recalculamos la nota media global solo con los resultados filtrados
         nota_media_global = sum([r.nota for r in resultados_tabla]) / len(resultados_tabla)
-    else:
-        nota_media_global = 0
+
+    # Si se envía el formulario, redirigimos a la misma página con el filtro en la URL
+    if form.validate_on_submit():
+        id_seleccionado = form.convocatoria.data
+        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado))
+
+    # Pre-seleccionamos el valor del dropdown según la URL
+    form.convocatoria.data = convocatoria_id
 
     return render_template(
         'cuenta.html', 
         title='Mi Cuenta', 
+        form=form, # Pasamos el formulario a la plantilla
         resultados=resultados_tabla,
         labels_grafico=labels_grafico,
         datos_grafico=datos_grafico,
-        periodo_activo=periodo,
         total_preguntas_hechas=total_preguntas_hechas,
         nota_media_global=nota_media_global
     )
-# --- FIN DE LA FUNCIÓN ACTUALIZADA ---
 
 @main_bp.route('/cuenta/favoritas')
 @login_required
@@ -99,6 +112,8 @@ def preguntas_favoritas():
     preguntas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).all()
     return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
+# (El resto de tus funciones: hacer_test, corregir_test, etc. no cambian)
+# ...
 @main_bp.route('/tema/<int:tema_id>/test')
 @login_required
 def hacer_test(tema_id):

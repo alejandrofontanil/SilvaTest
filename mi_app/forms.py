@@ -72,3 +72,7 @@ class NotaForm(FlaskForm):
 class GoogleSheetImportForm(FlaskForm):
     sheet_url = StringField('URL de la Hoja de Google Sheets', validators=[DataRequired()])
     submit = SubmitField('Importar Preguntas')
+
+class FiltroCuentaForm(FlaskForm):
+    convocatoria = SelectField('Filtrar por Convocatoria', coerce=int)
+    submit = SubmitField('Filtrar')
