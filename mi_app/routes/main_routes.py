@@ -74,14 +74,9 @@ def cuenta():
         return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado))
     form.convocatoria.data = convocatoria_id
     return render_template(
-        'cuenta.html', 
-        title='Mi Cuenta', 
-        form=form, 
-        resultados=resultados_tabla,
-        labels_grafico=labels_grafico,
-        datos_grafico=datos_grafico,
-        total_preguntas_hechas=total_preguntas_hechas,
-        nota_media_global=nota_media_global
+        'cuenta.html', title='Mi Cuenta', form=form, resultados=resultados_tabla,
+        labels_grafico=labels_grafico, datos_grafico=datos_grafico,
+        total_preguntas_hechas=total_preguntas_hechas, nota_media_global=nota_media_global
     )
 
 @main_bp.route('/cuenta/favoritas')
