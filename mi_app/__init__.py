@@ -4,6 +4,7 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from authlib.integrations.flask_client import OAuth
+from sqlalchemy import inspect # <-- IMPORTANTE: Añadimos 'inspect'
 import os
 import cloudinary
 
@@ -25,17 +26,11 @@ def create_app():
     # --- CONFIGURACIÓN DE LA APP ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-
-    # --- BLOQUE DE BASE DE DATOS MODIFICADO PARA PRODUCCIÓN ---
     basedir = os.path.abspath(os.path.dirname(__file__))
     db_uri = os.environ.get('DATABASE_URL')
-    # Este truco soluciona un problema común entre Heroku/Render y SQLAlchemy
     if db_uri and db_uri.startswith("postgres://"):
         db_uri = db_uri.replace("postgres://", "postgresql://", 1)
-
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///' + os.path.join(basedir, 'site.db')
-    # -----------------------------------------------------------
-
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['RECAPTCHA_PUBLIC_KEY'] = os.environ.get('RECAPTCHA_PUBLIC_KEY')
     app.config['RECAPTCHA_PRIVATE_KEY'] = os.environ.get('RECAPTCHA_PRIVATE_KEY')
@@ -73,18 +68,25 @@ def create_app():
         # Registramos los blueprints
         from .routes.auth_routes import auth_bp
         app.register_blueprint(auth_bp)
-
         from .routes.main_routes import main_bp
         app.register_blueprint(main_bp)
-
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
+
+        # --- CÓDIGO NUEVO PARA CREAR TABLAS AUTOMÁTICAMENTE ---
+        inspector = inspect(db.engine)
+        if not inspector.has_table("usuario"):
+            print("¡ATENCIÓN: Base de datos vacía! Creando todas las tablas...")
+            db.create_all()
+            print("¡Tablas creadas con éxito!")
+        else:
+            print("La base de datos ya contiene tablas. No se necesita crear nada.")
+        # ----------------------------------------------------
 
     # Manejadores de Errores
     @app.errorhandler(404)
     def not_found_error(error):
         return render_template('errors/404.html'), 404
-
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
