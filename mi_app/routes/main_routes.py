@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import func
+from sqlalchemy import func, desc # <-- 'desc' añadido aquí
 from datetime import date
 import random
 from collections import defaultdict
@@ -19,14 +19,34 @@ def obtener_preguntas_recursivas(tema):
         preguntas.extend(obtener_preguntas_recursivas(subtema))
     return preguntas
 
+# --- FUNCIÓN 'HOME' ACTUALIZADA CON LÓGICA DE DASHBOARD ---
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
+    # Si es un usuario normal logueado, le mostramos su dashboard personalizado
     if current_user.is_authenticated and not current_user.es_admin:
         convocatorias = current_user.convocatorias_accesibles.all()
+
+        # Lógica para el dashboard
+        resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
+        nota_media_global = 0
+        if resultados_totales:
+            nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
+
+        ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
+        ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
+
+        return render_template('home.html', 
+                               convocatorias=convocatorias,
+                               nota_media_global=nota_media_global,
+                               ultimo_resultado=ultimo_resultado,
+                               ultimas_favoritas=ultimas_favoritas)
+
+    # Si es un admin o no está logueado, muestra la lista normal de convocatorias
     else:
         convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    return render_template('home.html', convocatorias=convocatorias)
+        return render_template('home.html', convocatorias=convocatorias)
+
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
@@ -85,39 +105,22 @@ def preguntas_favoritas():
     preguntas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).all()
     return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
-# --- FUNCIÓN 'hacer_test' ACTUALIZADA CON DEPURACIÓN ---
 @main_bp.route('/tema/<int:tema_id>/test')
 @login_required
 def hacer_test(tema_id):
-    print(f"--- [DEBUG] Iniciando test para tema ID: {tema_id} ---")
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-
     preguntas_test = obtener_preguntas_recursivas(tema)
-    print(f"--- [DEBUG] Se han encontrado {len(preguntas_test)} preguntas en total para el tema.")
-
     if not preguntas_test:
         flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
         return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
-
     random.shuffle(preguntas_test)
-
-    print("--- [DEBUG] Procesando preguntas para barajar respuestas...")
-    for i, pregunta in enumerate(preguntas_test):
-        print(f"  > Procesando pregunta {i+1}/{len(preguntas_test)} (ID: {pregunta.id}, Tipo: {pregunta.tipo_pregunta})")
+    for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
-            print(f"    - Se han encontrado {len(lista_respuestas)} respuestas para esta pregunta en la BD.")
-
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
-            if not lista_respuestas:
-                 print(f"    - ¡ADVERTENCIA! No hay respuestas para la pregunta {pregunta.id}")
-        else:
-            print("    - Es una pregunta de texto. No se barajan respuestas.")
-
-    print("--- [DEBUG] Preparación de preguntas finalizada. Renderizando plantilla. ---")
     return render_template('hacer_test.html', title=f"Test de {tema.nombre}", tema=tema, preguntas=preguntas_test)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['GET', 'POST'])
@@ -202,9 +205,10 @@ def corregir_repaso_global():
         pregunta = Pregunta.query.get(pregunta_id)
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
-            respuesta_marcada = Respuesta.query.get(int(respuesta_texto_usuario))
-            if respuesta_marcada and respuesta_marcada.es_correcta:
-                es_correcta = True
+            if respuesta_texto_usuario:
+                respuesta_marcada = Respuesta.query.get(int(respuesta_texto_usuario))
+                if respuesta_marcada and respuesta_marcada.es_correcta:
+                    es_correcta = True
         elif pregunta.tipo_pregunta == 'respuesta_texto':
             if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
                respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
