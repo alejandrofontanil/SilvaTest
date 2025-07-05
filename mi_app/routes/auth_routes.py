@@ -14,7 +14,6 @@ def registro():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        # Usamos el método que creamos en el modelo para manejar la contraseña
         nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data)
         nuevo_usuario.set_password(form.password.data)
 
@@ -31,13 +30,9 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
 
-    # Corregido el nombre de la variable de 'forma' a 'form'
     form = LoginForm()
-
     if form.validate_on_submit():
         usuario = Usuario.query.filter_by(email=form.email.data).first()
-
-        # Usamos el método que creamos en el modelo para verificar la contraseña
         if usuario and usuario.check_password(form.password.data):
             login_user(usuario, remember=form.remember.data)
             next_page = request.args.get('next')
@@ -59,9 +54,7 @@ def google_login():
     """
     Redirige al usuario a la página de inicio de sesión de Google.
     """
-    # Creamos la URL a la que Google debe devolver al usuario después de loguearse
     redirect_uri = url_for('auth.google_callback', _external=True)
-    # Usamos authlib para generar y redirigir a la URL de autorización de Google
     return oauth.google.authorize_redirect(redirect_uri)
 
 
@@ -71,11 +64,16 @@ def google_callback():
     Gestiona la respuesta de Google después de que el usuario se loguea.
     """
     try:
-        # Obtenemos el token de acceso de Google
         token = oauth.google.authorize_access_token()
-        # Usamos el token para obtener la información del perfil del usuario
         user_info = oauth.google.parse_id_token(token)
     except Exception as e:
+        # --- CÓDIGO DE DEPURACIÓN AÑADIDO ---
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("!!! ERROR DURANTE EL CALLBACK DE GOOGLE (OAUTH) !!!")
+        print(e)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # ------------------------------------
+
         flash('Hubo un error al intentar iniciar sesión con Google. Por favor, inténtalo de nuevo.', 'danger')
         return redirect(url_for('auth.login'))
 
@@ -88,8 +86,6 @@ def google_callback():
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google')
         )
-        # Como no tenemos su contraseña, le asignamos una aleatoria y segura.
-        # El usuario no la necesitará, ya que siempre entrará a través de Google.
         random_password = secrets.token_urlsafe(16)
         usuario.set_password(random_password)
 
