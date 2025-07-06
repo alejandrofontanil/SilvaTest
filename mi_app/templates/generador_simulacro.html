@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h1 class="h4 mb-0"><i class="bi bi-wrench-adjustable-circle-fill"></i> Generador de Simulacros Personalizados</h1>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Selecciona los temas que quieres incluir en tu test y especifica cuántas preguntas quieres de cada uno.</p>
+
+        <form method="POST" action="">
+            <div class="table-responsive">
+                <table class="table">
+                    <tbody>
+                    {% for convo in convocatorias %}
+                        <tr class="table-group-divider">
+                            <td colspan="3" class="fw-bold fs-5 pt-4">{{ convo.nombre }}</td>
+                        </tr>
+                        {% for bloque in convo.bloques %}
+                            <tr>
+                                <td class="ps-4 fw-bold">{{ bloque.nombre }}</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            {% for tema in bloque.temas %}
+                            <tr>
+                                <td class="ps-5"><i class="bi bi-file-earmark-text"></i> {{ tema.nombre }}</td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="tema_seleccionado" value="{{ tema.id }}">
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group input-group-sm" style="max-width: 150px;">
+                                        <span class="input-group-text">Nº:</span>
+                                        <input type="number" name="num_preguntas_{{ tema.id }}" class="form-control" value="{{ tema.preguntas|length }}" min="1" max="{{ tema.preguntas|length }}">
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No tienes acceso a ninguna convocatoria.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <hr>
+            <div class="d-grid mt-4">
+                <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-play-fill"></i> Generar y Empezar Test</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

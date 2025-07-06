@@ -266,3 +266,21 @@ def politica_privacidad():
 @main_bp.route('/terminos-y-condiciones')
 def terminos_condiciones():
     return render_template('terminos_condiciones.html', title="Términos y Condiciones")
+
+@main_bp.route('/generador-simulacro', methods=['GET', 'POST'])
+@login_required
+def generador_simulacro():
+    # Si el método es POST, significa que el usuario ha enviado el formulario
+    if request.method == 'POST':
+        # La lógica para generar el test la escribiremos en el siguiente paso
+        # Por ahora, solo recogemos los datos que envía el formulario
+        selecciones = request.form
+        print("Selecciones del usuario:", selecciones) # Un chivato para ver qué nos llega
+        # De momento, lo dejamos aquí.
+        flash('La funcionalidad para generar el test aún está en construcción.', 'info')
+        return redirect(url_for('main.generador_simulacro'))
+
+    # Si el método es GET, simplemente mostramos la página con el formulario
+    # Buscamos todas las convocatorias a las que el usuario tiene acceso
+    convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
+    return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles)
