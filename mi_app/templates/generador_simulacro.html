@@ -8,8 +8,8 @@
     <div class="card-body">
         <p class="text-muted">Selecciona los temas que quieres incluir en tu test y especifica cuántas preguntas quieres de cada uno.</p>
 
-        <form method="POST" action="">
-            <div class="table-responsive">
+        <form method="POST" action="{{ url_for('main.generador_simulacro') }}">
+            {{ form.hidden_tag() if form }} <div class="table-responsive">
                 <table class="table">
                     <tbody>
                     {% for convo in convocatorias %}
@@ -27,13 +27,13 @@
                                 <td class="ps-5"><i class="bi bi-file-earmark-text"></i> {{ tema.nombre }}</td>
                                 <td>
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" role="switch" name="tema_seleccionado" value="{{ tema.id }}">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="tema_seleccionado" value="{{ tema.id }}" id="switch-{{ tema.id }}" {% if tema.total_preguntas == 0 %}disabled{% endif %}>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="input-group input-group-sm" style="max-width: 150px;">
                                         <span class="input-group-text">Nº:</span>
-                                        <input type="number" name="num_preguntas_{{ tema.id }}" class="form-control" value="{{ tema.preguntas|length }}" min="1" max="{{ tema.preguntas|length }}">
+                                        <input type="number" name="num_preguntas_{{ tema.id }}" id="num-{{ tema.id }}" class="form-control" value="{{ tema.total_preguntas }}" min="0" max="{{ tema.total_preguntas }}" disabled>
                                     </div>
                                 </td>
                             </tr>
@@ -55,4 +55,28 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Para cada switch/checkbox de la página...
+    document.querySelectorAll('input[type="checkbox"][name="tema_seleccionado"]').forEach(function(switchElement) {
+        // Añadimos un listener para cuando cambie de estado (se active o desactive)
+        switchElement.addEventListener('change', function() {
+            // Obtenemos el ID del tema desde el valor del switch
+            const temaId = this.value;
+            // Buscamos el campo numérico correspondiente
+            const numInput = document.getElementById(`num-${temaId}`);
+
+            // Si el switch está marcado, habilitamos el campo numérico.
+            // Si no, lo deshabilitamos.
+            if (this.checked) {
+                numInput.disabled = false;
+            } else {
+                numInput.disabled = true;
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}
