@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 import os
 import cloudinary
 import cloudinary.uploader
+from sqlalchemy.orm import joinedload # <-- IMPORTACIÓN AÑADIDA
 
 from mi_app import db
 # AccesoConvocatoria añadido a la importación
@@ -39,16 +40,16 @@ def preguntas_a_revisar():
     preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.id.desc()).all()
     return render_template('preguntas_a_revisar.html', preguntas=preguntas)
 
+# --- FUNCIÓN DE USUARIOS ACTUALIZADA PARA SER MÁS EFICIENTE ---
 @admin_bp.route('/usuarios')
 @admin_required
 def admin_usuarios():
-    usuarios = Usuario.query.filter_by(es_admin=False).order_by(Usuario.nombre).all()
-    # Hacemos una consulta para cargar los accesos y evitar cargas perezosas en la plantilla
-    for u in usuarios:
-        u.accesos_list = list(u.accesos)
-    return render_template('admin_usuarios.html', usuarios=usuarios)
+    # Usamos joinedload para cargar los accesos y convocatorias en una sola consulta
+    usuarios = Usuario.query.options(
+        joinedload(Usuario.accesos).joinedload(AccesoConvocatoria.convocatoria)
+    ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
+    return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
 
-# --- FUNCIÓN DE PERMISOS TOTALMENTE ACTUALIZADA ---
 @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
 @admin_required
 def editar_permisos_usuario(usuario_id):
@@ -60,10 +61,7 @@ def editar_permisos_usuario(usuario_id):
     form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
 
     if form.validate_on_submit():
-        # Borramos los accesos antiguos para reemplazarlos por los nuevos
         AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
-
-        # Creamos los nuevos accesos con la fecha de expiración
         for id_convocatoria in form.convocatorias.data:
             nuevo_acceso = AccesoConvocatoria(
                 usuario_id=usuario.id,
@@ -71,17 +69,13 @@ def editar_permisos_usuario(usuario_id):
                 fecha_expiracion=form.fecha_expiracion.data
             )
             db.session.add(nuevo_acceso)
-
         db.session.commit()
         flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
         return redirect(url_for('admin.admin_usuarios'))
 
-    # Si es una petición GET, precargamos el formulario con los datos existentes
     elif request.method == 'GET':
         accesos_actuales = usuario.accesos.all()
-        # Marcamos las convocatorias que ya tiene
         form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
-        # Si hay accesos, rellenamos el campo de fecha con la del primer acceso
         if accesos_actuales and accesos_actuales[0].fecha_expiracion:
             form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
 
