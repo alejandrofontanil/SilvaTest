@@ -1,31 +1,45 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h4>Editando Permisos para {{ usuario.nombre }}</h4>
-                <p class="text-muted mb-0">Selecciona las convocatorias a las que este usuario tendrá acceso.</p>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.convocatorias.label(class="form-label") }}
-                        {# Este bucle crea una casilla por cada convocatoria #}
-                        {% for subfield in form.convocatorias %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h1 class="h4 mb-0">Editando Permisos para: {{ usuario.nombre }}</h1>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Selecciona las convocatorias a las que este usuario tendrá acceso y, si lo deseas, establece una fecha de expiración para dichos permisos.</p>
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+
+            <fieldset class="mb-3">
+                <legend class="fs-5">{{ form.convocatorias.label }}</legend>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3">
+                    {% for subfield in form.convocatorias %}
+                    <div class="col">
                         <div class="form-check">
                             {{ subfield(class="form-check-input") }}
                             {{ subfield.label(class="form-check-label") }}
                         </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-4">
+                <legend class="fs-5">{{ form.fecha_expiracion.label }}</legend>
+                 {{ form.fecha_expiracion(class="form-control", type="date") }}
+                 {% if form.fecha_expiracion.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.fecha_expiracion.errors %}
+                            <span>{{ error }}</span>
                         {% endfor %}
                     </div>
-                    <div class="d-grid mt-4">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
-                    </div>
-                </form>
+                {% endif %}
+            </fieldset>
+
+            <div class="d-grid">
+                {{ form.submit(class="btn btn-primary btn-lg") }}
             </div>
-        </div>
+        </form>
     </div>
 </div>
 {% endblock %}

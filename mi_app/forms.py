@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm, RecaptchaField
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SubmitField, TextAreaField, RadioField, SelectField, BooleanField, IntegerField, SelectMultipleField
+# DateField añadido a la importación
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, RadioField, SelectField, BooleanField, IntegerField, SelectMultipleField, DateField
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from wtforms_sqlalchemy.fields import QuerySelectField
@@ -34,9 +35,10 @@ class TemaForm(FlaskForm):
 
 class PermisosForm(FlaskForm):
     convocatorias = SelectMultipleField('Convocatorias con Acceso', coerce=int, widget=ListWidget(prefix_label=False), option_widget=CheckboxInput())
+    # --- CAMPO NUEVO AÑADIDO ---
+    fecha_expiracion = DateField('Fecha de Expiración (Opcional, dejar en blanco para acceso permanente)', format='%Y-%m-%d', validators=[Optional()])
     submit = SubmitField('Guardar Permisos')
 
-# CLASE CORREGIDA: Ahora está al nivel de indentación correcto
 class RegistrationForm(FlaskForm):
     nombre = StringField('Nombre', validators=[DataRequired(), Length(min=2, max=20)])
     email = StringField('Email', validators=[DataRequired(), Email()])

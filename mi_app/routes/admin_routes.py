@@ -9,7 +9,8 @@ import cloudinary
 import cloudinary.uploader
 
 from mi_app import db
-from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario, ResultadoTest
+# AccesoConvocatoria añadido a la importación
+from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario, ResultadoTest, AccesoConvocatoria
 from mi_app.forms import GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, PreguntaForm, NotaForm, PermisosForm
 
 admin_bp = Blueprint('admin', __name__,
@@ -42,26 +43,48 @@ def preguntas_a_revisar():
 @admin_required
 def admin_usuarios():
     usuarios = Usuario.query.filter_by(es_admin=False).order_by(Usuario.nombre).all()
+    # Hacemos una consulta para cargar los accesos y evitar cargas perezosas en la plantilla
+    for u in usuarios:
+        u.accesos_list = list(u.accesos)
     return render_template('admin_usuarios.html', usuarios=usuarios)
 
+# --- FUNCIÓN DE PERMISOS TOTALMENTE ACTUALIZADA ---
 @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
 @admin_required
 def editar_permisos_usuario(usuario_id):
     usuario = Usuario.query.get_or_404(usuario_id)
     if usuario.es_admin:
         abort(403)
+
     form = PermisosForm()
     form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
+
     if form.validate_on_submit():
-        usuario.convocatorias_accesibles = []
-        db.session.commit()
+        # Borramos los accesos antiguos para reemplazarlos por los nuevos
+        AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
+
+        # Creamos los nuevos accesos con la fecha de expiración
         for id_convocatoria in form.convocatorias.data:
-            convocatoria_a_dar_acceso = Convocatoria.query.get(id_convocatoria)
-            usuario.convocatorias_accesibles.append(convocatoria_a_dar_acceso)
+            nuevo_acceso = AccesoConvocatoria(
+                usuario_id=usuario.id,
+                convocatoria_id=id_convocatoria,
+                fecha_expiracion=form.fecha_expiracion.data
+            )
+            db.session.add(nuevo_acceso)
+
         db.session.commit()
         flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
         return redirect(url_for('admin.admin_usuarios'))
-    form.convocatorias.data = [c.id for c in usuario.convocatorias_accesibles]
+
+    # Si es una petición GET, precargamos el formulario con los datos existentes
+    elif request.method == 'GET':
+        accesos_actuales = usuario.accesos.all()
+        # Marcamos las convocatorias que ya tiene
+        form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
+        # Si hay accesos, rellenamos el campo de fecha con la del primer acceso
+        if accesos_actuales and accesos_actuales[0].fecha_expiracion:
+            form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
+
     return render_template('editar_permisos.html', form=form, usuario=usuario)
 
 @admin_bp.route('/convocatorias')
