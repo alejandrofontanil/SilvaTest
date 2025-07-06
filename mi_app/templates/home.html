@@ -2,6 +2,10 @@
 
 {% block content %}
 
+ <div class="text-center my-5">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid" style="max-width: 300px;">
+  </div>
+
     {% if current_user.is_authenticated and not current_user.es_admin %}
     <div class="row g-4 mb-5">
         <div class="col-12">
