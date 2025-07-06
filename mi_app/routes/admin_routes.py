@@ -104,11 +104,11 @@ def eliminar_convocatoria(convocatoria_id):
         pregunta_ids = [pregunta.id for pregunta in Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()] if tema_ids else []
         resultado_ids = [resultado.id for resultado in ResultadoTest.query.filter(ResultadoTest.tema_id.in_(tema_ids)).all()] if tema_ids else []
 
+        if resultado_ids:
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if pregunta_ids:
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
-        if resultado_ids:
-            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if tema_ids:
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
@@ -118,6 +118,7 @@ def eliminar_convocatoria(convocatoria_id):
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
         if bloque_ids:
              db.session.execute(Bloque.__table__.delete().where(Bloque.id.in_(bloque_ids)))
+
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados con éxito.', 'success')
@@ -166,16 +167,20 @@ def eliminar_bloque(bloque_id):
         tema_ids = [tema.id for tema in bloque.temas]
         pregunta_ids = [pregunta.id for pregunta in Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()] if tema_ids else []
         resultado_ids = [resultado.id for resultado in ResultadoTest.query.filter(ResultadoTest.tema_id.in_(tema_ids)).all()] if tema_ids else []
+
         if resultado_ids:
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if pregunta_ids:
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
-            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
         if tema_ids:
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
+        if pregunta_ids:
+            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+        if tema_ids:
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
+
         db.session.delete(bloque)
         db.session.commit()
         flash('El bloque y todo su contenido han sido eliminados con éxito.', 'success')
@@ -271,10 +276,10 @@ def eliminar_tema(tema_id):
         if pregunta_ids:
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
+        db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
+        db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
+        if pregunta_ids:
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
-        if tema_a_eliminar:
-            db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
-            db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -336,12 +341,83 @@ def subir_sheets():
     form = GoogleSheetImportForm()
     if form.validate_on_submit():
         try:
-            # ... Tu lógica de importación completa aquí ...
+            scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+            creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
+            if not creds_json_str:
+                flash('Credenciales de Google no configuradas en los Secrets.', 'danger')
+                return redirect(url_for('admin.subir_sheets'))
+            creds_json = json.loads(creds_json_str)
+            creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
+            client = gspread.authorize(creds)
+            sheet_url = form.sheet_url.data
+            spreadsheet = client.open_by_url(sheet_url)
+            sheet = spreadsheet.get_worksheet(0)
+            list_of_lists = sheet.get_all_values()
+            headers_original = list_of_lists[0]
+            headers = [h.strip().lower() for h in headers_original]
+            data_rows = list_of_lists[1:]
+            col_indices = {h: i for i, h in enumerate(headers) if h}
+            try:
+                tema_id_col_index = headers.index('tema_id')
+            except ValueError:
+                flash("La columna 'tema_id' es obligatoria y no se encontró.", 'danger')
+                return redirect(url_for('admin.subir_sheets'))
+            temas_a_sincronizar_ids = {int(row[tema_id_col_index]) for row in data_rows if row[tema_id_col_index].isdigit()}
+            if temas_a_sincronizar_ids:
+                for tema_id in temas_a_sincronizar_ids:
+                    ids_preguntas_a_borrar = [p.id for p in Pregunta.query.filter_by(tema_id=tema_id).all()]
+                    if ids_preguntas_a_borrar:
+                        db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_preguntas_a_borrar)))
+                        db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_preguntas_a_borrar)))
+                        db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_preguntas_a_borrar)))
+                        db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_preguntas_a_borrar)))
+            def get_value(row, col_name):
+                index = col_indices.get(col_name)
+                if index is not None and index < len(row):
+                    return row[index]
+                return None
+            contador_exito = 0
+            errores = []
+            for i, row in enumerate(data_rows):
+                num_fila = i + 2
+                tema_id_str = get_value(row, 'tema_id')
+                enunciado = get_value(row, 'enunciado')
+                if not tema_id_str or not enunciado:
+                    errores.append(f"Fila {num_fila}: Faltan datos en las columnas obligatorias 'tema_id' o 'enunciado'.")
+                    continue
+                tema = Tema.query.get(int(tema_id_str))
+                if not tema:
+                    errores.append(f"Fila {num_fila}: No se encontró ningún tema con el ID '{tema_id_str}'.")
+                    continue
+                nueva_pregunta = Pregunta(
+                    texto=enunciado, tema_id=tema.id, tipo_pregunta=get_value(row, 'tipo_pregunta') or 'opcion_multiple',
+                    respuesta_correcta_texto=get_value(row, 'respuesta_correcta_texto'), retroalimentacion=get_value(row, 'retroalimentacion'),
+                    dificultad=get_value(row, 'dificultad') or 'Media'
+                )
+                if nueva_pregunta.tipo_pregunta == 'opcion_multiple':
+                    opciones = [ get_value(row, 'opcion_a'), get_value(row, 'opcion_b'), get_value(row, 'opcion_c'), get_value(row, 'opcion_d') ]
+                    letra_correcta_str = get_value(row, 'respuesta_correcta_multiple')
+                    letra_correcta = letra_correcta_str.upper() if letra_correcta_str else ''
+                    for idx, opcion_texto in enumerate(opciones):
+                        if opcion_texto:
+                            letra = chr(ord('A') + idx)
+                            es_correcta = (letra == letra_correcta)
+                            respuesta = Respuesta(texto=opcion_texto, es_correcta=es_correcta, pregunta=nueva_pregunta)
+                            db.session.add(respuesta)
+                db.session.add(nueva_pregunta)
+                contador_exito += 1
+            db.session.commit()
+            flash(f'¡Sincronización completada! Se procesaron {contador_exito} preguntas de la hoja.', 'success')
+            if errores:
+                flash(f'Se encontraron {len(errores)} problemas durante la importación:', 'warning')
+                for error in errores[:5]:
+                    flash(error, 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
         except Exception as e:
             db.session.rollback()
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
             return redirect(url_for('admin.subir_sheets'))
-    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
+    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
