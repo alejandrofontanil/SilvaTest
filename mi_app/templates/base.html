@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if title %}{{ title }} - {% endif %}SilvaTest</title>
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -80,7 +81,10 @@
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
-          <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">SilvaTest</a>
+          <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="32" class="me-2">
+            SilvaTest
+          </a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
           </button>
