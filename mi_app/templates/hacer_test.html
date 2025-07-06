@@ -2,47 +2,12 @@
 
 {% block content %}
     <style>
-        .visu-image {
-            max-height: 350px;
-            width: auto;
-            max-width: 100%;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        .feedback-container {
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-            font-weight: bold;
-        }
-        .feedback-correcto {
-            border: 2px solid var(--bs-success);
-            background-color: rgba(var(--bs-success-rgb), 0.1);
-            color: var(--bs-success-text-emphasis);
-        }
-        .feedback-incorrecto {
-            border: 2px solid var(--bs-danger);
-            background-color: rgba(var(--bs-danger-rgb), 0.1);
-            color: var(--bs-danger-text-emphasis);
-        }
-        .toast-notification {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #2c3e50;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 25px;
-            z-index: 1050;
-            opacity: 0;
-            transition: opacity 0.5s, bottom 0.5s;
-            font-weight: 500;
-        }
-        .toast-notification.show {
-            bottom: 40px;
-            opacity: 1;
-        }
+        .visu-image { max-height: 350px; width: auto; max-width: 100%; border-radius: 0.75rem; margin-bottom: 1rem; }
+        .feedback-container { padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: bold; }
+        .feedback-correcto { border: 2px solid var(--bs-success); background-color: rgba(var(--bs-success-rgb), 0.1); color: var(--bs-success-text-emphasis); }
+        .feedback-incorrecto { border: 2px solid var(--bs-danger); background-color: rgba(var(--bs-danger-rgb), 0.1); color: var(--bs-danger-text-emphasis); }
+        .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 12px 24px; border-radius: 25px; z-index: 1050; opacity: 0; transition: opacity 0.5s, bottom 0.5s; font-weight: 500; }
+        .toast-notification.show { bottom: 40px; opacity: 1; }
     </style>
 
     <div class="card shadow-sm">
@@ -66,9 +31,11 @@
                     <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
                 </div>
             </div>
-            <form id="test-form" method="POST" action="{% if is_personalizado %}{{ url_for('main.corregir_simulacro_personalizado') }}{% else %}{{ url_for('main.corregir_test', tema_id=tema.id) }}{% endif %}">
-                {{ form.hidden_tag() if form }}
 
+            {% set action_url = url_for('main.corregir_simulacro_personalizado') if is_personalizado else url_for('main.corregir_test', tema_id=tema.id) %}
+            <form id="test-form" method="POST" action="{{ action_url }}">
+                {{ form.hidden_tag() if form }}
+                
                 {% for pregunta in preguntas %}
                     <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -101,12 +68,16 @@
                                 </div>
                             {% else %}
                                 <div class="list-group mt-3">
-                                    {% for respuesta in pregunta.respuestas_barajadas %}
-                                        <label class="list-group-item list-group-item-action">
-                                            <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}">
-                                            {{ respuesta.texto }}
-                                        </label>
-                                    {% endfor %}
+                                    {% if pregunta.respuestas_barajadas %}
+                                        {% for respuesta in pregunta.respuestas_barajadas %}
+                                            <label class="list-group-item list-group-item-action">
+                                                <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}">
+                                                {{ respuesta.texto }}
+                                            </label>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-danger">Error: No se han podido cargar las respuestas para esta pregunta.</p>
+                                    {% endif %}
                                 </div>
                             {% endif %}
                         </div>
@@ -136,7 +107,6 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-
         const testForm = document.getElementById('test-form');
         const submitBtn = document.getElementById('submit-test-btn');
         const totalPreguntas = {{ preguntas|length }};
@@ -144,13 +114,10 @@
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
-
         function updateProgress() {
             if (!testForm) return;
-
             const formData = new FormData(testForm);
             const answeredNames = new Set();
-
             for (const pair of formData.entries()) {
                 if (pair[0].startsWith('pregunta-')) {
                     answeredNames.add(pair[0]);
@@ -158,7 +125,6 @@
             }
             const answeredCount = answeredNames.size;
             const percentage = totalPreguntas > 0 ? (answeredCount / totalPreguntas) * 100 : 0;
-
             if (progressBar) {
                 progressBar.style.width = percentage + '%';
                 progressBar.setAttribute('aria-valuenow', percentage);
@@ -169,9 +135,9 @@
         }
         if (testForm) {
             testForm.addEventListener('input', updateProgress);
-            updateProgress(); // Llamada inicial
+            updateProgress();
         }
-
+        
         // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
         if (submitBtn) {
             const spinner = submitBtn.querySelector('.tree-spinner');
@@ -184,31 +150,25 @@
                         questionsAnswered.add(input.name);
                     }
                 });
-
                 if (questionsAnswered.size < totalPreguntas) {
                     if (!confirm('No has respondido a todas las preguntas. ¿Quieres finalizar el test de todas formas?')) {
-                        event.preventDefault(); // Cancela el envío del formulario
+                        event.preventDefault();
                         return;
                     }
                 }
-
                 submitBtn.disabled = true;
                 if(buttonText) buttonText.style.display = 'none';
                 if(spinner) spinner.style.display = 'inline-block';
             });
         }
-
-        // --- OTRAS LÓGICAS (COMPROBAR, REPORTAR, FAVORITO) ---
-        // ... (Tu código completo para estas funciones va aquí, no lo borres)
-
+        
+        // --- LÓGICA PARA BOTONES DE ACCIÓN DE PREGUNTA ---
         function showToast(message) {
             const toast = document.createElement('div');
             toast.className = 'toast-notification';
             toast.textContent = message;
             document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 10);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
             setTimeout(() => {
                 toast.classList.remove('show');
                 toast.addEventListener('transitionend', () => toast.remove());
@@ -242,11 +202,58 @@
                 });
             });
         });
-
+        
         // Reportar
-        document.querySelectorAll('.btn-reportar').forEach(function(boton) { /* ... */ });
+        document.querySelectorAll('.btn-reportar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                if (!confirm('¿Estás seguro de que quieres reportar esta pregunta para su revisión?')) { return; }
+                const url_template = "{{ url_for('main.reportar_pregunta', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        showToast(data.message);
+                        this.classList.remove('btn-outline-warning');
+                        this.classList.add('btn-warning', 'disabled');
+                    } else { showToast('Hubo un error al reportar la pregunta.'); }
+                });
+            });
+        });
+
         // Comprobar
-        document.querySelectorAll('.btn-comprobar').forEach(function(boton) { /* ... */ });
+        document.querySelectorAll('.btn-comprobar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const card = document.getElementById(`card-pregunta-${preguntaId}`);
+                const respuestaSeleccionada = card.querySelector(`input[name="pregunta-${preguntaId}"]:checked`);
+                const feedbackContainer = card.querySelector('.feedback-container');
+                if (!respuestaSeleccionada) {
+                    showToast('Por favor, selecciona una respuesta antes de comprobar.');
+                    return;
+                }
+                fetch("{{ url_for('main.comprobar_respuesta') }}", { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    feedbackContainer.style.display = 'block';
+                    if (data.es_correcta) {
+                        feedbackContainer.className = 'feedback-container feedback-correcto';
+                        feedbackContainer.innerHTML = `<strong>¡Correcto!</strong> ${data.retroalimentacion || ''}`;
+                    } else {
+                        feedbackContainer.className = 'feedback-container feedback-incorrecto';
+                        feedbackContainer.innerHTML = `<strong>Incorrecto.</strong> ${data.retroalimentacion || ''}`;
+                    }
+                });
+            });
+        });
 
     });
     </script>
