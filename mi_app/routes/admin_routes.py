@@ -13,48 +13,19 @@ from mi_app import db
 from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario, ResultadoTest, AccesoConvocatoria
 from mi_app.forms import GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, PreguntaForm, NotaForm, PermisosForm
 
-admin_bp = Blueprint('admin', __name__,
-                     template_folder='../templates/admin',
-                     url_prefix='/admin')
+# ... (El resto de tu archivo hasta editar_permisos_usuario no cambia)
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.es_admin:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated_function
-
-# --- RUTAS DE ADMINISTRACIÓN ---
-
-@admin_bp.route('/')
-@admin_required
-def admin_dashboard():
-    preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
-    return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
-
-@admin_bp.route('/preguntas_a_revisar')
-@admin_required
-def preguntas_a_revisar():
-    preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.id.desc()).all()
-    return render_template('preguntas_a_revisar.html', preguntas=preguntas)
-
-@admin_bp.route('/usuarios')
-@admin_required
-def admin_usuarios():
-    usuarios = Usuario.query.options(
-        selectinload(Usuario.accesos).selectinload(AccesoConvocatoria.convocatoria)
-    ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
-    return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
-
+# --- FUNCIÓN DE PERMISOS ACTUALIZADA ---
 @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
 @admin_required
 def editar_permisos_usuario(usuario_id):
     usuario = Usuario.query.get_or_404(usuario_id)
     if usuario.es_admin:
         abort(403)
+
     form = PermisosForm()
     form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
+
     if form.validate_on_submit():
         AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
         for id_convocatoria in form.convocatorias.data:
@@ -67,11 +38,14 @@ def editar_permisos_usuario(usuario_id):
         db.session.commit()
         flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
         return redirect(url_for('admin.admin_usuarios'))
+
     elif request.method == 'GET':
-        accesos_actuales = usuario.accesos.all()
+        # --- LÍNEA CORREGIDA: quitamos el .all() ---
+        accesos_actuales = usuario.accesos
         form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
         if accesos_actuales and accesos_actuales[0].fecha_expiracion:
             form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
+
     return render_template('editar_permisos.html', form=form, usuario=usuario)
 
 @admin_bp.route('/convocatorias')

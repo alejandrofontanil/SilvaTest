@@ -30,10 +30,13 @@ class Usuario(db.Model, UserMixin):
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
-    accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', lazy='dynamic', cascade="all, delete-orphan")
+
+    # --- LÍNEA CORREGIDA: quitamos lazy='dynamic' ---
+    accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', cascade="all, delete-orphan")
 
     @property
     def convocatorias_accesibles(self):
+        """Devuelve una query con las convocatorias a las que el usuario tiene acceso y que no han expirado."""
         return Convocatoria.query.join(AccesoConvocatoria).filter(
             AccesoConvocatoria.usuario_id == self.id,
             (AccesoConvocatoria.fecha_expiracion == None) | (AccesoConvocatoria.fecha_expiracion > datetime.utcnow())
@@ -60,7 +63,8 @@ class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan")
-    usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', lazy='dynamic', cascade="all, delete-orphan")
+    # --- LÍNEA CORREGIDA: quitamos lazy='dynamic' ---
+    usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Convocatoria {self.nombre}>'
