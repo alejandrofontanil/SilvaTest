@@ -100,39 +100,30 @@ def eliminar_convocatoria(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
     try:
         bloque_ids = [bloque.id for bloque in convocatoria.bloques]
-        tema_ids = []
-        if bloque_ids:
-            temas = Tema.query.filter(Tema.bloque_id.in_(bloque_ids)).all()
-            tema_ids = [tema.id for tema in temas]
-
-        pregunta_ids = []
-        if tema_ids:
-            preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
-            pregunta_ids = [pregunta.id for pregunta in preguntas]
+        tema_ids = [tema.id for tema in Tema.query.filter(Tema.bloque_id.in_(bloque_ids)).all()] if bloque_ids else []
+        pregunta_ids = [pregunta.id for pregunta in Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()] if tema_ids else []
+        resultado_ids = [resultado.id for resultado in ResultadoTest.query.filter(ResultadoTest.tema_id.in_(tema_ids)).all()] if tema_ids else []
 
         if pregunta_ids:
-            # Borramos las dependencias de RespuestaUsuario ANTES que las de ResultadoTest
-            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
-            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
-
+        if resultado_ids:
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if tema_ids:
-            # Borramos los ResultadoTest DESPUÉS de RespuestaUsuario
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
+        if pregunta_ids:
+            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+        if tema_ids:
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
-
         if bloque_ids:
              db.session.execute(Bloque.__table__.delete().where(Bloque.id.in_(bloque_ids)))
-
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados con éxito.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Ocurrió un error al borrar la convocatoria: {e}', 'danger')
-        print(f"ERROR al borrar convocatoria: {e}")
     return redirect(url_for('admin.admin_convocatorias'))
 
 @admin_bp.route('/convocatoria/<int:convocatoria_id>/bloques')
@@ -173,12 +164,11 @@ def eliminar_bloque(bloque_id):
     convocatoria_id = bloque.convocatoria_id
     try:
         tema_ids = [tema.id for tema in bloque.temas]
-        pregunta_ids = []
-        if tema_ids:
-            preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
-            pregunta_ids = [pregunta.id for pregunta in preguntas]
+        pregunta_ids = [pregunta.id for pregunta in Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()] if tema_ids else []
+        resultado_ids = [resultado.id for resultado in ResultadoTest.query.filter(ResultadoTest.tema_id.in_(tema_ids)).all()] if tema_ids else []
+        if resultado_ids:
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if pregunta_ids:
-            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
@@ -192,7 +182,6 @@ def eliminar_bloque(bloque_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
-        print(f"ERROR al borrar bloque: {e}")
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
 
 @admin_bp.route('/temas')
@@ -276,22 +265,22 @@ def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     try:
         pregunta_ids = [pregunta.id for pregunta in tema_a_eliminar.preguntas]
+        resultado_ids = [resultado.id for resultado in tema_a_eliminar.resultados]
+        if resultado_ids:
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
         if pregunta_ids:
-            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
             db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
-
-        db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
-        db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
-
+        if tema_a_eliminar:
+            db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
+            db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
-        print(f"ERROR al borrar tema: {e}")
     return redirect(url_for('admin.admin_temas'))
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
@@ -323,7 +312,6 @@ def eliminar_pregunta(pregunta_id):
     try:
         db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
         db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
-        # Las respuestas se borran en cascada con la pregunta
         db.session.delete(pregunta)
         db.session.commit()
         flash('La pregunta ha sido eliminada.', 'success')
@@ -347,15 +335,38 @@ def eliminar_nota(nota_id):
 def subir_sheets():
     form = GoogleSheetImportForm()
     if form.validate_on_submit():
-        # ... (código completo de la función)
-        pass # Placeholder for brevity
+        try:
+            # ... Tu lógica de importación completa aquí ...
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
+            return redirect(url_for('admin.subir_sheets'))
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    # ... (código completo de la función)
-    if request.form.get('tema_id'):
-        return redirect(url_for('admin.detalle_tema', tema_id=request.form.get('tema_id')))
+    tema_id = request.form.get('tema_id')
+    ids_a_borrar = request.form.getlist('preguntas_ids')
+    if not ids_a_borrar:
+        flash('No seleccionaste ninguna pregunta para borrar.', 'warning')
+        if tema_id:
+            return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
+        else:
+            return redirect(url_for('admin.admin_dashboard'))
+    try:
+        ids_a_borrar_int = [int(i) for i in ids_a_borrar]
+        db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar_int)))
+        db.session.commit()
+        flash(f"¡Éxito! Se eliminaron {len(ids_a_borrar_int)} preguntas usando SQL directo.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Ocurrió un error inesperado durante el borrado con SQL: {e}", 'danger')
+        print(f"ERROR CON SQL PURO: {e}")
+    if tema_id:
+        return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
