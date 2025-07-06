@@ -10,12 +10,50 @@ import cloudinary.uploader
 from sqlalchemy.orm import selectinload
 
 from mi_app import db
-from mi_app.models import Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, favoritos, RespuestaUsuario, ResultadoTest, AccesoConvocatoria
-from mi_app.forms import GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, PreguntaForm, NotaForm, PermisosForm
+from mi_app.models import (
+    Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, 
+    favoritos, RespuestaUsuario, ResultadoTest, AccesoConvocatoria
+)
+from mi_app.forms import (
+    GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, 
+    PreguntaForm, NotaForm, PermisosForm
+)
 
-# ... (El resto de tu archivo hasta editar_permisos_usuario no cambia)
+# Definimos el Blueprint ANTES de usarlo en las rutas
+admin_bp = Blueprint('admin', __name__,
+                     template_folder='../templates/admin',
+                     url_prefix='/admin')
 
-# --- FUNCIÓN DE PERMISOS ACTUALIZADA ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.es_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- RUTAS DE ADMINISTRACIÓN ---
+
+@admin_bp.route('/')
+@admin_required
+def admin_dashboard():
+    preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
+    return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
+
+@admin_bp.route('/preguntas_a_revisar')
+@admin_required
+def preguntas_a_revisar():
+    preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.id.desc()).all()
+    return render_template('preguntas_a_revisar.html', preguntas=preguntas)
+
+@admin_bp.route('/usuarios')
+@admin_required
+def admin_usuarios():
+    usuarios = Usuario.query.options(
+        selectinload(Usuario.accesos).selectinload(AccesoConvocatoria.convocatoria)
+    ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
+    return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
+
 @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
 @admin_required
 def editar_permisos_usuario(usuario_id):
@@ -40,7 +78,6 @@ def editar_permisos_usuario(usuario_id):
         return redirect(url_for('admin.admin_usuarios'))
 
     elif request.method == 'GET':
-        # --- LÍNEA CORREGIDA: quitamos el .all() ---
         accesos_actuales = usuario.accesos
         form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
         if accesos_actuales and accesos_actuales[0].fecha_expiracion:
@@ -297,6 +334,7 @@ def eliminar_pregunta(pregunta_id):
     try:
         db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
         db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
+        # Las respuestas se borran en cascada con la pregunta
         db.session.delete(pregunta)
         db.session.commit()
         flash('La pregunta ha sido eliminada.', 'success')
