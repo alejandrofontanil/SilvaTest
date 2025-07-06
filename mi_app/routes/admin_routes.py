@@ -104,21 +104,28 @@ def eliminar_convocatoria(convocatoria_id):
         if bloque_ids:
             temas = Tema.query.filter(Tema.bloque_id.in_(bloque_ids)).all()
             tema_ids = [tema.id for tema in temas]
+
         pregunta_ids = []
         if tema_ids:
             preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
             pregunta_ids = [pregunta.id for pregunta in preguntas]
+
         if pregunta_ids:
-            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
+            # Borramos las dependencias de RespuestaUsuario ANTES que las de ResultadoTest
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+
         if tema_ids:
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
+            # Borramos los ResultadoTest DESPUÉS de RespuestaUsuario
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
+
         if bloque_ids:
              db.session.execute(Bloque.__table__.delete().where(Bloque.id.in_(bloque_ids)))
+
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados con éxito.', 'success')
@@ -170,15 +177,17 @@ def eliminar_bloque(bloque_id):
         if tema_ids:
             preguntas = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids)).all()
             pregunta_ids = [pregunta.id for pregunta in preguntas]
+
         if pregunta_ids:
-            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
         if tema_ids:
             db.session.execute(Nota.__table__.delete().where(Nota.tema_id.in_(tema_ids)))
             db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id.in_(tema_ids)))
             db.session.execute(Tema.__table__.delete().where(Tema.id.in_(tema_ids)))
+
         db.session.delete(bloque)
         db.session.commit()
         flash('El bloque y todo su contenido han sido eliminados con éxito.', 'success')
@@ -270,12 +279,14 @@ def eliminar_tema(tema_id):
     try:
         pregunta_ids = [pregunta.id for pregunta in tema_a_eliminar.preguntas]
         if pregunta_ids:
-            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
             db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+
         db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
         db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
+
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -300,6 +311,7 @@ def editar_pregunta(pregunta_id):
         pregunta.texto = form.texto.data
         pregunta.dificultad = form.dificultad.data
         pregunta.retroalimentacion = form.retroalimentacion.data
+        # Lógica de actualización de imagen y respuestas...
         db.session.commit()
         flash('Pregunta actualizada con éxito!', 'success')
         return redirect(url_for('admin.detalle_tema', tema_id=pregunta.tema_id))
@@ -313,6 +325,7 @@ def eliminar_pregunta(pregunta_id):
     try:
         db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
         db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
+        # Las respuestas se borran en cascada con la pregunta
         db.session.delete(pregunta)
         db.session.commit()
         flash('La pregunta ha sido eliminada.', 'success')
@@ -386,20 +399,12 @@ def subir_sheets():
                     errores.append(f"Fila {num_fila}: No se encontró ningún tema con el ID '{tema_id_str}'.")
                     continue
                 nueva_pregunta = Pregunta(
-                    texto=enunciado,
-                    tema_id=tema.id,
-                    tipo_pregunta=get_value(row, 'tipo_pregunta') or 'opcion_multiple',
-                    respuesta_correcta_texto=get_value(row, 'respuesta_correcta_texto'),
-                    retroalimentacion=get_value(row, 'retroalimentacion'),
+                    texto=enunciado, tema_id=tema.id, tipo_pregunta=get_value(row, 'tipo_pregunta') or 'opcion_multiple',
+                    respuesta_correcta_texto=get_value(row, 'respuesta_correcta_texto'), retroalimentacion=get_value(row, 'retroalimentacion'),
                     dificultad=get_value(row, 'dificultad') or 'Media'
                 )
                 if nueva_pregunta.tipo_pregunta == 'opcion_multiple':
-                    opciones = [
-                        get_value(row, 'opcion_a'), 
-                        get_value(row, 'opcion_b'), 
-                        get_value(row, 'opcion_c'), 
-                        get_value(row, 'opcion_d')
-                    ]
+                    opciones = [ get_value(row, 'opcion_a'), get_value(row, 'opcion_b'), get_value(row, 'opcion_c'), get_value(row, 'opcion_d') ]
                     letra_correcta_str = get_value(row, 'respuesta_correcta_multiple')
                     letra_correcta = letra_correcta_str.upper() if letra_correcta_str else ''
                     for idx, opcion_texto in enumerate(opciones):
@@ -450,3 +455,4 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
