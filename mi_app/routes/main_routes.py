@@ -157,131 +157,6 @@ def corregir_test(tema_id):
     flash(f'¡Test finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
-# --- NUEVAS RUTAS PARA EL GENERADOR DE SIMULACROS ---
-
-@main_bp.route('/generador-simulacro', methods=['GET', 'POST'])
-@login_required
-def generador_simulacro():
-    if request.method == 'POST':
-        preguntas_para_el_test_ids = []
-        temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
-
-        if not temas_seleccionados_ids:
-            flash('Debes seleccionar al menos un tema.', 'warning')
-            return redirect(url_for('main.generador_simulacro'))
-
-        for tema_id in temas_seleccionados_ids:
-            try:
-                num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
-            except (ValueError, TypeError):
-                num_preguntas = 10
-
-            tema = Tema.query.get_or_404(tema_id)
-            preguntas_disponibles = obtener_preguntas_recursivas(tema)
-
-            num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
-
-            preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
-            preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
-
-        if not preguntas_para_el_test_ids:
-            flash('No se pudieron generar preguntas con los criterios seleccionados.', 'warning')
-            return redirect(url_for('main.generador_simulacro'))
-
-        session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
-        return redirect(url_for('main.simulacro_personalizado_test'))
-
-    convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
-    return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles)
-
-@main_bp.route('/simulacro/empezar')
-@login_required
-def simulacro_personalizado_test():
-    ids_preguntas = session.get('id_preguntas_simulacro', [])
-    if not ids_preguntas:
-        flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
-        return redirect(url_for('main.generador_simulacro'))
-
-    preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).order_by(sql_func.random()).all()
-
-    for pregunta in preguntas_test:
-        if pregunta.tipo_pregunta == 'opcion_multiple':
-            lista_respuestas = list(pregunta.respuestas)
-            random.shuffle(lista_respuestas)
-            pregunta.respuestas_barajadas = lista_respuestas
-
-    # Creamos un objeto 'dummy' para el tema, para que la plantilla no falle
-    tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-    return render_template('hacer_test.html', title="Simulacro Personalizado", tema=tema_dummy, preguntas=preguntas_test, is_personalizado=True)
-
-@main_bp.route('/simulacro/corregir', methods=['POST'])
-@login_required
-def corregir_simulacro_personalizado():
-    ids_preguntas_en_test = session.get('id_preguntas_simulacro', [])
-    if not ids_preguntas_en_test:
-        flash('La sesión de tu simulacro ha expirado. Por favor, genera uno nuevo.', 'danger')
-        return redirect(url_for('main.generador_simulacro'))
-
-    preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
-
-    aciertos = 0
-    total_preguntas = len(preguntas_en_test)
-
-    # Creamos un tema "virtual" para asociar el resultado
-    tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
-    if not tema_simulacro_personalizado:
-        # Asumimos que existe un bloque genérico o lo creamos
-        bloque_general = Bloque.query.filter_by(nombre="General").first()
-        if not bloque_general:
-            # Asumimos que existe una convocatoria genérica o la creamos
-            convo_general = Convocatoria.query.filter_by(nombre="General").first()
-            if not convo_general:
-                convo_general = Convocatoria(nombre="General")
-                db.session.add(convo_general)
-                db.session.flush()
-            bloque_general = Bloque(nombre="General", convocatoria_id=convo_general.id)
-            db.session.add(bloque_general)
-            db.session.flush()
-        tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
-        db.session.add(tema_simulacro_personalizado)
-        db.session.commit()
-
-    nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
-    db.session.add(nuevo_resultado)
-    db.session.flush()
-
-    for pregunta in preguntas_en_test:
-        es_correcta = False
-        if pregunta.tipo_pregunta == 'opcion_multiple':
-            id_respuesta_marcada = request.form.get(f'pregunta-{pregunta.id}')
-            if id_respuesta_marcada:
-                respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
-                if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
-                    es_correcta = True
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
-        elif pregunta.tipo_pregunta == 'respuesta_texto':
-            respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta.id}')
-            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
-               respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
-                es_correcta = True
-            if respuesta_texto_usuario is not None:
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
-        if es_correcta:
-            aciertos += 1
-
-    nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
-    nuevo_resultado.nota = nota_final
-
-    # Limpiamos la sesión para que no se pueda corregir dos veces
-    session.pop('id_preguntas_simulacro', None)
-
-    db.session.commit()
-    flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
-    return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
-
-
 @main_bp.route('/resultado/<int:resultado_id>')
 @login_required
 def resultado_test(resultado_id):
@@ -384,3 +259,128 @@ def politica_privacidad():
 @main_bp.route('/terminos-y-condiciones')
 def terminos_condiciones():
     return render_template('terminos_condiciones.html', title="Términos y Condiciones")
+
+# --- NUEVAS RUTAS PARA EL GENERADOR DE SIMULACROS ---
+
+@main_bp.route('/generador-simulacro', methods=['GET', 'POST'])
+@login_required
+def generador_simulacro():
+    if request.method == 'POST':
+        preguntas_para_el_test_ids = []
+        temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
+
+        if not temas_seleccionados_ids:
+            flash('Debes seleccionar al menos un tema.', 'warning')
+            return redirect(url_for('main.generador_simulacro'))
+
+        for tema_id in temas_seleccionados_ids:
+            try:
+                num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
+            except (ValueError, TypeError):
+                num_preguntas = 10
+
+            if num_preguntas == 0:
+                continue
+
+            tema = Tema.query.get_or_404(tema_id)
+            preguntas_disponibles = obtener_preguntas_recursivas(tema)
+
+            num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
+
+            preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
+            preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
+
+        if not preguntas_para_el_test_ids:
+            flash('No se pudieron generar preguntas con los criterios seleccionados (o no había preguntas en los temas).', 'warning')
+            return redirect(url_for('main.generador_simulacro'))
+
+        session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
+        return redirect(url_for('main.simulacro_personalizado_test'))
+
+    convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
+    return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles)
+
+@main_bp.route('/simulacro/empezar')
+@login_required
+def simulacro_personalizado_test():
+    ids_preguntas = session.get('id_preguntas_simulacro', [])
+    if not ids_preguntas:
+        flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
+        return redirect(url_for('main.generador_simulacro'))
+
+    preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).order_by(sql_func.random()).all()
+
+    for pregunta in preguntas_test:
+        if pregunta.tipo_pregunta == 'opcion_multiple':
+            lista_respuestas = list(pregunta.respuestas)
+            random.shuffle(lista_respuestas)
+            pregunta.respuestas_barajadas = lista_respuestas
+
+    # Creamos un objeto 'dummy' para el tema, para que la plantilla no falle
+    tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
+    return render_template('hacer_test.html', title="Simulacro Personalizado", tema=tema_dummy, preguntas=preguntas_test, is_personalizado=True)
+
+@main_bp.route('/simulacro/corregir', methods=['POST'])
+@login_required
+def corregir_simulacro_personalizado():
+    ids_preguntas_en_test = session.get('id_preguntas_simulacro', [])
+    if not ids_preguntas_en_test:
+        flash('La sesión de tu simulacro ha expirado. Por favor, genera uno nuevo.', 'danger')
+        return redirect(url_for('main.generador_simulacro'))
+
+    preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
+
+    aciertos = 0
+    total_preguntas = len(preguntas_en_test)
+
+    # Creamos un tema "virtual" para asociar el resultado
+    tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
+    if not tema_simulacro_personalizado:
+        # Asumimos que existe un bloque genérico o lo creamos
+        bloque_general = Bloque.query.filter_by(nombre="General").first()
+        if not bloque_general:
+            convo_general = Convocatoria.query.filter_by(nombre="General").first()
+            if not convo_general:
+                convo_general = Convocatoria(nombre="General")
+                db.session.add(convo_general)
+                db.session.flush()
+            bloque_general = Bloque(nombre="General", convocatoria_id=convo_general.id)
+            db.session.add(bloque_general)
+            db.session.flush()
+        tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
+        db.session.add(tema_simulacro_personalizado)
+        db.session.commit()
+
+    nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
+    db.session.add(nuevo_resultado)
+    db.session.flush()
+
+    for pregunta in preguntas_en_test:
+        es_correcta = False
+        if pregunta.tipo_pregunta == 'opcion_multiple':
+            id_respuesta_marcada = request.form.get(f'pregunta-{pregunta.id}')
+            if id_respuesta_marcada:
+                respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
+                if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
+                    es_correcta = True
+                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado)
+                db.session.add(respuesta_usuario)
+        elif pregunta.tipo_pregunta == 'respuesta_texto':
+            respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta.id}')
+            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
+               respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
+                es_correcta = True
+            if respuesta_texto_usuario is not None:
+                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
+                db.session.add(respuesta_usuario)
+        if es_correcta:
+            aciertos += 1
+
+    nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
+    nuevo_resultado.nota = nota_final
+
+    session.pop('id_preguntas_simulacro', None)
+
+    db.session.commit()
+    flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
+    return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
