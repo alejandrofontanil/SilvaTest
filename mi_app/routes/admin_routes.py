@@ -530,3 +530,23 @@ def aplicar_migracion_posicion():
         print(f"--- ERROR DURANTE UPGRADE FORZADO: {e} ---")
         flash(f'Error durante la migración forzada: {e}', 'danger')
         return redirect(url_for('admin.admin_dashboard'))
+
+
+
+@admin_bp.route('/super-secreto-stamp-db-head-final')
+@admin_required
+def run_stamp_head():
+    """
+    Ruta temporal para forzar la sincronización del historial de migraciones.
+    """
+    try:
+        with current_app.app_context():
+            print("--- FORZANDO STAMP DE LA BASE DE DATOS A 'HEAD' ---")
+            stamp() # Le decimos a Alembic que la BD ya está en la última versión.
+            print("--- STAMP COMPLETADO ---")
+        flash('¡Historial de la base de datos sincronizado con éxito!', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        print(f"--- ERROR DURANTE STAMP: {e} ---")
+        flash(f'Error durante la sincronización forzada: {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
