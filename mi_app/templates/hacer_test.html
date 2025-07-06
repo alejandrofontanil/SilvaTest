@@ -66,7 +66,8 @@
                     <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
                 </div>
             </div>
-            <form id="test-form" method="POST" action="{{ url_for('main.corregir_test', tema_id=tema.id) }}">
+            <form id="test-form" method="POST" action="{% if is_personalizado %}{{ url_for('main.corregir_simulacro_personalizado') }}{% else %}{{ url_for('main.corregir_test', tema_id=tema.id) }}{% endif %}">
+                {{ form.hidden_tag() if form }}
 
                 {% for pregunta in preguntas %}
                     <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
@@ -136,20 +137,24 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
 
+        const testForm = document.getElementById('test-form');
+        const submitBtn = document.getElementById('submit-test-btn');
+        const totalPreguntas = {{ preguntas|length }};
+
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
-        const totalPreguntas = {{ preguntas|length }};
-        const testForm = document.getElementById('test-form');
 
         function updateProgress() {
+            if (!testForm) return;
+
             const formData = new FormData(testForm);
             const answeredNames = new Set();
 
-            // Iteramos sobre las entradas del formulario para contar preguntas únicas respondidas
             for (const pair of formData.entries()) {
-                // El 'name' del input es 'pregunta-X'
-                answeredNames.add(pair[0]);
+                if (pair[0].startsWith('pregunta-')) {
+                    answeredNames.add(pair[0]);
+                }
             }
             const answeredCount = answeredNames.size;
             const percentage = totalPreguntas > 0 ? (answeredCount / totalPreguntas) * 100 : 0;
@@ -162,36 +167,28 @@
                 progressText.textContent = `${answeredCount} / ${totalPreguntas}`;
             }
         }
-
-        // Añadimos un listener al formulario para que se actualice con cualquier cambio
         if (testForm) {
             testForm.addEventListener('input', updateProgress);
+            updateProgress(); // Llamada inicial
         }
 
-        // Llamamos una vez al principio por si la página se recarga con respuestas ya marcadas
-        updateProgress();
-
-
         // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
-        const submitBtn = document.getElementById('submit-test-btn');
         if (submitBtn) {
             const spinner = submitBtn.querySelector('.tree-spinner');
             const buttonText = submitBtn.querySelector('.button-text');
-            testForm.addEventListener('submit', function() {
-                // Comprobamos si todas las preguntas han sido respondidas
+            testForm.addEventListener('submit', function(event) {
                 const inputs = testForm.querySelectorAll('input[name^="pregunta-"]');
                 const questionsAnswered = new Set();
                 inputs.forEach(input => {
-                    if (input.type === 'radio' && input.checked) {
-                        questionsAnswered.add(input.name);
-                    } else if (input.type === 'text' && input.value.trim() !== '') {
+                    if ((input.type === 'radio' && input.checked) || (input.type === 'text' && input.value.trim() !== '')) {
                         questionsAnswered.add(input.name);
                     }
                 });
 
                 if (questionsAnswered.size < totalPreguntas) {
                     if (!confirm('No has respondido a todas las preguntas. ¿Quieres finalizar el test de todas formas?')) {
-                        return false; // Cancela el envío del formulario
+                        event.preventDefault(); // Cancela el envío del formulario
+                        return;
                     }
                 }
 
@@ -201,11 +198,55 @@
             });
         }
 
-        // --- El resto del script que ya teníamos ---
-        document.querySelectorAll('.btn-comprobar').forEach(function(boton) { /* ... */ });
+        // --- OTRAS LÓGICAS (COMPROBAR, REPORTAR, FAVORITO) ---
+        // ... (Tu código completo para estas funciones va aquí, no lo borres)
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        // Favorito
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url_template = "{{ url_for('main.toggle_favorito', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        let message = '';
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                            message = 'Añadida a favoritos';
+                        } else {
+                            icono.className = 'bi bi-star';
+                            message = 'Quitada de favoritos';
+                        }
+                        showToast(message);
+                    }
+                });
+            });
+        });
+
+        // Reportar
         document.querySelectorAll('.btn-reportar').forEach(function(boton) { /* ... */ });
-        document.querySelectorAll('.btn-favorito').forEach(function(boton) { /* ... */ });
-        function showToast(message) { /* ... */ }
+        // Comprobar
+        document.querySelectorAll('.btn-comprobar').forEach(function(boton) { /* ... */ });
 
     });
     </script>
