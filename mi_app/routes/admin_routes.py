@@ -48,11 +48,13 @@ def preguntas_a_revisar():
 @admin_bp.route('/usuarios')
 @admin_required
 def admin_usuarios():
+    # Usamos selectinload para cargar los accesos y convocatorias de forma eficiente
     usuarios = Usuario.query.options(
         selectinload(Usuario.accesos).selectinload(AccesoConvocatoria.convocatoria)
     ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
     return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
 
+# --- FUNCIÓN DE PERMISOS TOTALMENTE ACTUALIZADA ---
 @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
 @admin_required
 def editar_permisos_usuario(usuario_id):
@@ -205,6 +207,7 @@ def eliminar_bloque(bloque_id):
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
 
+
 @admin_bp.route('/temas')
 @admin_required
 def admin_temas():
@@ -333,7 +336,6 @@ def eliminar_pregunta(pregunta_id):
     try:
         db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
         db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
-        # Las respuestas se borran en cascada con la pregunta
         db.session.delete(pregunta)
         db.session.commit()
         flash('La pregunta ha sido eliminada.', 'success')
