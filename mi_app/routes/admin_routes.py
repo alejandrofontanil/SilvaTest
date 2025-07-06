@@ -488,3 +488,25 @@ def make_me_admin_now():
         db.session.rollback()
         flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
         return redirect(url_for('main.home'))
+
+@admin_bp.route('/reordenar-temas', methods=['POST'])
+@admin_required
+def reordenar_temas():
+    # Obtenemos la lista de IDs ordenados que nos envía el JavaScript
+    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
+
+    if not nuevos_ids_ordenados:
+        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
+
+    try:
+        # Recorremos la lista y actualizamos la posición de cada tema
+        for indice, tema_id in enumerate(nuevos_ids_ordenados):
+            tema = Tema.query.get(tema_id)
+            if tema:
+                tema.posicion = indice
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': '¡Orden de los temas actualizado!'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

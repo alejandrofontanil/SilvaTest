@@ -2,16 +2,11 @@ from flask_login import UserMixin
 from datetime import datetime
 from . import db, bcrypt
 
-# =================================================================
-# 2. MODELOS DE LA BASE DE DATOS
-# =================================================================
-
 class AccesoConvocatoria(db.Model):
     __tablename__ = 'accesos_usuario_convocatoria'
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), primary_key=True)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), primary_key=True)
     fecha_expiracion = db.Column(db.DateTime, nullable=True)
-
     usuario = db.relationship("Usuario", back_populates="accesos")
     convocatoria = db.relationship("Convocatoria", back_populates="usuarios_con_acceso")
 
@@ -26,7 +21,6 @@ class Usuario(db.Model, UserMixin):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
-
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
@@ -34,7 +28,6 @@ class Usuario(db.Model, UserMixin):
 
     @property
     def convocatorias_accesibles(self):
-        """Devuelve una query con las convocatorias a las que el usuario tiene acceso y que no han expirado."""
         return Convocatoria.query.join(AccesoConvocatoria).filter(
             AccesoConvocatoria.usuario_id == self.id,
             (AccesoConvocatoria.fecha_expiracion == None) | (AccesoConvocatoria.fecha_expiracion > datetime.utcnow())
@@ -70,7 +63,8 @@ class Bloque(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
-    temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan")
+    # --- AÑADIMOS order_by PARA QUE LOS TEMAS SE MUESTREN ORDENADOS ---
+    temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
 
     def __repr__(self):
         return f'<Bloque {self.nombre}>'
@@ -78,14 +72,15 @@ class Bloque(db.Model):
 class Tema(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
-    # --- NUEVA COLUMNA PARA ORDENAR ---
     posicion = db.Column(db.Integer, default=0, nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
-    subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan")
-    preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan")
+    # --- AÑADIMOS order_by PARA QUE LOS SUBTEMAS SE MUESTREN ORDENADOS ---
+    subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
+    # --- AÑADIMOS order_by PARA QUE LAS PREGUNTAS SE MUESTREN ORDENADAS ---
+    preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True, cascade="all, delete-orphan")
     notas = db.relationship('Nota', backref='tema', lazy=True, cascade="all, delete-orphan")
 
@@ -108,7 +103,6 @@ class Nota(db.Model):
 class Pregunta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     texto = db.Column(db.Text, nullable=False)
-    # --- NUEVA COLUMNA PARA ORDENAR ---
     posicion = db.Column(db.Integer, default=0, nullable=False)
     imagen_url = db.Column(db.String(300), nullable=True)
     retroalimentacion = db.Column(db.Text, nullable=True)
