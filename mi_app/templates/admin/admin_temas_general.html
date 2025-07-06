@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 
 {% macro render_tema_admin(tema) %}
-    <div class="list-group-item">
+    <div class="list-group-item" data-id="{{ tema.id }}">
         <div class="d-flex w-100 justify-content-between align-items-center">
             <div>
-                <h5 class="mb-1">{{ tema.nombre }}</h5>
-                <small>ID: {{ tema.id }} | Bloque: {{ tema.bloque.nombre }}</small>
+                <i class="bi bi-grip-vertical me-2" style="cursor: grab;"></i>
+                <h5 class="mb-1 d-inline">{{ tema.nombre }}</h5>
+                <small class="d-block text-muted ms-4">ID: {{ tema.id }} | Bloque: {{ tema.bloque.nombre }}</small>
             </div>
             <div class="btn-group" role="group">
                 <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-primary">Preguntas ({{ tema.total_preguntas }})</a>
                 <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
-                <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');">
+                <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');" style="display: inline-block;">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
                 </form>
             </div>
         </div>
         {% if tema.subtemas %}
-            <div class="list-group mt-3" style="margin-left: 20px;">
+            <div class="list-group mt-3 sortable-list" style="margin-left: 20px;" data-bloque-id="{{ tema.bloque.id }}">
                 {% for subtema in tema.subtemas %}
                     {{ render_tema_admin(subtema) }}
                 {% endfor %}
@@ -35,16 +36,85 @@
     <div class="card-body">
         {% for convocatoria in convocatorias %}
             <h3 class="mt-4">{{ convocatoria.nombre }}</h3>
-            <div class="list-group">
             {% for bloque in convocatoria.bloques %}
-                {% for tema in bloque.temas.filter_by(parent_id=None).all() %}
-                     {{ render_tema_admin(tema) }}
-                {% endfor %}
+                <h4 class="mt-3 text-muted ps-2">{{ bloque.nombre }}</h4>
+                <div class="list-group sortable-list" data-bloque-id="{{ bloque.id }}">
+                    {% for tema in bloque.temas.filter_by(parent_id=None).all() %}
+                        {{ render_tema_admin(tema) }}
+                    {% endfor %}
+                </div>
             {% endfor %}
-            </div>
         {% else %}
             <p>No hay convocatorias creadas.</p>
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Buscamos todas las listas que hemos marcado como 'sortable-list'
+        const sortableLists = document.querySelectorAll('.sortable-list');
+
+        sortableLists.forEach(list => {
+            new Sortable(list, {
+                animation: 150, // Animación suave
+                handle: '.bi-grip-vertical', // Solo se puede arrastrar desde el icono
+                onEnd: function (evt) {
+                    // Esta función se ejecuta cuando sueltas un elemento
+                    const parentList = evt.from;
+                    const itemIds = [];
+                    // Recorremos la lista y guardamos los IDs en su nuevo orden
+                    parentList.childNodes.forEach(node => {
+                        if (node.nodeType === 1 && node.dataset.id) { // Asegurarse de que es un elemento con data-id
+                            itemIds.push(node.dataset.id);
+                        }
+                    });
+
+                    // Enviamos el nuevo orden al backend
+                    fetch("{{ url_for('admin.reordenar_temas') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 'nuevos_ids_ordenados': itemIds })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message); // Muestra notificación de éxito
+                        } else {
+                            showToast('Error al guardar el orden.'); // Muestra notificación de error
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error de red al guardar el orden.');
+                    });
+                }
+            });
+        });
+
+        // Función para mostrar notificaciones (la hemos usado en otras plantillas)
+        function showToast(message) {
+            let toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+    });
+</script>
 {% endblock %}
