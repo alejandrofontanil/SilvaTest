@@ -25,6 +25,9 @@
                                 <p class="text-success fst-italic">{{ respuesta.texto }}</p>
                             {% endif %}
                         {% endfor %}
+                        {% if pregunta.tipo_pregunta == 'respuesta_texto' %}
+                             <p class="text-success fst-italic">{{ pregunta.respuesta_correcta_texto }}</p>
+                        {% endif %}
                         <small class="text-muted">Tema: {{ pregunta.tema.nombre }}</small>
                     </div>
                 </div>
@@ -40,27 +43,56 @@
 </div>
 
 <script>
-// El JavaScript para el botón de esta página no cambia
 document.addEventListener('DOMContentLoaded', function() {
+
+    // --- Lógica para FAVORITO (VERSIÓN MODERNA) ---
     document.querySelectorAll('.btn-favorito').forEach(function(boton) {
         boton.addEventListener('click', function() {
             const preguntaId = this.dataset.preguntaId;
+            const icono = this.querySelector('i');
             const cardPregunta = document.getElementById(`pregunta-favorita-${preguntaId}`);
 
-            fetch(`/pregunta/${preguntaId}/toggle_favorito`, { 
+            // Usamos el método seguro con url_for
+            const url_template = "{{ url_for('main.toggle_favorito', pregunta_id=999999) }}";
+            const final_url = url_template.replace('999999', preguntaId);
+
+            fetch(final_url, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: {'Content-Type': 'application/json'}
             })
             .then(response => response.json())
             .then(data => {
-                if(data.success && !data.es_favorita) {
-                    cardPregunta.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                    cardPregunta.style.opacity = '0';
-                    cardPregunta.style.transform = 'translateX(20px)';
-                    setTimeout(() => { cardPregunta.remove(); }, 500);
+                if(data.success) {
+                    // Si la acción fue desmarcar como favorita...
+                    if (!data.es_favorita) {
+                        showToast('Quitada de favoritos');
+                        // ...hacemos que la tarjeta de la pregunta desaparezca con una animación
+                        if (cardPregunta) {
+                            cardPregunta.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                            cardPregunta.style.opacity = '0';
+                            cardPregunta.style.transform = 'translateX(30px)';
+                            setTimeout(() => { cardPregunta.remove(); }, 500);
+                        }
+                    }
                 }
             });
         });
     });
+
+    // --- Función para crear y mostrar la notificación "toast" ---
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 3000);
+    }
+});
 </script>
 {% endblock %}
