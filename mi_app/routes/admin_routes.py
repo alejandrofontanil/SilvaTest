@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -8,6 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
+from flask_migrate import upgrade # <-- IMPORTACIÓN NECESARIA
 
 from mi_app import db
 from mi_app.models import (
@@ -30,6 +31,7 @@ def admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
+
 
 # --- RUTAS DE ADMINISTRACIÓN ---
 
@@ -510,3 +512,21 @@ def reordenar_temas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/aplicar-migracion-posicion')
+@admin_required
+def aplicar_migracion_posicion():
+    """
+    Ruta temporal y secreta para forzar la ejecución de 'flask db upgrade' en producción.
+    """
+    try:
+        with current_app.app_context():
+            print("--- FORZANDO EJECUCIÓN DE DB UPGRADE PARA 'posicion' ---")
+            upgrade()
+            print("--- MIGRACIÓN 'posicion' COMPLETADA ---")
+        flash('¡Migración de la base de datos para la columna "posición" ejecutada con éxito!', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        print(f"--- ERROR DURANTE UPGRADE FORZADO: {e} ---")
+        flash(f'Error durante la migración forzada: {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
