@@ -324,3 +324,23 @@ def reordenar_temas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# --- !!NUEVA RUTA TEMPORAL PARA APLICAR LA MIGRACIÓN EN PRODUCCIÓN!! ---
+@admin_bp.route('/aplicar-migracion-final-ahora')
+@admin_required
+def aplicar_migracion_final():
+    """
+    Ruta temporal y secreta para forzar la ejecución de 'flask db upgrade' en producción.
+    """
+    try:
+        with current_app.app_context():
+            print("--- FORZANDO EJECUCIÓN DE DB UPGRADE ---")
+            upgrade()
+            print("--- MIGRACIÓN COMPLETADA ---")
+        flash('¡Migración de la base de datos ejecutada con éxito!', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        print(f"--- ERROR DURANTE UPGRADE FORZADO: {e} ---")
+        flash(f'Error durante la migración forzada: {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
