@@ -8,6 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
+from flask_migrate import upgrade
 
 from mi_app import db
 from mi_app.models import (
@@ -21,16 +22,16 @@ from mi_app.forms import (
 
 # Definimos el Blueprint ANTES de usarlo en las rutas
 admin_bp = Blueprint('admin', __name__,
-                     template_folder='../templates/admin',
-                     url_prefix='/admin')
+     template_folder='../templates/admin',
+     url_prefix='/admin')
 
 def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.es_admin:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated_function
+@wraps(f)
+def decorated_function(*args, **kwargs):
+if not current_user.is_authenticated or not current_user.es_admin:
+abort(403)
+return f(*args, **kwargs)
+return decorated_function
 
 # --- RUTAS DE ADMINISTRACIÓN ---
 
@@ -465,7 +466,7 @@ def eliminar_preguntas_masivo():
     else:
         return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/forzar-upgrade-db-final-123')
+@admin_bp.route('/forzar-upgrade-db-final-definitivo')
 @admin_required
 def run_final_upgrade():
     """
