@@ -464,3 +464,21 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/forzar-upgrade-db-final-123')
+@admin_required
+def run_final_upgrade():
+    """
+    Ruta temporal y secreta para forzar la ejecución de 'flask db upgrade' en producción.
+    """
+    with current_app.app_context():
+        try:
+            print("--- FORZANDO EJECUCIÓN DE DB UPGRADE ---")
+            upgrade()
+            print("--- MIGRACIÓN DB UPGRADE COMPLETADA ---")
+            flash('¡Migración de la base de datos ejecutada con éxito!', 'success')
+            return redirect(url_for('admin.admin_dashboard'))
+        except Exception as e:
+            print(f"--- ERROR DURANTE UPGRADE FORZADO: {e} ---")
+            flash(f'Error durante la migración forzada: {e}', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
