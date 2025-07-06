@@ -463,3 +463,28 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
+
+@admin_bp.route('/hacerme-admin-ahora-por-favor-12345')
+@login_required
+def make_me_admin_now():
+    # Email de la cuenta que acabas de registrar
+    email_del_admin = 'alejandrofontanil@gmail.com'
+
+    usuario = Usuario.query.filter_by(email=email_del_admin).first()
+
+    if not usuario:
+        return "<h1>Error: No se encontró el usuario. Asegúrate de que te has registrado primero con este email.</h1>", 404
+
+    if usuario.es_admin:
+        return "<h1>Info: Este usuario ya es administrador.</h1>"
+
+    try:
+        usuario.es_admin = True
+        db.session.commit()
+        flash('¡Enhorabuena! Ahora eres administrador.', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
+        return redirect(url_for('main.home'))
