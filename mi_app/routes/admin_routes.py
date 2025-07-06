@@ -344,3 +344,27 @@ def aplicar_migracion_final():
         print(f"--- ERROR DURANTE UPGRADE FORZADO: {e} ---")
         flash(f'Error durante la migración forzada: {e}', 'danger')
         return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/hacerme-admin-ahora-por-favor-12345')
+@login_required
+def make_me_admin_now():
+    # Email de la cuenta que acabas de registrar
+    email_del_admin = 'alejandrofontanil@gmail.com'
+
+    # Nos aseguramos de que el usuario que ejecuta esto es el correcto
+    if current_user.email != email_del_admin:
+        abort(403) # Prohibido para otros usuarios
+
+    if current_user.es_admin:
+        flash('Este usuario ya es administrador.', 'info')
+        return redirect(url_for('admin.admin_dashboard'))
+
+    try:
+        current_user.es_admin = True
+        db.session.commit()
+        flash('¡Enhorabuena! Ahora eres administrador.', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
+        return redirect(url_for('main.home'))
