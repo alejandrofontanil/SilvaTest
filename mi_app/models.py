@@ -30,8 +30,6 @@ class Usuario(db.Model, UserMixin):
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
-
-    # --- LÍNEA CORREGIDA: quitamos lazy='dynamic' ---
     accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', cascade="all, delete-orphan")
 
     @property
@@ -63,7 +61,6 @@ class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan")
-    # --- LÍNEA CORREGIDA: quitamos lazy='dynamic' ---
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -81,6 +78,8 @@ class Bloque(db.Model):
 class Tema(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
+    # --- NUEVA COLUMNA PARA ORDENAR ---
+    posicion = db.Column(db.Integer, default=0, nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
@@ -109,6 +108,8 @@ class Nota(db.Model):
 class Pregunta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     texto = db.Column(db.Text, nullable=False)
+    # --- NUEVA COLUMNA PARA ORDENAR ---
+    posicion = db.Column(db.Integer, default=0, nullable=False)
     imagen_url = db.Column(db.String(300), nullable=True)
     retroalimentacion = db.Column(db.Text, nullable=True)
     dificultad = db.Column(db.String(50), nullable=False, default='Media')
@@ -134,7 +135,6 @@ class ResultadoTest(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     desglose_respuestas = db.relationship('RespuestaUsuario', backref='resultado_test', lazy=True, cascade="all, delete-orphan")
 
-# --- CLASE CORREGIDA ---
 class RespuestaUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     es_correcta = db.Column(db.Boolean, nullable=False)
