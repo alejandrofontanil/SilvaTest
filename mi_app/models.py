@@ -53,7 +53,7 @@ class Usuario(db.Model, UserMixin):
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
-    bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan")
+    bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.id')
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -63,7 +63,6 @@ class Bloque(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
-    # --- AÑADIMOS order_by PARA QUE LOS TEMAS SE MUESTREN ORDENADOS ---
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
 
     def __repr__(self):
@@ -77,9 +76,7 @@ class Tema(db.Model):
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
-    # --- AÑADIMOS order_by PARA QUE LOS SUBTEMAS SE MUESTREN ORDENADOS ---
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
-    # --- AÑADIMOS order_by PARA QUE LAS PREGUNTAS SE MUESTREN ORDENADAS ---
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True, cascade="all, delete-orphan")
     notas = db.relationship('Nota', backref='tema', lazy=True, cascade="all, delete-orphan")
