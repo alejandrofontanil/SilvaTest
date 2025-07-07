@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -8,7 +8,6 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
-from flask_migrate import upgrade
 
 from mi_app import db
 from mi_app.models import (
@@ -460,3 +459,20 @@ def eliminar_preguntas_masivo():
         return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
     else:
         return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/reordenar-temas', methods=['POST'])
+@admin_required
+def reordenar_temas():
+    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
+    if not nuevos_ids_ordenados:
+        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
+    try:
+        for indice, tema_id in enumerate(nuevos_ids_ordenados):
+            tema = Tema.query.get(tema_id)
+            if tema:
+                tema.posicion = indice
+        db.session.commit()
+        return jsonify({'success': True, 'message': '¡Orden de los temas actualizado!'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
