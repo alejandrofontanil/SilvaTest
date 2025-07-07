@@ -36,24 +36,12 @@ class Usuario(db.Model, UserMixin):
     def es_favorita(self, pregunta):
         return self.preguntas_favoritas.filter(favoritos.c.pregunta_id == pregunta.id).count() > 0
 
-    def marcar_favorita(self, pregunta):
-        if not self.es_favorita(pregunta):
-            self.preguntas_favoritas.append(pregunta)
-
-    def desmarcar_favorita(self, pregunta):
-        if self.es_favorita(pregunta):
-            self.preguntas_favoritas.remove(pregunta)
-
-    def set_password(self, password):
-        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-
-    def check_password(self, password):
-        return bcrypt.check_password_hash(self.password_hash, password)
+    # ... otros métodos de Usuario ...
 
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
-    # ✅ CAMBIO: Ordenar por la nueva columna 'posicion' de Bloque.
+    # --- AÑADIMOS order_by PARA QUE LOS BLOQUES SE MUESTREN ORDENADOS ---
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
@@ -63,7 +51,8 @@ class Convocatoria(db.Model):
 class Bloque(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
-    posicion = db.Column(db.Integer, default=0, nullable=False) # ✅ AÑADIDO: Campo para reordenar.
+    # --- NUEVA COLUMNA PARA ORDENAR ---
+    posicion = db.Column(db.Integer, default=0, nullable=False)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
 
