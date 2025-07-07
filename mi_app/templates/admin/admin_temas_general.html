@@ -34,6 +34,9 @@
         <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema</a>
     </div>
     <div class="card-body">
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="bi bi-info-circle-fill me-2"></i>
             <div>
@@ -63,35 +66,39 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Buscamos todas las listas que hemos marcado como 'sortable-list'
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
         const sortableLists = document.querySelectorAll('.sortable-list');
 
         sortableLists.forEach(list => {
             new Sortable(list, {
-                animation: 150, // Animación suave
-                handle: '.bi-grip-vertical', // Solo se puede arrastrar desde el icono
+                animation: 150,
+                handle: '.bi-grip-vertical',
                 onEnd: function (evt) {
-                    // Esta función se ejecuta cuando sueltas un elemento
                     const parentList = evt.from;
                     const itemIds = [];
-                    // Recorremos la lista y guardamos los IDs en su nuevo orden
                     parentList.childNodes.forEach(node => {
                         if (node.nodeType === 1 && node.dataset.id) {
                             itemIds.push(node.dataset.id);
                         }
                     });
 
-                    // Enviamos el nuevo orden al backend
+                    console.log("Nuevo orden enviado:", itemIds); // Un chivato para la consola
+
                     fetch("{{ url_for('admin.reordenar_temas') }}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // Añadimos el token CSRF si está disponible
-                            'X-CSRFToken': document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : ''
+                            'X-CSRFToken': csrfToken
                         },
                         body: JSON.stringify({ 'nuevos_ids_ordenados': itemIds })
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Error de red o del servidor: ' + response.status);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             showToast(data.message);
