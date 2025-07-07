@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -8,15 +8,15 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
-from flask_wtf import FlaskForm  # <-- 1. IMPORTACIÓN AÑADIDA
+from flask_migrate import upgrade, stamp # <-- IMPORTACIONES NUEVAS
 
 from mi_app import db
 from mi_app.models import (
-    Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota,
+    Pregunta, Respuesta, Tema, Convocatoria, Bloque, Usuario, Nota, 
     favoritos, RespuestaUsuario, ResultadoTest, AccesoConvocatoria
 )
 from mi_app.forms import (
-    GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm,
+    GoogleSheetImportForm, ConvocatoriaForm, BloqueForm, TemaForm, 
     PreguntaForm, NotaForm, PermisosForm
 )
 
@@ -483,20 +483,33 @@ def reordenar_temas():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/super-secreto-stamp-db-head-final')
-@admin_required
-def run_stamp_head():
-    """
-    Ruta temporal para forzar la sincronización del historial de migraciones.
-    """
-    try:
-        with current_app.app_context():
-            print("--- FORZANDO STAMP DE LA BASE DE DATOS A 'HEAD' ---")
-            stamp() # Le decimos a Alembic que la BD ya está en la última versión.
-            print("--- STAMP COMPLETADO ---")
-        flash('¡Historial de la base de datos sincronizado con éxito!', 'success')
-        return redirect(url_for('admin.admin_dashboard'))
-    except Exception as e:
-        print(f"--- ERROR DURANTE STAMP: {e} ---")
-        flash(f'Error durante la sincronización forzada: {e}', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
+        @admin_bp.route('/super-secreto-stamp-db-head')
+        @admin_required
+        def run_stamp_head():
+            """
+            PASO 1: Ruta para forzar la sincronización del historial de migraciones.
+            """
+            try:
+                with current_app.app_context():
+                    stamp()
+                flash('¡Historial de la base de datos sincronizado con éxito!', 'success')
+                return redirect(url_for('admin.admin_dashboard'))
+            except Exception as e:
+                flash(f'Error durante la sincronización forzada: {e}', 'danger')
+                return redirect(url_for('admin.admin_dashboard'))
+
+
+        @admin_bp.route('/super-secreto-upgrade-db')
+        @admin_required
+        def run_upgrade_db():
+            """
+            PASO 2: Ruta para ejecutar las migraciones pendientes.
+            """
+            try:
+                with current_app.app_context():
+                    upgrade()
+                flash('¡Migración de la base de datos ejecutada con éxito!', 'success')
+                return redirect(url_for('admin.admin_dashboard'))
+            except Exception as e:
+                flash(f'Error durante la migración forzada: {e}', 'danger')
+                return redirect(url_for('admin.admin_dashboard'))
