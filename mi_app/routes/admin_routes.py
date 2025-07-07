@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -8,8 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
-from flask_migrate import upgrade, stamp
-from flask_wtf import FlaskForm # <-- IMPORTACIÓN IMPORTANTE AÑADIDA
+from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import (
@@ -40,7 +39,6 @@ def admin_required(f):
 def admin_dashboard():
     preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
     return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
-
 
 @admin_bp.route('/preguntas_a_revisar')
 @admin_required
@@ -207,15 +205,13 @@ def eliminar_bloque(bloque_id):
         db.session.rollback()
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
-    @admin_bp.route('/temas')
-    @admin_required
-    def admin_temas():
-        # Creamos un formulario vacío solo para poder pasar el csrf_token a la plantilla
-        form = FlaskForm() 
-        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-        # Pasamos el 'form' a la plantilla
-        return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
 
+@admin_bp.route('/temas')
+@admin_required
+def admin_temas():
+    form = FlaskForm() 
+    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+    return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
 
 @admin_bp.route('/crear_tema', methods=['GET', 'POST'])
 @admin_required
@@ -291,101 +287,45 @@ def editar_tema(tema_id):
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_tema(tema_id):
-    # ... código de borrado robusto ...
+    # ... (código de borrado robusto) ...
     return redirect(url_for('admin.admin_temas'))
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
 @admin_required
 def editar_pregunta(pregunta_id):
-    # ... código ...
+    # ... (código) ...
     return render_template('editar_pregunta.html', title="Editar Pregunta", form=form, pregunta=pregunta)
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_pregunta(pregunta_id):
-    # ... código de borrado robusto ...
+    # ... (código de borrado robusto) ...
     return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
 
 @admin_bp.route('/nota/<int:nota_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_nota(nota_id):
-    # ... código ...
+    # ... (código) ...
     return redirect(url_for('admin.detalle_tema', tema_id=nota.tema_id))
 
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
-    # ... código de importación ...
+    # ... (código de importación) ...
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    # ... código de borrado masivo ...
+    # ... (código de borrado masivo) ...
     pass
 
-# --- NUEVAS RUTAS PARA GUARDAR EL ORDEN ---
 @admin_bp.route('/reordenar-temas', methods=['POST'])
 @admin_required
 def reordenar_temas():
-    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
-    if not nuevos_ids_ordenados:
-        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
-    try:
-        for indice, tema_id in enumerate(nuevos_ids_ordenados):
-            tema = Tema.query.get(tema_id)
-            if tema:
-                tema.posicion = indice
-        db.session.commit()
-        return jsonify({'success': True, 'message': '¡Orden de los temas actualizado!'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+    # ... (código para reordenar temas) ...
 
 @admin_bp.route('/reordenar-preguntas', methods=['POST'])
 @admin_required
 def reordenar_preguntas():
-    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
-    if not nuevos_ids_ordenados:
-        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
-    try:
-        for indice, pregunta_id in enumerate(nuevos_ids_ordenados):
-            pregunta = Pregunta.query.get(pregunta_id)
-            if pregunta:
-                pregunta.posicion = indice
-        db.session.commit()
-        return jsonify({'success': True, 'message': '¡Orden de las preguntas actualizado!'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@admin_bp.route('/super-secreto-stamp-db-head-final')
-@admin_required
-def run_stamp_head():
-    """
-    PASO 1: Ruta para forzar la sincronización del historial de migraciones.
-    """
-    try:
-        with current_app.app_context():
-            stamp()
-        flash('¡Historial de la base de datos sincronizado con éxito!', 'success')
-        return redirect(url_for('admin.admin_dashboard'))
-    except Exception as e:
-        flash(f'Error durante la sincronización forzada (stamp): {e}', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
-
-
-@admin_bp.route('/super-secreto-upgrade-db')
-@admin_required
-def run_upgrade_db():
-    """
-    PASO 2: Ruta para ejecutar las migraciones pendientes.
-    """
-    try:
-        with current_app.app_context():
-            upgrade()
-        flash('¡Migración de la base de datos ejecutada con éxito!', 'success')
-        return redirect(url_for('admin.admin_dashboard'))
-    except Exception as e:
-        flash(f'Error durante la migración forzada (upgrade): {e}', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
+    # ... (código para reordenar preguntas) ...
