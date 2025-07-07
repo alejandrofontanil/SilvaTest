@@ -35,9 +35,7 @@
     </div>
     <div class="card-body">
 
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        <div class="alert alert-info d-flex align-items-center" role="alert">
+        {{ form.csrf_token }} <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="bi bi-info-circle-fill me-2"></i>
             <div>
                 ¡Ahora puedes arrastrar y soltar los temas usando el icono <i class="bi bi-grip-vertical"></i> para reordenarlos!
@@ -66,6 +64,8 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Tu Javascript funcionará perfectamente, ya que {{ form.csrf_token }}
+        // se convierte en un <input> que este selector puede encontrar.
         const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
         const sortableLists = document.querySelectorAll('.sortable-list');
@@ -83,7 +83,7 @@
                         }
                     });
 
-                    console.log("Nuevo orden enviado:", itemIds); // Un chivato para la consola
+                    console.log("Nuevo orden enviado:", itemIds);
 
                     fetch("{{ url_for('admin.reordenar_temas') }}", {
                         method: 'POST',
