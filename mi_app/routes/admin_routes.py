@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -8,6 +8,8 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
+from flask_migrate import upgrade, stamp
+from flask_wtf import FlaskForm # <-- IMPORTACIÓN IMPORTANTE AÑADIDA
 
 from mi_app import db
 from mi_app.models import (
@@ -38,6 +40,7 @@ def admin_required(f):
 def admin_dashboard():
     preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
     return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
+
 
 @admin_bp.route('/preguntas_a_revisar')
 @admin_required
@@ -204,12 +207,15 @@ def eliminar_bloque(bloque_id):
         db.session.rollback()
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
+    @admin_bp.route('/temas')
+    @admin_required
+    def admin_temas():
+        # Creamos un formulario vacío solo para poder pasar el csrf_token a la plantilla
+        form = FlaskForm() 
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        # Pasamos el 'form' a la plantilla
+        return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
 
-@admin_bp.route('/temas')
-@admin_required
-def admin_temas():
-    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias)
 
 @admin_bp.route('/crear_tema', methods=['GET', 'POST'])
 @admin_required
@@ -352,3 +358,34 @@ def reordenar_preguntas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/super-secreto-stamp-db-head-final')
+@admin_required
+def run_stamp_head():
+    """
+    PASO 1: Ruta para forzar la sincronización del historial de migraciones.
+    """
+    try:
+        with current_app.app_context():
+            stamp()
+        flash('¡Historial de la base de datos sincronizado con éxito!', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        flash(f'Error durante la sincronización forzada (stamp): {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
+
+
+@admin_bp.route('/super-secreto-upgrade-db')
+@admin_required
+def run_upgrade_db():
+    """
+    PASO 2: Ruta para ejecutar las migraciones pendientes.
+    """
+    try:
+        with current_app.app_context():
+            upgrade()
+        flash('¡Migración de la base de datos ejecutada con éxito!', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        flash(f'Error durante la migración forzada (upgrade): {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
