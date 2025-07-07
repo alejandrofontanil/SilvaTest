@@ -4,7 +4,7 @@
     <div class="list-group-item" data-id="{{ tema.id }}">
         <div class="d-flex w-100 justify-content-between align-items-center">
             <div>
-                <i class="bi bi-grip-vertical me-2" style="cursor: grab;" title="Arrastrar para reordenar"></i>
+                <i class="bi bi-grip-vertical me-2 handle" style="cursor: grab;" title="Arrastrar para reordenar"></i>
                 <h5 class="mb-1 d-inline">{{ tema.nombre }}</h5>
                 <small class="d-block text-muted ms-4">ID: {{ tema.id }} | Posición: {{ tema.posicion }}</small>
             </div>
@@ -67,22 +67,19 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-
         const sortableLists = document.querySelectorAll('.sortable-list');
-        
+
         sortableLists.forEach(list => {
             new Sortable(list, {
+                group: 'shared', // Permite arrastrar elementos entre listas con el mismo nombre de grupo
                 animation: 150,
-                handle: '.bi-grip-vertical',
+                handle: '.handle', // Usamos la clase 'handle' que le dimos al icono
                 onEnd: function (evt) {
                     const parentList = evt.from;
-                    const itemIds = [];
-                    parentList.childNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.dataset.id) {
-                            itemIds.push(node.dataset.id);
-                        }
-                    });
-                    
+                    const itemIds = Array.from(parentList.children).map(item => item.dataset.id);
+
+                    console.log("Nuevo orden enviado:", itemIds); // Un chivato para la consola
+
                     fetch("{{ url_for('admin.reordenar_temas') }}", {
                         method: 'POST',
                         headers: {
@@ -95,6 +92,8 @@
                     .then(data => {
                         if (data.success) {
                             showToast(data.message);
+                            // Opcional: Recargar la página para ver los cambios de posición reflejados
+                            // window.location.reload(); 
                         } else {
                             showToast('Error al guardar el orden: ' + (data.error || 'Error desconocido'));
                         }
@@ -121,24 +120,14 @@
 
             const toast = document.createElement('div');
             toast.className = 'toast show align-items-center text-bg-dark border-0';
-            toast.setAttribute('role', 'alert');
-            
             toast.innerHTML = `
                 <div class="d-flex">
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             `;
             toastContainer.appendChild(toast);
-
-            const bsToast = new bootstrap.Toast(toast);
-            bsToast.show();
-
-            toast.addEventListener('hidden.bs.toast', function () {
-                toast.remove();
-            });
+            new bootstrap.Toast(toast).show();
         }
     });
 </script>
