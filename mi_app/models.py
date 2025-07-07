@@ -28,10 +28,17 @@ class Usuario(db.Model, UserMixin):
 
     @property
     def convocatorias_accesibles(self):
+        """Devuelve una query con las convocatorias a las que el usuario tiene acceso."""
+        # Si el usuario es admin, tiene acceso a TODAS las convocatorias.
+        if self.es_admin:
+            return Convocatoria.query.order_by(Convocatoria.nombre)
+
+        # Si es un usuario normal, solo ve las PÚBLICAS y a las que tiene acceso sin expirar.
         return Convocatoria.query.join(AccesoConvocatoria).filter(
             AccesoConvocatoria.usuario_id == self.id,
+            Convocatoria.es_publica == True, # <-- El nuevo filtro de seguridad
             (AccesoConvocatoria.fecha_expiracion == None) | (AccesoConvocatoria.fecha_expiracion > datetime.utcnow())
-        )
+        ).order_by(Convocatoria.nombre)
 
     def es_favorita(self, pregunta):
         return self.preguntas_favoritas.filter(favoritos.c.pregunta_id == pregunta.id).count() > 0
@@ -53,9 +60,9 @@ class Usuario(db.Model, UserMixin):
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
-    # --- RELACIÓN ACTUALIZADA ---
+    # --- NUEVA COLUMNA ---
+    es_publica = db.Column(db.Boolean, nullable=False, default=True)
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
-
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -64,7 +71,6 @@ class Convocatoria(db.Model):
 class Bloque(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
-    # --- COLUMNA AÑADIDA ---
     posicion = db.Column(db.Integer, default=0, nullable=False)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')

@@ -21,9 +21,9 @@ def temas_query():
 
 
 class ConvocatoriaForm(FlaskForm):
-    nombre = StringField('Nombre de la Convocatoria',
-                         validators=[DataRequired(),
-                                     Length(min=5, max=200)])
+    nombre = StringField('Nombre de la Convocatoria', validators=[DataRequired(), Length(min=5, max=200)])
+    # --- NUEVO CAMPO ---
+    es_publica = BooleanField('¿Es una convocatoria pública? (Si no se marca, solo será visible para administradores)', default=True)
     submit = SubmitField('Guardar Convocatoria')
 
 

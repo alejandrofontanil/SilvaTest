@@ -91,29 +91,35 @@ def admin_convocatorias():
     convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
     return render_template('admin_convocatorias.html', title="Gestionar Convocatorias", convocatorias=convocatorias)
 
-@admin_bp.route('/crear_convocatoria', methods=['GET', 'POST'])
-@admin_required
-def crear_convocatoria():
-    form = ConvocatoriaForm()
-    if form.validate_on_submit():
-        nueva_convocatoria = Convocatoria(nombre=form.nombre.data)
-        db.session.add(nueva_convocatoria)
-        db.session.commit()
-        flash('¡Convocatoria creada con éxito!', 'success')
-        return redirect(url_for('admin.admin_convocatorias'))
-    return render_template('crear_convocatoria.html', title="Crear Convocatoria", form=form)
+    @admin_bp.route('/crear_convocatoria', methods=['GET', 'POST'])
+    @admin_required
+    def crear_convocatoria():
+        form = ConvocatoriaForm()
+        if form.validate_on_submit():
+            # Añadimos el nuevo campo al crear el objeto
+            nueva_convocatoria = Convocatoria(
+                nombre=form.nombre.data, 
+                es_publica=form.es_publica.data
+            )
+            db.session.add(nueva_convocatoria)
+            db.session.commit()
+            flash('¡Convocatoria creada con éxito!', 'success')
+            return redirect(url_for('admin.admin_convocatorias'))
+        return render_template('crear_convocatoria.html', title="Crear Convocatoria", form=form)
 
-@admin_bp.route('/convocatoria/<int:convocatoria_id>/editar', methods=['GET', 'POST'])
-@admin_required
-def editar_convocatoria(convocatoria_id):
-    convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    form = ConvocatoriaForm(obj=convocatoria)
-    if form.validate_on_submit():
-        convocatoria.nombre = form.nombre.data
-        db.session.commit()
-        flash('¡Convocatoria actualizada con éxito!', 'success')
-        return redirect(url_for('admin.admin_convocatorias'))
-    return render_template('editar_convocatoria.html', title="Editar Convocatoria", form=form, convocatoria=convocatoria)
+    @admin_bp.route('/convocatoria/<int:convocatoria_id>/editar', methods=['GET', 'POST'])
+    @admin_required
+    def editar_convocatoria(convocatoria_id):
+        convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
+        form = ConvocatoriaForm(obj=convocatoria)
+        if form.validate_on_submit():
+            convocatoria.nombre = form.nombre.data
+            # Añadimos la actualización del nuevo campo
+            convocatoria.es_publica = form.es_publica.data
+            db.session.commit()
+            flash('¡Convocatoria actualizada con éxito!', 'success')
+            return redirect(url_for('admin.admin_convocatorias'))
+        return render_template('editar_convocatoria.html', title="Editar Convocatoria", form=form, convocatoria=convocatoria)
 
 @admin_bp.route('/convocatoria/<int:convocatoria_id>/eliminar', methods=['POST'])
 @admin_required
