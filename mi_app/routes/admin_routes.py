@@ -1,3 +1,4 @@
+from flask_wtf import FlaskForm 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
@@ -208,6 +209,14 @@ def eliminar_bloque(bloque_id):
 @admin_bp.route('/temas')
 @admin_required
 def admin_temas():
+    # Creamos un formulario vacío solo para poder pasar el csrf_token a la plantilla
+    form = FlaskForm() 
+    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+    # Pasamos el 'form' a la plantilla
+    return render_template('admin_temas_general.html',
+                           title="Vista General de Temas",
+                           convocatorias=convocatorias,
+                           form=form)
     # La ordenación se hace en los modelos, no aquí
     convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
     return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias)

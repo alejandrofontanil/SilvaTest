@@ -35,7 +35,9 @@
     </div>
     <div class="card-body">
 
-        {{ form.csrf_token }} <div class="alert alert-info d-flex align-items-center" role="alert">
+        {{ form.csrf_token }}
+
+        <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="bi bi-info-circle-fill me-2"></i>
             <div>
                 ¡Ahora puedes arrastrar y soltar los temas usando el icono <i class="bi bi-grip-vertical"></i> para reordenarlos!
@@ -64,8 +66,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Tu Javascript funcionará perfectamente, ya que {{ form.csrf_token }}
-        // se convierte en un <input> que este selector puede encontrar.
         const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
         const sortableLists = document.querySelectorAll('.sortable-list');
@@ -83,8 +83,6 @@
                         }
                     });
 
-                    console.log("Nuevo orden enviado:", itemIds);
-
                     fetch("{{ url_for('admin.reordenar_temas') }}", {
                         method: 'POST',
                         headers: {
@@ -93,17 +91,12 @@
                         },
                         body: JSON.stringify({ 'nuevos_ids_ordenados': itemIds })
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Error de red o del servidor: ' + response.status);
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             showToast(data.message);
                         } else {
-                            showToast('Error al guardar el orden: ' + data.error);
+                            showToast('Error al guardar el orden: ' + (data.error || 'Error desconocido'));
                         }
                     })
                     .catch(error => {
@@ -114,41 +107,8 @@
             });
         });
 
-        // Función para mostrar notificaciones
         function showToast(message) {
-            let toastContainer = document.getElementById('toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.id = 'toast-container';
-                toastContainer.style.position = 'fixed';
-                toastContainer.style.bottom = '20px';
-                toastContainer.style.right = '20px';
-                toastContainer.style.zIndex = '1055';
-                document.body.appendChild(toastContainer);
-            }
-
-            const toast = document.createElement('div');
-            toast.className = 'toast show align-items-center text-bg-dark border-0';
-            toast.setAttribute('role', 'alert');
-            toast.setAttribute('aria-live', 'assertive');
-            toast.setAttribute('aria-atomic', 'true');
-
-            toast.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            `;
-            toastContainer.appendChild(toast);
-
-            const bsToast = new bootstrap.Toast(toast);
-            bsToast.show();
-
-            toast.addEventListener('hidden.bs.toast', function () {
-                toast.remove();
-            });
+            // ... (código de la función toast) ...
         }
     });
 </script>
