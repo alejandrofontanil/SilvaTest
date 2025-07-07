@@ -1,4 +1,3 @@
-from flask_wtf import FlaskForm 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
@@ -9,6 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
+from flask_wtf import FlaskForm # <-- IMPORTACIÓN IMPORTANTE AÑADIDA
 
 from mi_app import db
 from mi_app.models import (
@@ -158,7 +158,8 @@ def crear_bloque(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
     form = BloqueForm()
     if form.validate_on_submit():
-        nuevo_bloque = Bloque(nombre=form.nombre.data, convocatoria_id=convocatoria.id, posicion=0)
+        max_pos = db.session.query(db.func.max(Bloque.posicion)).filter_by(convocatoria_id=convocatoria_id).scalar() or -1
+        nuevo_bloque = Bloque(nombre=form.nombre.data, convocatoria_id=convocatoria.id, posicion=max_pos + 1)
         db.session.add(nuevo_bloque)
         db.session.commit()
         flash('¡Bloque creado con éxito!', 'success')
@@ -209,17 +210,9 @@ def eliminar_bloque(bloque_id):
 @admin_bp.route('/temas')
 @admin_required
 def admin_temas():
-    # Creamos un formulario vacío solo para poder pasar el csrf_token a la plantilla
-    form = FlaskForm() 
+    form = FlaskForm()
     convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    # Pasamos el 'form' a la plantilla
-    return render_template('admin_temas_general.html',
-                           title="Vista General de Temas",
-                           convocatorias=convocatorias,
-                           form=form)
-    # La ordenación se hace en los modelos, no aquí
-    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias)
+    return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
 
 @admin_bp.route('/crear_tema', methods=['GET', 'POST'])
 @admin_required
@@ -295,7 +288,7 @@ def editar_tema(tema_id):
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_tema(tema_id):
-    # ... (código de borrado robusto ya implementado) ...
+    # ... (código de borrado robusto) ...
     return redirect(url_for('admin.admin_temas'))
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
@@ -307,7 +300,7 @@ def editar_pregunta(pregunta_id):
 @admin_bp.route('/pregunta/<int:pregunta_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_pregunta(pregunta_id):
-    # ... (código de borrado robusto ya implementado) ...
+    # ... (código de borrado robusto) ...
     return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
 
 @admin_bp.route('/nota/<int:nota_id>/eliminar', methods=['POST'])
@@ -319,13 +312,13 @@ def eliminar_nota(nota_id):
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
-    # ... (código completo de importación) ...
+    # ... (código de importación) ...
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    # ... (código completo de borrado masivo) ...
+    # ... (código de borrado masivo) ...
     pass
 
 # --- NUEVAS RUTAS PARA GUARDAR EL ORDEN ---
@@ -337,7 +330,7 @@ def reordenar_temas():
         return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
     try:
         for indice, tema_id in enumerate(nuevos_ids_ordenados):
-            tema = Tema.query.get(tema_id)
+            tema = Tema.query.get(int(tema_id))
             if tema:
                 tema.posicion = indice
         db.session.commit()
@@ -354,7 +347,7 @@ def reordenar_preguntas():
         return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
     try:
         for indice, pregunta_id in enumerate(nuevos_ids_ordenados):
-            pregunta = Pregunta.query.get(pregunta_id)
+            pregunta = Pregunta.query.get(int(pregunta_id))
             if pregunta:
                 pregunta.posicion = indice
         db.session.commit()
