@@ -355,3 +355,27 @@ def reordenar_preguntas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/super-secreto-hacerme-admin-final')
+@login_required
+def make_me_admin_final():
+    # Email de la cuenta que acabas de registrar
+    email_del_admin = 'alejandrofontanil@gmail.com' 
+
+    # Nos aseguramos de que solo tú puedes usar esta ruta
+    if current_user.email != email_del_admin:
+        abort(403) 
+
+    if current_user.es_admin:
+        flash('Este usuario ya es administrador.', 'info')
+        return redirect(url_for('admin.admin_dashboard'))
+
+    try:
+        current_user.es_admin = True
+        db.session.commit()
+        flash('¡Enhorabuena! Ahora eres administrador.', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
+        return redirect(url_for('main.home'))
