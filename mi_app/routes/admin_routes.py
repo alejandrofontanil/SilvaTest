@@ -8,7 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
-from flask_wtf import FlaskForm # <-- IMPORTACIÓN IMPORTANTE AÑADIDA
+from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import (
@@ -34,62 +34,58 @@ def admin_required(f):
 
 # --- RUTAS DE ADMINISTRACIÓN ---
 
-@admin_bp.route('/')
-@admin_required
-def admin_dashboard():
-    preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
-    return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
+    @admin_bp.route('/')
+    @admin_required
+    def admin_dashboard():
+        preguntas_reportadas = Pregunta.query.filter_by(necesita_revision=True).count()
+        return render_template('admin_dashboard.html', title="Panel de Administrador", preguntas_reportadas=preguntas_reportadas)
 
-@admin_bp.route('/preguntas_a_revisar')
-@admin_required
-def preguntas_a_revisar():
-    preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.posicion).all()
-    return render_template('preguntas_a_revisar.html', preguntas=preguntas)
+    @admin_bp.route('/preguntas_a_revisar')
+    @admin_required
+    def preguntas_a_revisar():
+        preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.posicion).all()
+        return render_template('preguntas_a_revisar.html', preguntas=preguntas)
 
-@admin_bp.route('/usuarios')
-@admin_required
-def admin_usuarios():
-    usuarios = Usuario.query.options(
-        selectinload(Usuario.accesos).selectinload(AccesoConvocatoria.convocatoria)
-    ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
-    return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
+    @admin_bp.route('/usuarios')
+    @admin_required
+    def admin_usuarios():
+        usuarios = Usuario.query.options(
+            selectinload(Usuario.accesos).selectinload(AccesoConvocatoria.convocatoria)
+        ).filter(Usuario.es_admin == False).order_by(Usuario.nombre).all()
+        return render_template('admin_usuarios.html', usuarios=usuarios, title="Gestionar Usuarios")
 
-@admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
-@admin_required
-def editar_permisos_usuario(usuario_id):
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.es_admin:
-        abort(403)
+    @admin_bp.route('/usuario/<int:usuario_id>/permisos', methods=['GET', 'POST'])
+    @admin_required
+    def editar_permisos_usuario(usuario_id):
+        usuario = Usuario.query.get_or_404(usuario_id)
+        if usuario.es_admin:
+            abort(403)
+        form = PermisosForm()
+        form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
+        if form.validate_on_submit():
+            AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
+            for id_convocatoria in form.convocatorias.data:
+                nuevo_acceso = AccesoConvocatoria(
+                    usuario_id=usuario.id,
+                    convocatoria_id=id_convocatoria,
+                    fecha_expiracion=form.fecha_expiracion.data
+                )
+                db.session.add(nuevo_acceso)
+            db.session.commit()
+            flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
+            return redirect(url_for('admin.admin_usuarios'))
+        elif request.method == 'GET':
+            accesos_actuales = usuario.accesos
+            form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
+            if accesos_actuales and accesos_actuales[0].fecha_expiracion:
+                form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
+        return render_template('editar_permisos.html', form=form, usuario=usuario)
 
-    form = PermisosForm()
-    form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
-
-    if form.validate_on_submit():
-        AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
-        for id_convocatoria in form.convocatorias.data:
-            nuevo_acceso = AccesoConvocatoria(
-                usuario_id=usuario.id,
-                convocatoria_id=id_convocatoria,
-                fecha_expiracion=form.fecha_expiracion.data
-            )
-            db.session.add(nuevo_acceso)
-        db.session.commit()
-        flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
-        return redirect(url_for('admin.admin_usuarios'))
-
-    elif request.method == 'GET':
-        accesos_actuales = usuario.accesos
-        form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
-        if accesos_actuales and accesos_actuales[0].fecha_expiracion:
-            form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
-
-    return render_template('editar_permisos.html', form=form, usuario=usuario)
-
-@admin_bp.route('/convocatorias')
-@admin_required
-def admin_convocatorias():
-    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    return render_template('admin_convocatorias.html', title="Gestionar Convocatorias", convocatorias=convocatorias)
+    @admin_bp.route('/convocatorias')
+    @admin_required
+    def admin_convocatorias():
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        return render_template('admin_convocatorias.html', title="Gestionar Convocatorias", convocatorias=convocatorias)
 
 @admin_bp.route('/crear_convocatoria', methods=['GET', 'POST'])
 @admin_required
@@ -207,12 +203,12 @@ def eliminar_bloque(bloque_id):
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
 
-@admin_bp.route('/temas')
-@admin_required
-def admin_temas():
-    form = FlaskForm()
-    convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-    return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
+    @admin_bp.route('/temas')
+    @admin_required
+    def admin_temas():
+        form = FlaskForm() 
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        return render_template('admin_temas_general.html', title="Vista General de Temas", convocatorias=convocatorias, form=form)
 
 @admin_bp.route('/crear_tema', methods=['GET', 'POST'])
 @admin_required
@@ -264,26 +260,26 @@ def detalle_tema(tema_id):
         return redirect(url_for('admin.detalle_tema', tema_id=tema.id))
     return render_template('detalle_tema.html', title=tema.nombre, tema=tema, form_pregunta=form_pregunta, form_nota=form_nota)
 
-@admin_bp.route('/tema/<int:tema_id>/editar', methods=['GET', 'POST'])
-@admin_required
-def editar_tema(tema_id):
-    tema_a_editar = Tema.query.get_or_404(tema_id)
-    form = TemaForm(obj=tema_a_editar)
-    form.bloque.query = Bloque.query.order_by(Bloque.nombre)
-    form.parent.query = Tema.query.filter(Tema.id != tema_id).order_by(Tema.nombre)
-    if form.validate_on_submit():
-        if form.parent.data and form.parent.data == tema_a_editar:
-            flash('Un tema no puede ser su propio padre.', 'danger')
-            return redirect(url_for('admin.editar_tema', tema_id=tema_id))
-        tema_a_editar.nombre = form.nombre.data
-        tema_a_editar.parent = form.parent.data
-        tema_a_editar.bloque = form.bloque.data
-        tema_a_editar.es_simulacro = form.es_simulacro.data
-        tema_a_editar.tiempo_limite_minutos = form.tiempo_limite_minutos.data
-        db.session.commit()
-        flash('¡Tema actualizado con éxito!', 'success')
-        return redirect(url_for('admin.admin_temas'))
-    return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
+    @admin_bp.route('/tema/<int:tema_id>/editar', methods=['GET', 'POST'])
+    @admin_required
+    def editar_tema(tema_id):
+        tema_a_editar = Tema.query.get_or_404(tema_id)
+        form = TemaForm(obj=tema_a_editar) # Esta línea faltaba o era incorrecta
+        form.bloque.query = Bloque.query.order_by(Bloque.nombre)
+        form.parent.query = Tema.query.filter(Tema.id != tema_id).order_by(Tema.nombre)
+        if form.validate_on_submit():
+            if form.parent.data and form.parent.data == tema_a_editar:
+                flash('Un tema no puede ser su propio padre.', 'danger')
+                return redirect(url_for('admin.editar_tema', tema_id=tema_id))
+            tema_a_editar.nombre = form.nombre.data
+            tema_a_editar.parent = form.parent.data
+            tema_a_editar.bloque = form.bloque.data
+            tema_a_editar.es_simulacro = form.es_simulacro.data
+            tema_a_editar.tiempo_limite_minutos = form.tiempo_limite_minutos.data
+            db.session.commit()
+            flash('¡Tema actualizado con éxito!', 'success')
+            return redirect(url_for('admin.admin_temas'))
+        return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
 @admin_required
