@@ -8,7 +8,7 @@ import os
 import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
-from flask_wtf import FlaskForm # <-- IMPORTACIÓN IMPORTANTE AÑADIDA
+from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import (
@@ -91,35 +91,30 @@ def admin_convocatorias():
     convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
     return render_template('admin_convocatorias.html', title="Gestionar Convocatorias", convocatorias=convocatorias)
 
-    @admin_bp.route('/crear_convocatoria', methods=['GET', 'POST'])
-    @admin_required
-    def crear_convocatoria():
-        form = ConvocatoriaForm()
-        if form.validate_on_submit():
-            # Añadimos el nuevo campo al crear el objeto
-            nueva_convocatoria = Convocatoria(
-                nombre=form.nombre.data, 
-                es_publica=form.es_publica.data
-            )
-            db.session.add(nueva_convocatoria)
-            db.session.commit()
-            flash('¡Convocatoria creada con éxito!', 'success')
-            return redirect(url_for('admin.admin_convocatorias'))
-        return render_template('crear_convocatoria.html', title="Crear Convocatoria", form=form)
+@admin_bp.route('/crear_convocatoria', methods=['GET', 'POST'])
+@admin_required
+def crear_convocatoria():
+    form = ConvocatoriaForm()
+    if form.validate_on_submit():
+        nueva_convocatoria = Convocatoria(nombre=form.nombre.data, es_publica=form.es_publica.data)
+        db.session.add(nueva_convocatoria)
+        db.session.commit()
+        flash('¡Convocatoria creada con éxito!', 'success')
+        return redirect(url_for('admin.admin_convocatorias'))
+    return render_template('crear_convocatoria.html', title="Crear Convocatoria", form=form)
 
-    @admin_bp.route('/convocatoria/<int:convocatoria_id>/editar', methods=['GET', 'POST'])
-    @admin_required
-    def editar_convocatoria(convocatoria_id):
-        convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-        form = ConvocatoriaForm(obj=convocatoria)
-        if form.validate_on_submit():
-            convocatoria.nombre = form.nombre.data
-            # Añadimos la actualización del nuevo campo
-            convocatoria.es_publica = form.es_publica.data
-            db.session.commit()
-            flash('¡Convocatoria actualizada con éxito!', 'success')
-            return redirect(url_for('admin.admin_convocatorias'))
-        return render_template('editar_convocatoria.html', title="Editar Convocatoria", form=form, convocatoria=convocatoria)
+@admin_bp.route('/convocatoria/<int:convocatoria_id>/editar', methods=['GET', 'POST'])
+@admin_required
+def editar_convocatoria(convocatoria_id):
+    convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
+    form = ConvocatoriaForm(obj=convocatoria)
+    if form.validate_on_submit():
+        convocatoria.nombre = form.nombre.data
+        convocatoria.es_publica = form.es_publica.data
+        db.session.commit()
+        flash('¡Convocatoria actualizada con éxito!', 'success')
+        return redirect(url_for('admin.admin_convocatorias'))
+    return render_template('editar_convocatoria.html', title="Editar Convocatoria", form=form, convocatoria=convocatoria)
 
 @admin_bp.route('/convocatoria/<int:convocatoria_id>/eliminar', methods=['POST'])
 @admin_required
@@ -327,7 +322,6 @@ def eliminar_preguntas_masivo():
     # ... (código de borrado masivo) ...
     pass
 
-# --- NUEVAS RUTAS PARA GUARDAR EL ORDEN ---
 @admin_bp.route('/reordenar-temas', methods=['POST'])
 @admin_required
 def reordenar_temas():
@@ -361,27 +355,3 @@ def reordenar_preguntas():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-@admin_bp.route('/super-secreto-hacerme-admin-final')
-@login_required
-def make_me_admin_final():
-    # Email de la cuenta que acabas de registrar
-    email_del_admin = 'alejandrofontanil@gmail.com' 
-
-    # Nos aseguramos de que solo tú puedes usar esta ruta
-    if current_user.email != email_del_admin:
-        abort(403) 
-
-    if current_user.es_admin:
-        flash('Este usuario ya es administrador.', 'info')
-        return redirect(url_for('admin.admin_dashboard'))
-
-    try:
-        current_user.es_admin = True
-        db.session.commit()
-        flash('¡Enhorabuena! Ahora eres administrador.', 'success')
-        return redirect(url_for('admin.admin_dashboard'))
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
-        return redirect(url_for('main.home'))
