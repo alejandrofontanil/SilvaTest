@@ -360,23 +360,38 @@ def eliminar_nota(nota_id):
 @admin_required
 def subir_sheets():
     form = GoogleSheetImportForm()
+
+    print("--- Accediendo a la ruta /subir_sheets ---") # CHIVATO 1
+
     if form.validate_on_submit():
+        print("--- El formulario se ha validado correctamente. Entrando al bloque TRY. ---") # CHIVATO 2
         try:
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
             creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
+
             if not creds_json_str:
+                print("--- ERROR: No se encontraron las credenciales GOOGLE_CREDS_JSON. ---") # CHIVATO 3
                 flash('Credenciales de Google no configuradas en los Secrets.', 'danger')
                 return redirect(url_for('admin.subir_sheets'))
+
+            print("--- Credenciales encontradas. Autorizando cliente de gspread. ---") # CHIVATO 4
             creds_json = json.loads(creds_json_str)
             creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
             client = gspread.authorize(creds)
+
             sheet_url = form.sheet_url.data
+            print(f"--- Abriendo Google Sheet con URL: {sheet_url} ---") # CHIVATO 5
             spreadsheet = client.open_by_url(sheet_url)
             sheet = spreadsheet.get_worksheet(0)
             list_of_lists = sheet.get_all_values()
+
             headers = [h.strip().lower() for h in list_of_lists[0]]
             data_rows = list_of_lists[1:]
 
+            print(f"--- Cabeceras encontradas: {headers} ---") # CHIVATO 6
+            print(f"--- {len(data_rows)} filas de datos encontradas. ---") # CHIVATO 7
+
+            # (El resto de tu lógica de importación va aquí sin cambios)
             tema_ids_a_importar = {int(row[headers.index('tema_id')]) for row in data_rows if 'tema_id' in headers and row[headers.index('tema_id')].isdigit()}
             if tema_ids_a_importar:
                 preguntas_a_borrar = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids_a_importar)).all()
@@ -387,6 +402,7 @@ def subir_sheets():
                     db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar)))
                     db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar)))
                     db.session.commit()
+                    print(f"--- Borradas {len(ids_a_borrar)} preguntas existentes. ---")
 
             posiciones_tema = {}
             for row in data_rows:
@@ -424,14 +440,22 @@ def subir_sheets():
                             es_correcta = (letra == letra_correcta)
                             respuesta = Respuesta(texto=texto_opcion, es_correcta=es_correcta, pregunta_id=nueva_pregunta.id)
                             db.session.add(respuesta)
+
             db.session.commit()
+            print("--- COMMIT REALIZADO. Importación exitosa. ---") # CHIVATO 8
             flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas.', 'success')
 
         except Exception as e:
             db.session.rollback()
+            print(f"--- ERROR DENTRO DEL BLOQUE TRY: {e} ---") # CHIVATO DE ERROR
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
 
         return redirect(url_for('admin.admin_dashboard'))
+
+    elif request.method == 'POST':
+        # Este bloque se ejecutará si el método es POST pero la validación falla
+        print("--- El formulario NO se ha validado. Errores: ---") # CHIVATO DE VALIDACIÓN
+        print(form.errors)
 
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
