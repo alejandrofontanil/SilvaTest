@@ -208,6 +208,22 @@ def eliminar_bloque(bloque_id):
         flash(f'Ocurrió un error al borrar el bloque: {e}', 'danger')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=convocatoria_id))
 
+@admin_bp.route('/bloque/<int:bloque_id>/toggle-visibility', methods=['POST'])
+@admin_required
+def toggle_visibilidad_bloque(bloque_id):
+    bloque = Bloque.query.get_or_404(bloque_id)
+    bloque.esta_oculto = not bloque.esta_oculto
+    db.session.commit()
+
+    mensaje = "oculto" if bloque.esta_oculto else "visible"
+    flash(f'El bloque "{bloque.nombre}" ahora está {mensaje}.', 'success')
+    return redirect(url_for('admin.admin_bloques', convocatoria_id=bloque.convocatoria_id))
+
+
+@admin_bp.route('/temas')
+@admin_required
+def admin_temas():
+
 @admin_bp.route('/temas')
 @admin_required
 def admin_temas():

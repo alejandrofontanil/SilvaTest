@@ -13,14 +13,29 @@
         <div class="list-group list-group-flush">
             {% for bloque in convocatoria.bloques %}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <a class="text-body" href="{{ url_for('main.bloque_detalle', bloque_id=bloque.id) }}">
+                    
+                    <div>
                         <span class="fw-bold">{{ bloque.nombre }}</span>
-                    </a>
+                        {% if bloque.esta_oculto %}
+                            <span class="badge bg-secondary ms-2">Oculto</span>
+                        {% endif %}
+                    </div>
+                    
                     <div class="btn-group" role="group">
                         <a href="{{ url_for('admin.admin_temas') }}" class="btn btn-sm btn-outline-primary">Ver Temas</a>
                         <a href="{{ url_for('admin.editar_bloque', bloque_id=bloque.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
-                        <form method="POST" action="{{ url_for('admin.eliminar_bloque', bloque_id=bloque.id) }}" onsubmit="return confirm('¿Estás seguro?');">
+                        <form method="POST" action="{{ url_for('admin.eliminar_bloque', bloque_id=bloque.id) }}" onsubmit="return confirm('¿Estás seguro?');" class="ms-2">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                        </form>
+
+                        <form method="POST" action="{{ url_for('admin.toggle_visibilidad_bloque', bloque_id=bloque.id) }}" class="ms-2">
+                            <button type="submit" class="btn btn-sm btn-info">
+                                {% if bloque.esta_oculto %}
+                                    <i class="bi bi-eye-fill"></i> Mostrar
+                                {% else %}
+                                    <i class="bi bi-eye-slash-fill"></i> Ocultar
+                                {% endif %}
+                            </button>
                         </form>
                     </div>
                 </div>
