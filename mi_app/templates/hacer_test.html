@@ -127,10 +127,10 @@
         // --- LÓGICA DEL TEMPORIZADOR CON CHIVATOS ---
         {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
             console.log("--- CHIVATO 2: Es un simulacro, iniciando lógica del temporizador. ---");
-
+            
             const tiempoLimiteSegundos = {{ tema.tiempo_limite_minutos * 60 }};
             const display = document.querySelector('#temporizador');
-
+            
             console.log("--- CHIVATO 3: Tiempo en segundos:", tiempoLimiteSegundos);
             console.log("--- CHIVATO 4: Elemento display:", display);
 
@@ -138,7 +138,7 @@
                 let tiempoRestante = tiempoLimiteSegundos;
                 const intervalId = setInterval(function () {
                     console.log("--- CHIVATO 5: Tick del reloj. Restan:", tiempoRestante);
-
+                    
                     let minutos = parseInt(tiempoRestante / 60, 10);
                     let segundos = parseInt(tiempoRestante % 60, 10);
 
@@ -157,7 +157,7 @@
                 console.error("--- ERROR: No se encontró el elemento #temporizador. ---");
             }
         {% endif %}
-
+        
 
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
@@ -185,7 +185,7 @@
             testForm.addEventListener('input', updateProgress);
             updateProgress();
         }
-
+        
         // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
         if (submitBtn) {
             const spinner = submitBtn.querySelector('.tree-spinner');
@@ -211,7 +211,7 @@
                 if(spinner) spinner.style.display = 'inline-block';
             });
         }
-
+        
         // --- LÓGICA PARA BOTONES DE ACCIÓN DE PREGUNTA ---
         function showToast(message) {
             const toast = document.createElement('div');
@@ -252,7 +252,7 @@
                 });
             });
         });
-
+        
         // Reportar
         document.querySelectorAll('.btn-reportar').forEach(function(boton) {
             boton.addEventListener('click', function() {
