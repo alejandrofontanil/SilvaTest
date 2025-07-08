@@ -211,6 +211,7 @@ def eliminar_bloque(bloque_id):
 @admin_bp.route('/bloque/<int:bloque_id>/toggle-visibility', methods=['POST'])
 @admin_required
 def toggle_visibilidad_bloque(bloque_id):
+    # Asegúrate de que todas estas líneas tengan 4 espacios de sangría
     bloque = Bloque.query.get_or_404(bloque_id)
     bloque.esta_oculto = not bloque.esta_oculto
     db.session.commit()
@@ -218,6 +219,7 @@ def toggle_visibilidad_bloque(bloque_id):
     mensaje = "oculto" if bloque.esta_oculto else "visible"
     flash(f'El bloque "{bloque.nombre}" ahora está {mensaje}.', 'success')
     return redirect(url_for('admin.admin_bloques', convocatoria_id=bloque.convocatoria_id))
+
 
 
 @admin_bp.route('/temas')
