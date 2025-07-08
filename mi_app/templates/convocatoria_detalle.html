@@ -10,11 +10,15 @@
 
         <div class="list-group">
             {% for bloque in convocatoria.bloques %}
-                <a href="{{ url_for('main.bloque_detalle', bloque_id=bloque.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    <span class="fw-bold fs-5">{{ bloque.nombre }}</span>
-                    <i class="bi bi-chevron-right"></i>
-                </a>
-            {% else %}
+
+                {% if not bloque.esta_oculto or (current_user.is_authenticated and current_user.es_admin) %}
+
+                    <a href="{{ url_for('main.bloque_detalle', bloque_id=bloque.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <span class="fw-bold fs-5">{{ bloque.nombre }}</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+
+                {% endif %} {% else %}
                 <p class="text-muted">No hay bloques en esta convocatoria.</p>
             {% endfor %}
         </div>
