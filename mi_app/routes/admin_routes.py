@@ -487,12 +487,12 @@ def eliminar_preguntas_masivo():
     else:
         return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/reordenar-temas', methods=['POST'])
-@admin_required
-def reordenar_temas():
-    # ... (código para reordenar temas) ...
+    @admin_bp.route('/reordenar-temas', methods=['POST'])
+    @admin_required
+    def reordenar_temas():
+        pass # <-- AÑADE ESTO
 
-@admin_bp.route('/reordenar-preguntas', methods=['POST'])
-@admin_required
-def reordenar_preguntas():
-    # ... (código para reordenar preguntas) ...
+    @admin_bp.route('/reordenar-preguntas', methods=['POST'])
+    @admin_required
+    def reordenar_preguntas():
+        pass # <-- Y AÑADE ESTO TAMBIÉN
