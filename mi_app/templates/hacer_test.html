@@ -20,6 +20,12 @@
                     Selecciona o escribe una respuesta. Puedes usar los botones de cada pregunta para obtener feedback.
                 {% endif %}
             </p>
+
+            {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
+            <div class="alert alert-warning text-center fs-4 sticky-top">
+                <i class="bi bi-clock-history"></i> Tiempo restante: <span id="temporizador" class="fw-bold">--:--</span>
+            </div>
+            {% endif %}
             <hr>
 
             <div class="mb-4">
@@ -35,7 +41,7 @@
             {% set action_url = url_for('main.corregir_simulacro_personalizado') if is_personalizado else url_for('main.corregir_test', tema_id=tema.id) %}
             <form id="test-form" method="POST" action="{{ action_url }}">
                 {{ form.hidden_tag() if form }}
-                
+
                 {% for pregunta in preguntas %}
                     <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -104,7 +110,38 @@
             </form>
         </div>
     </div>
+{% endblock %}
 
+
+{% block scripts %}
+    {{ super() }}
+
+    {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tiempoLimiteSegundos = {{ tema.tiempo_limite_minutos * 60 }};
+            const display = document.querySelector('#temporizador');
+            const form = document.querySelector('#test-form');
+            let tiempoRestante = tiempoLimiteSegundos;
+
+            const intervalId = setInterval(function () {
+                let minutos = parseInt(tiempoRestante / 60, 10);
+                let segundos = parseInt(tiempoRestante % 60, 10);
+
+                minutos = minutos < 10 ? "0" + minutos : minutos;
+                segundos = segundos < 10 ? "0" + segundos : segundos;
+
+                display.textContent = minutos + ":" + segundos;
+
+                if (--tiempoRestante < 0) {
+                    clearInterval(intervalId);
+                    alert("¡Se ha acabado el tiempo! El test se enviará automáticamente.");
+                    form.submit();
+                }
+            }, 1000);
+        });
+    </script>
+    {% endif %}
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const testForm = document.getElementById('test-form');
@@ -137,7 +174,7 @@
             testForm.addEventListener('input', updateProgress);
             updateProgress();
         }
-        
+
         // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
         if (submitBtn) {
             const spinner = submitBtn.querySelector('.tree-spinner');
@@ -161,7 +198,7 @@
                 if(spinner) spinner.style.display = 'inline-block';
             });
         }
-        
+
         // --- LÓGICA PARA BOTONES DE ACCIÓN DE PREGUNTA ---
         function showToast(message) {
             const toast = document.createElement('div');
@@ -202,7 +239,7 @@
                 });
             });
         });
-        
+
         // Reportar
         document.querySelectorAll('.btn-reportar').forEach(function(boton) {
             boton.addEventListener('click', function() {
