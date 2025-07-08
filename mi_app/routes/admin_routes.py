@@ -289,69 +289,186 @@ def editar_tema(tema_id):
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_tema(tema_id):
-    # ... (código de borrado robusto) ...
+    tema_a_eliminar = Tema.query.get_or_404(tema_id)
+    try:
+        pregunta_ids = [pregunta.id for pregunta in tema_a_eliminar.preguntas]
+        resultado_ids = [resultado.id for resultado in tema_a_eliminar.resultados]
+        if resultado_ids:
+            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
+        if pregunta_ids:
+            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
+            db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
+        db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
+        db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
+        if pregunta_ids:
+            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+        db.session.delete(tema_a_eliminar)
+        db.session.commit()
+        flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
     return redirect(url_for('admin.admin_temas'))
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
 @admin_required
 def editar_pregunta(pregunta_id):
-    # ... (código) ...
+    pregunta = Pregunta.query.get_or_404(pregunta_id)
+    form = PreguntaForm(obj=pregunta)
+    if pregunta.tipo_pregunta == 'opcion_multiple':
+        for i, respuesta in enumerate(pregunta.respuestas):
+            if i < 4:
+                getattr(form, f'respuesta{i+1}_texto').data = respuesta.texto
+                if respuesta.es_correcta:
+                    form.respuesta_correcta.data = str(i+1)
+    if form.validate_on_submit():
+        pregunta.texto = form.texto.data
+        pregunta.dificultad = form.dificultad.data
+        pregunta.retroalimentacion = form.retroalimentacion.data
+        db.session.commit()
+        flash('Pregunta actualizada con éxito!', 'success')
+        return redirect(url_for('admin.detalle_tema', tema_id=pregunta.tema_id))
     return render_template('editar_pregunta.html', title="Editar Pregunta", form=form, pregunta=pregunta)
 
 @admin_bp.route('/pregunta/<int:pregunta_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_pregunta(pregunta_id):
-    # ... (código de borrado robusto) ...
+    pregunta = Pregunta.query.get_or_404(pregunta_id)
+    tema_id = pregunta.tema_id
+    try:
+        db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id == pregunta_id))
+        db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id == pregunta_id))
+        db.session.delete(pregunta)
+        db.session.commit()
+        flash('La pregunta ha sido eliminada.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al borrar la pregunta: {e}', 'danger')
+        print(f"ERROR al borrar pregunta: {e}")
     return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
 
 @admin_bp.route('/nota/<int:nota_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_nota(nota_id):
-    # ... (código) ...
+    nota = Nota.query.get_or_404(nota_id)
+    db.session.delete(nota)
+    db.session.commit()
+    flash('La nota ha sido eliminada.', 'success')
     return redirect(url_for('admin.detalle_tema', tema_id=nota.tema_id))
 
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
-    # ... (código de importación) ...
-    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=GoogleSheetImportForm())
+    form = GoogleSheetImportForm()
+    if form.validate_on_submit():
+        try:
+            scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+            creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
+            if not creds_json_str:
+                flash('Credenciales de Google no configuradas en los Secrets.', 'danger')
+                return redirect(url_for('admin.subir_sheets'))
+            creds_json = json.loads(creds_json_str)
+            creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
+            client = gspread.authorize(creds)
+            sheet_url = form.sheet_url.data
+            spreadsheet = client.open_by_url(sheet_url)
+            sheet = spreadsheet.get_worksheet(0)
+            list_of_lists = sheet.get_all_values()
+            headers = [h.strip().lower() for h in list_of_lists[0]]
+            data_rows = list_of_lists[1:]
+
+            tema_ids_a_importar = {int(row[headers.index('tema_id')]) for row in data_rows if 'tema_id' in headers and row[headers.index('tema_id')].isdigit()}
+            if tema_ids_a_importar:
+                preguntas_a_borrar = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids_a_importar)).all()
+                if preguntas_a_borrar:
+                    ids_a_borrar = [p.id for p in preguntas_a_borrar]
+                    db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar)))
+                    db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar)))
+                    db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar)))
+                    db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar)))
+                    db.session.commit()
+
+            posiciones_tema = {}
+            for row in data_rows:
+                row_data = {headers[i]: cell for i, cell in enumerate(row)}
+                tema_id_str = row_data.get('tema_id')
+                enunciado = row_data.get('enunciado')
+
+                if not tema_id_str or not tema_id_str.isdigit() or not enunciado:
+                    continue
+
+                tema_id = int(tema_id_str)
+                if tema_id not in posiciones_tema:
+                    max_pos = db.session.query(db.func.max(Pregunta.posicion)).filter_by(tema_id=tema_id).scalar() or -1
+                    posiciones_tema[tema_id] = max_pos
+
+                posiciones_tema[tema_id] += 1
+
+                nueva_pregunta = Pregunta(
+                    texto=enunciado,
+                    tema_id=tema_id,
+                    posicion=posiciones_tema[tema_id],
+                    dificultad=row_data.get('dificultad', 'Media'),
+                    retroalimentacion=row_data.get('retroalimentacion'),
+                    tipo_pregunta=row_data.get('tipo_pregunta', 'opcion_multiple'),
+                    respuesta_correcta_texto=row_data.get('respuesta_correcta_texto')
+                )
+                db.session.add(nueva_pregunta)
+                db.session.flush()
+
+                if nueva_pregunta.tipo_pregunta == 'opcion_multiple':
+                    opciones = [(row_data.get('opcion_a'), 'a'), (row_data.get('opcion_b'), 'b'), (row_data.get('opcion_c'), 'c'), (row_data.get('opcion_d'), 'd')]
+                    letra_correcta = row_data.get('respuesta_correcta_multiple', '').lower()
+                    for texto_opcion, letra in opciones:
+                        if texto_opcion:
+                            es_correcta = (letra == letra_correcta)
+                            respuesta = Respuesta(texto=texto_opcion, es_correcta=es_correcta, pregunta_id=nueva_pregunta.id)
+                            db.session.add(respuesta)
+            db.session.commit()
+            flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas.', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
+
+        return redirect(url_for('admin.admin_dashboard'))
+
+    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    # ... (código de borrado masivo) ...
-    pass
+    tema_id = request.form.get('tema_id')
+    ids_a_borrar = request.form.getlist('preguntas_ids')
+    if not ids_a_borrar:
+        flash('No seleccionaste ninguna pregunta para borrar.', 'warning')
+        if tema_id:
+            return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
+        else:
+            return redirect(url_for('admin.admin_dashboard'))
+    try:
+        ids_a_borrar_int = [int(i) for i in ids_a_borrar]
+        db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar_int)))
+        db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar_int)))
+        db.session.commit()
+        flash(f"¡Éxito! Se eliminaron {len(ids_a_borrar_int)} preguntas usando SQL directo.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Ocurrió un error inesperado durante el borrado con SQL: {e}", 'danger')
+        print(f"ERROR CON SQL PURO: {e}")
+    if tema_id:
+        return redirect(url_for('admin.detalle_tema', tema_id=tema_id))
+    else:
+        return redirect(url_for('admin.admin_dashboard'))
 
 @admin_bp.route('/reordenar-temas', methods=['POST'])
 @admin_required
 def reordenar_temas():
-    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
-    if not nuevos_ids_ordenados:
-        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
-    try:
-        for indice, tema_id in enumerate(nuevos_ids_ordenados):
-            tema = Tema.query.get(int(tema_id))
-            if tema:
-                tema.posicion = indice
-        db.session.commit()
-        return jsonify({'success': True, 'message': '¡Orden de los temas actualizado!'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+    # ... (código para reordenar temas) ...
 
 @admin_bp.route('/reordenar-preguntas', methods=['POST'])
 @admin_required
 def reordenar_preguntas():
-    nuevos_ids_ordenados = request.json.get('nuevos_ids_ordenados')
-    if not nuevos_ids_ordenados:
-        return jsonify({'error': 'No se recibieron datos de ordenación'}), 400
-    try:
-        for indice, pregunta_id in enumerate(nuevos_ids_ordenados):
-            pregunta = Pregunta.query.get(int(pregunta_id))
-            if pregunta:
-                pregunta.posicion = indice
-        db.session.commit()
-        return jsonify({'success': True, 'message': '¡Orden de las preguntas actualizado!'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+    # ... (código para reordenar preguntas) ...
