@@ -474,3 +474,23 @@ def reordenar_temas():
 @admin_required
 def reordenar_preguntas():
     pass
+
+@admin_bp.route('/super-admin-temporal-2025')
+@login_required
+def hacerme_admin_temporalmente():
+    # Doble seguridad: solo funciona para tu email específico
+    if current_user.email != 'alejandrofontanil@gmail.com':
+        flash('Acción no permitida.', 'danger')
+        return redirect(url_for('main.home'))
+
+    try:
+        current_user.es_admin = True
+        db.session.commit()
+        flash(f'¡Éxito! El usuario {current_user.email} ahora es administrador.', 'success')
+        print(f"ADMINISTRADOR CONCEDIDO a {current_user.email}")
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
+        print(f"ERROR al hacer admin: {e}")
+
+    return redirect(url_for('admin.admin_dashboard'))
