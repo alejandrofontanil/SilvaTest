@@ -221,11 +221,6 @@ def toggle_visibilidad_bloque(bloque_id):
     return redirect(url_for('admin.admin_bloques', convocatoria_id=bloque.convocatoria_id))
 
 
-
-@admin_bp.route('/temas')
-@admin_required
-def admin_temas():
-
 @admin_bp.route('/temas')
 @admin_required
 def admin_temas():
