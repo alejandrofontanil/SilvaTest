@@ -15,130 +15,130 @@ from mi_app.forms import FiltroCuentaForm
 main_bp = Blueprint('main', __name__)
 
 def obtener_preguntas_recursivas(tema):
-  preguntas = []
-  preguntas.extend(tema.preguntas)
-  for subtema in tema.subtemas:
-      preguntas.extend(obtener_preguntas_recursivas(subtema))
-  return preguntas
+    preguntas = []
+    preguntas.extend(tema.preguntas)
+    for subtema in tema.subtemas:
+        preguntas.extend(obtener_preguntas_recursivas(subtema))
+    return preguntas
 
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-  if current_user.is_authenticated and current_user.es_admin:
-      convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-      return render_template('home.html', convocatorias=convocatorias)
-  elif current_user.is_authenticated:
-      convocatorias = current_user.convocatorias_accesibles.all()
-      resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
-      nota_media_global = 0
-      if resultados_totales:
-          nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
-      ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
-      ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
-      return render_template('home.html', 
-                             convocatorias=convocatorias,
-                             nota_media_global=nota_media_global,
-                             ultimo_resultado=ultimo_resultado,
-                             ultimas_favoritas=ultimas_favoritas)
-  else:
-      convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
-      return render_template('home.html', convocatorias=convocatorias)
+    if current_user.is_authenticated and current_user.es_admin:
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        return render_template('home.html', convocatorias=convocatorias)
+    elif current_user.is_authenticated:
+        convocatorias = current_user.convocatorias_accesibles.all()
+        resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
+        nota_media_global = 0
+        if resultados_totales:
+            nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
+        ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
+        ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
+        return render_template('home.html', 
+                               convocatorias=convocatorias,
+                               nota_media_global=nota_media_global,
+                               ultimo_resultado=ultimo_resultado,
+                               ultimas_favoritas=ultimas_favoritas)
+    else:
+        convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
+        return render_template('home.html', convocatorias=convocatorias)
 
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
 def convocatoria_detalle(convocatoria_id):
-  convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-  if not convocatoria.es_publica and (not current_user.is_authenticated or not current_user.es_admin):
-      abort(404)
-  if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
-      abort(403)
-  return render_template('convocatoria_detalle.html', convocatoria=convocatoria)
+    convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
+    if not convocatoria.es_publica and (not current_user.is_authenticated or not current_user.es_admin):
+        abort(404)
+    if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
+        abort(403)
+    return render_template('convocatoria_detalle.html', convocatoria=convocatoria)
 
 @main_bp.route('/bloque/<int:bloque_id>')
 @login_required
 def bloque_detalle(bloque_id):
-  bloque = Bloque.query.get_or_404(bloque_id)
-  if not current_user.es_admin and bloque.convocatoria not in current_user.convocatorias_accesibles.all():
-      abort(403)
-  temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
-  return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
+    bloque = Bloque.query.get_or_404(bloque_id)
+    if not current_user.es_admin and bloque.convocatoria not in current_user.convocatorias_accesibles.all():
+        abort(403)
+    temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
+    return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
-  form = FiltroCuentaForm()
-  opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
-  form.convocatoria.choices = opciones
+    form = FiltroCuentaForm()
+    opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
+    form.convocatoria.choices = opciones
 
-  convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
-  active_tab = request.args.get('tab', 'evolucion')
+    convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
+    active_tab = request.args.get('tab', 'evolucion')
 
-  if form.validate_on_submit():
-      id_seleccionado = form.convocatoria.data
-      return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=active_tab))
+    if form.validate_on_submit():
+        id_seleccionado = form.convocatoria.data
+        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=active_tab))
 
-  form.convocatoria.data = convocatoria_id
+    form.convocatoria.data = convocatoria_id
 
-  query_resultados = ResultadoTest.query.filter_by(autor=current_user)
-  if convocatoria_id != 0:
-      query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+    query_resultados = ResultadoTest.query.filter_by(autor=current_user)
+    if convocatoria_id != 0:
+        query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
 
-  resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
-  resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
-  for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
-      notas_del_dia = [r.nota for r in grupo]
-      if notas_del_dia:
-          resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
+    resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
+    resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
+    for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
+        notas_del_dia = [r.nota for r in grupo]
+        if notas_del_dia:
+            resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
 
-  dias_ordenados = sorted(resultados_agrupados.keys())
-  labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
-  datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
+    dias_ordenados = sorted(resultados_agrupados.keys())
+    labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
+    datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
 
-  resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
-  total_preguntas_hechas = db.session.query(RespuestaUsuario).filter_by(autor=current_user).count()
-  nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
+    resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
+    total_preguntas_hechas = db.session.query(RespuestaUsuario).filter_by(autor=current_user).count()
+    nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
 
-  stats_temas = []
-  stats_bloques = []
+    stats_temas = []
+    stats_bloques = []
 
-  query_stats = db.session.query(
-      func.count(RespuestaUsuario.id).label('total'),
-      func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)).label('aciertos')
-  ).join(Pregunta).filter(RespuestaUsuario.autor_id == current_user.id)
+    query_stats = db.session.query(
+        func.count(RespuestaUsuario.id).label('total'),
+        func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)).label('aciertos')
+    ).join(Pregunta).filter(RespuestaUsuario.autor_id == current_user.id) # <-- AQUÍ ESTÁ LA CORRECCIÓN
 
-  if convocatoria_id != 0:
-      query_stats = query_stats.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+    if convocatoria_id != 0:
+        query_stats = query_stats.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
 
-  stats_por_tema_query = query_stats.join(Tema).group_by(Tema.id).add_columns(Tema.nombre.label('nombre'))
-  for r in stats_por_tema_query.all():
-      porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
-      stats_temas.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
+    stats_por_tema_query = query_stats.join(Tema).group_by(Tema.id).add_columns(Tema.nombre.label('nombre'))
+    for r in stats_por_tema_query.all():
+        porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
+        stats_temas.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
 
-  stats_por_bloque_query = query_stats.join(Tema).join(Bloque).group_by(Bloque.id).add_columns(Bloque.nombre.label('nombre'))
-  for r in stats_por_bloque_query.all():
-      porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
-      stats_bloques.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
+    stats_por_bloque_query = query_stats.join(Tema).join(Bloque).group_by(Bloque.id).add_columns(Bloque.nombre.label('nombre'))
+    for r in stats_por_bloque_query.all():
+        porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
+        stats_bloques.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
 
-  stats_temas.sort(key=lambda x: x['porcentaje'])
-  stats_bloques.sort(key=lambda x: x['porcentaje'])
+    stats_temas.sort(key=lambda x: x['porcentaje'])
+    stats_bloques.sort(key=lambda x: x['porcentaje'])
 
-  return render_template(
-      'cuenta.html', title='Mi Cuenta', form=form, 
-      resultados=resultados_tabla,
-      labels_grafico=labels_grafico, datos_grafico=datos_grafico,
-      total_preguntas_hechas=total_preguntas_hechas, 
-      nota_media_global=nota_media_global,
-      stats_temas=stats_temas,
-      stats_bloques=stats_bloques,
-      active_tab=active_tab
-  )
+    return render_template(
+        'cuenta.html', title='Mi Cuenta', form=form, 
+        resultados=resultados_tabla,
+        labels_grafico=labels_grafico, datos_grafico=datos_grafico,
+        total_preguntas_hechas=total_preguntas_hechas, 
+        nota_media_global=nota_media_global,
+        stats_temas=stats_temas,
+        stats_bloques=stats_bloques,
+        active_tab=active_tab
+    )
 
 @main_bp.route('/cuenta/favoritas')
 @login_required
 def preguntas_favoritas():
-  preguntas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).all()
-  return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
+    preguntas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).all()
+    return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
 @main_bp.route('/tema/<int:tema_id>/test')
 @login_required
