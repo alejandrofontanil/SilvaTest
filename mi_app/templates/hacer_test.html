@@ -144,7 +144,7 @@
                 }, 1000);
             }
         {% endif %}
-
+        
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
@@ -171,7 +171,7 @@
             testForm.addEventListener('input', updateProgress);
             updateProgress();
         }
-
+        
         // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
         if (submitBtn) {
             const spinner = submitBtn.querySelector('.tree-spinner');
@@ -197,7 +197,7 @@
                 if(spinner) spinner.style.display = 'inline-block';
             });
         }
-
+        
         // --- LÓGICA PARA BOTONES DE ACCIÓN DE PREGUNTA ---
         function showToast(message) {
             const toast = document.createElement('div');
@@ -241,7 +241,7 @@
                 });
             });
         });
-
+        
         // Reportar
         document.querySelectorAll('.btn-reportar').forEach(function(boton) {
             boton.addEventListener('click', function() {
