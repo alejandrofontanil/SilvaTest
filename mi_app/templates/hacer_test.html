@@ -1,47 +1,308 @@
-aceback (most recent call last):
-  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
-    sys.exit(run())
-             ~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 67, in run
-    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 236, in run
-    super().run()
-    ~~~~~~~~~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 72, in run
-    Arbiter(self).run()
-    ~~~~~~~^^^^^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 58, in __init__
-    self.setup(app)
-    ~~~~~~~~~~^^^^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 118, in setup
-    self.app.wsgi()
-    ~~~~~~~~~~~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 67, in wsgi
-    self.callable = self.load()
-                    ~~~~~~~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 58, in load
-    return self.load_wsgiapp()
-           ~~~~~~~~~~~~~~~~~^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 48, in load_wsgiapp
-    return util.import_app(self.app_uri)
-           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/util.py", line 371, in import_app
-    mod = importlib.import_module(module)
-  File "/usr/local/lib/python3.13/importlib/__init__.py", line 88, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
-  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
-  File "/opt/render/project/src/main.py", line 3, in <module>
-    app = create_app()
-  File "/opt/render/project/src/mi_app/__init__.py", line 71, in create_app
-    from .routes.main_routes import main_bp
-  File "/opt/render/project/src/mi_app/routes/main_routes.py", line 1
-    iadas)
-         ^
-SyntaxError: unmatched ')'
+{% extends "base.html" %}
+
+{% block content %}
+    <style>
+        .visu-image { max-height: 350px; width: auto; max-width: 100%; border-radius: 0.75rem; margin-bottom: 1rem; }
+        .feedback-container { padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: bold; }
+        .feedback-correcto { border: 2px solid var(--bs-success); background-color: rgba(var(--bs-success-rgb), 0.1); color: var(--bs-success-text-emphasis); }
+        .feedback-incorrecto { border: 2px solid var(--bs-danger); background-color: rgba(var(--bs-danger-rgb), 0.1); color: var(--bs-danger-text-emphasis); }
+        .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 12px 24px; border-radius: 25px; z-index: 1050; opacity: 0; transition: opacity 0.5s, bottom 0.5s; font-weight: 500; }
+        .toast-notification.show { bottom: 40px; opacity: 1; }
+    </style>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="mb-2">Test: {{ tema.nombre }}</h1>
+            <p class="text-muted mb-4">
+                {% if tema.es_simulacro %}
+                    Estás en modo simulacro. Deberás finalizar el test para ver los resultados.
+                {% else %}
+                    Selecciona o escribe una respuesta. Puedes usar los botones de cada pregunta para obtener feedback.
+                {% endif %}
+            </p>
+
+            {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
+            <div class="alert alert-warning text-center fs-4 sticky-top">
+                <i class="bi bi-clock-history"></i> Tiempo restante: <span id="temporizador" class="fw-bold">--:--</span>
+            </div>
+            {% endif %}
+            <hr>
+
+            <div class="mb-4">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-bold">Progreso del Test</span>
+                    <span id="progress-text">0 / {{ preguntas|length }}</span>
+                </div>
+                <div class="progress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+                    <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                </div>
+            </div>
+
+            {% set action_url = url_for('main.corregir_simulacro_personalizado') if is_personalizado else url_for('main.corregir_test', tema_id=tema.id) %}
+            <form id="test-form" method="POST" action="{{ action_url }}">
+                {{ form.hidden_tag() if form }}
+
+                {% for pregunta in preguntas %}
+                    <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
+                            <div class="btn-group">
+                                {% if not tema.es_simulacro %}
+                                    <button type="button" class="btn btn-sm btn-outline-info btn-comprobar" data-pregunta-id="{{ pregunta.id }}" title="Comprobar Respuesta"><i class="bi bi-check-circle-fill"></i></button>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-reportar" data-pregunta-id="{{ pregunta.id }}" title="Reportar error">
+                                    <i class="bi bi-flag-fill"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ pregunta.id }}" title="Marcar como favorita">
+                                    <i class="bi {% if current_user.is_authenticated and current_user.es_favorita(pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if pregunta.imagen_url %}
+                                <div class="text-center mb-3">
+                                    <img src="{{ pregunta.imagen_url }}" alt="Imagen de la pregunta" class="img-fluid visu-image shadow-sm">
+                                </div>
+                            {% endif %}
+                            <p class="card-text fs-5">{{ pregunta.texto }}</p>
+
+                            <div class="feedback-container mt-3" style="display: none;"></div>
+
+                            {% if pregunta.tipo_pregunta == 'respuesta_texto' %}
+                                <div class="mt-3">
+                                    <input type="text" name="pregunta-{{ pregunta.id }}" class="form-control form-control-lg" placeholder="Escribe aquí tu respuesta...">
+                                </div>
+                            {% else %}
+                                <div class="list-group mt-3">
+                                    {% if pregunta.respuestas_barajadas %}
+                                        {% for respuesta in pregunta.respuestas_barajadas %}
+                                            <label class="list-group-item list-group-item-action">
+                                                <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}">
+                                                {{ respuesta.texto }}
+                                            </label>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-danger">Error: No se han podido cargar las respuestas para esta pregunta.</p>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <div class="d-grid mt-4">
+                    <button id="submit-test-btn" type="submit" class="btn btn-success btn-lg">
+                        <svg class="tree-spinner" width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                            <g transform="translate(50, 50)">
+                                <rect x="-5" y="10" width="10" height="20" fill="#8B5A2B" rx="2" />
+                                <g>
+                                  <circle r="20" cy="-15" fill="#4CAF50" />
+                                  <circle r="15" cx="-15" cy="-10" fill="#43A047" />
+                                  <circle r="15" cx="15" cy="-10" fill="#388E3C" />
+                                  <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.5s" repeatCount="indefinite" />
+                                </g>
+                            </g>
+                        </svg>
+                        <span class="button-text"><i class="bi bi-check2-circle"></i> Finalizar y Corregir Test</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+
+{% block scripts %}
+    {{ super() }}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const testForm = document.getElementById('test-form');
+        const submitBtn = document.getElementById('submit-test-btn');
+        const totalPreguntas = {{ preguntas|length }};
+        
+        // ✅ --- INICIO DE LA MODIFICACIÓN --- ✅
+        // Lee el token directamente de la metaetiqueta en el <head>
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        // ✅ --- FIN DE LA MODIFICACIÓN --- ✅
+
+        // --- LÓGICA DEL TEMPORIZADOR ---
+        {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
+            const tiempoLimiteSegundos = {{ tema.tiempo_limite_minutos * 60 }};
+            const display = document.querySelector('#temporizador');
+            if (display) {
+                let tiempoRestante = tiempoLimiteSegundos;
+                const intervalId = setInterval(function () {
+                    let minutos = parseInt(tiempoRestante / 60, 10);
+                    let segundos = parseInt(tiempoRestante % 60, 10);
+                    minutos = minutos < 10 ? "0" + minutos : minutos;
+                    segundos = segundos < 10 ? "0" + segundos : segundos;
+                    display.textContent = minutos + ":" + segundos;
+                    if (--tiempoRestante < 0) {
+                        clearInterval(intervalId);
+                        alert("¡Se ha acabado el tiempo! El test se enviará automáticamente.");
+                        testForm.submit();
+                    }
+                }, 1000);
+            }
+        {% endif %}
+        
+        // --- LÓGICA PARA LA BARRA DE PROGRESO ---
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        function updateProgress() {
+            if (!testForm) return;
+            const formData = new FormData(testForm);
+            const answeredNames = new Set();
+            for (const pair of formData.entries()) {
+                if (pair[0].startsWith('pregunta-')) {
+                    answeredNames.add(pair[0]);
+                }
+            }
+            const answeredCount = answeredNames.size;
+            const percentage = totalPreguntas > 0 ? (answeredCount / totalPreguntas) * 100 : 0;
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                progressBar.setAttribute('aria-valuenow', percentage);
+            }
+            if (progressText) {
+                progressText.textContent = `${answeredCount} / ${totalPreguntas}`;
+            }
+        }
+        if (testForm) {
+            testForm.addEventListener('input', updateProgress);
+            updateProgress();
+        }
+        
+        // --- LÓGICA PARA EL BOTÓN DE ENVIAR ---
+        if (submitBtn) {
+            const spinner = submitBtn.querySelector('.tree-spinner');
+            const buttonText = submitBtn.querySelector('.button-text');
+            testForm.addEventListener('submit', function(event) {
+                const inputs = testForm.querySelectorAll('input[name^="pregunta-"]');
+                const questionsAnswered = new Set();
+                inputs.forEach(input => {
+                    if ((input.type === 'radio' && input.checked) || (input.type === 'text' && input.value.trim() !== '')) {
+                        questionsAnswered.add(input.name);
+                    }
+                });
+                {% if not tema.es_simulacro %}
+                if (questionsAnswered.size < totalPreguntas) {
+                    if (!confirm('No has respondido a todas las preguntas. ¿Quieres finalizar el test de todas formas?')) {
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                {% endif %}
+                submitBtn.disabled = true;
+                if(buttonText) buttonText.style.display = 'none';
+                if(spinner) spinner.style.display = 'inline-block';
+            });
+        }
+        
+        // --- LÓGICA PARA BOTONES DE ACCIÓN DE PREGUNTA ---
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        // Favorito
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url_template = "{{ url_for('main.toggle_favorito', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        let message = '';
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                            message = 'Añadida a favoritos';
+                        } else {
+                            icono.className = 'bi bi-star';
+                            message = 'Quitada de favoritos';
+                        }
+                        showToast(message);
+                    }
+                });
+            });
+        });
+        
+        // Reportar
+        document.querySelectorAll('.btn-reportar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                if (!confirm('¿Estás seguro de que quieres reportar esta pregunta para su revisión?')) { return; }
+                const url_template = "{{ url_for('main.reportar_pregunta', pregunta_id=999999) }}";
+                const final_url = url_template.replace('999999', preguntaId);
+                fetch(final_url, { 
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        showToast(data.message);
+                        this.classList.remove('btn-outline-warning');
+                        this.classList.add('btn-warning', 'disabled');
+                    } else { showToast('Hubo un error al reportar la pregunta.'); }
+                });
+            });
+        });
+
+        // Comprobar
+        document.querySelectorAll('.btn-comprobar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const card = document.getElementById(`card-pregunta-${preguntaId}`);
+                const respuestaSeleccionada = card.querySelector(`input[name="pregunta-${preguntaId}"]:checked`);
+                const feedbackContainer = card.querySelector('.feedback-container');
+                if (!respuestaSeleccionada) {
+                    showToast('Por favor, selecciona una respuesta antes de comprobar.');
+                    return;
+                }
+                fetch("{{ url_for('main.comprobar_respuesta') }}", { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    feedbackContainer.style.display = 'block';
+                    if (data.es_correcta) {
+                        feedbackContainer.className = 'feedback-container feedback-correcto';
+                        feedbackContainer.innerHTML = `<strong>¡Correcto!</strong> ${data.retroalimentacion || ''}`;
+                    } else {
+                        feedbackContainer.className = 'feedback-container feedback-incorrecto';
+                        feedbackContainer.innerHTML = `<strong>Incorrecto.</strong> ${data.retroalimentacion || ''}`;
+                    }
+                });
+            });
+        });
+
+    });
+    </script>
+{% endblock %}

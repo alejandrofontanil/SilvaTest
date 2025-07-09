@@ -102,30 +102,30 @@ def preguntas_favoritas():
 @main_bp.route('/tema/<int:tema_id>/test')
 @login_required
 def hacer_test(tema_id):
-        form = FlaskForm()  # ✅ 1. CREAMOS EL FORMULARIO VACÍO
-        tema = Tema.query.get_or_404(tema_id)
-        if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
-            abort(403)
+    form = FlaskForm()
+    tema = Tema.query.get_or_404(tema_id)
+    if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
+        abort(403)
 
-        preguntas_test = obtener_preguntas_recursivas(tema)
+    preguntas_test = obtener_preguntas_recursivas(tema)
 
-        if not preguntas_test:
-            flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
-            return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
+    if not preguntas_test:
+        flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
+        return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
 
-        random.shuffle(preguntas_test)
+    random.shuffle(preguntas_test)
 
-        for pregunta in preguntas_test:
-            if pregunta.tipo_pregunta == 'opcion_multiple':
-                lista_respuestas = list(pregunta.respuestas)
-                random.shuffle(lista_respuestas)
-                pregunta.respuestas_barajadas = lista_respuestas
+    for pregunta in preguntas_test:
+        if pregunta.tipo_pregunta == 'opcion_multiple':
+            lista_respuestas = list(pregunta.respuestas)
+            random.shuffle(lista_respuestas)
+            pregunta.respuestas_barajadas = lista_respuestas
 
-        return render_template('hacer_test.html', 
-                               title=f"Test de {tema.nombre}", 
-                               tema=tema, 
-                               preguntas=preguntas_test, 
-                               form=form) # ✅ 2. PASAMOS EL FORMULARIO A LA PLANTILLA
+    return render_template('hacer_test.html', 
+                           title=f"Test de {tema.nombre}", 
+                           tema=tema, 
+                           preguntas=preguntas_test, 
+                           form=form)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -327,9 +327,17 @@ def simulacro_personalizado_test():
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
 
-    # Creamos un objeto 'dummy' para el tema, para que la plantilla no falle
+    # ✅ --- INICIO DE LA MODIFICACIÓN --- ✅
+    form = FlaskForm()  # Se crea un formulario vacío para el token CSRF
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-    return render_template('hacer_test.html', title="Simulacro Personalizado", tema=tema_dummy, preguntas=preguntas_test, is_personalizado=True)
+
+    return render_template('hacer_test.html', 
+                           title="Simulacro Personalizado", 
+                           tema=tema_dummy, 
+                           preguntas=preguntas_test, 
+                           is_personalizado=True,
+                           form=form) # Se pasa el formulario a la plantilla
+    # ✅ --- FIN DE LA MODIFICACIÓN --- ✅
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
@@ -395,3 +403,4 @@ def corregir_simulacro_personalizado():
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
+
