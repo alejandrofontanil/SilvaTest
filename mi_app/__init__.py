@@ -4,9 +4,10 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from authlib.integrations.flask_client import OAuth
-from sqlalchemy import inspect # <-- IMPORTANTE: Añadimos 'inspect'
+from sqlalchemy import inspect
 import os
 import cloudinary
+from flask_wtf.csrf import CSRFProtect # <-- 1. LÍNEA AÑADIDA
 
 # Inicializamos las extensiones
 db = SQLAlchemy()
@@ -14,6 +15,7 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 migrate = Migrate()
 oauth = OAuth()
+csrf = CSRFProtect() # <-- 2. LÍNEA AÑADIDA
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -41,6 +43,7 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
     oauth.init_app(app)
+    csrf.init_app(app) # <-- 3. LÍNEA AÑADIDA
 
     # --- REGISTRO DE GOOGLE OAUTH ---
     oauth.register(
@@ -87,6 +90,7 @@ def create_app():
     @app.errorhandler(404)
     def not_found_error(error):
         return render_template('errors/404.html'), 404
+
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
