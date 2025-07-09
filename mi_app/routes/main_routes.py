@@ -1,4 +1,3 @@
-from flask_wtf import FlaskForm
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc
@@ -7,6 +6,7 @@ from datetime import date
 import random
 from collections import defaultdict
 from itertools import groupby
+from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
@@ -56,7 +56,7 @@ def bloque_detalle(bloque_id):
     bloque = Bloque.query.get_or_404(bloque_id)
     if not current_user.es_admin and bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-    temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
+    temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.posicion).all()
     return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
@@ -69,24 +69,31 @@ def cuenta():
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
     if convocatoria_id != 0:
         query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
+
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
         notas_del_dia = [r.nota for r in grupo]
         if notas_del_dia:
             resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
+
     dias_ordenados = sorted(resultados_agrupados.keys())
     labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
+
     resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
     total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
     nota_media_global = 0
     if resultados_tabla:
         nota_media_global = sum([r.nota for r in resultados_tabla]) / len(resultados_tabla)
+
     if form.validate_on_submit():
         id_seleccionado = form.convocatoria.data
         return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado))
+
     form.convocatoria.data = convocatoria_id
+
     return render_template(
         'cuenta.html', title='Mi Cuenta', form=form, resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
@@ -100,32 +107,32 @@ def preguntas_favoritas():
     return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
 @main_bp.route('/tema/<int:tema_id>/test')
-    @login_required
-    def hacer_test(tema_id):
-        form = FlaskForm()  # ✅ 1. CREAMOS EL FORMULARIO VACÍO
-        tema = Tema.query.get_or_404(tema_id)
-        if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
-            abort(403)
+@login_required
+def hacer_test(tema_id):
+    form = FlaskForm()  # ✅ CORREGIDO: Se crea el formulario
+    tema = Tema.query.get_or_404(tema_id)
+    if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
+        abort(403)
 
-        preguntas_test = obtener_preguntas_recursivas(tema)
+    preguntas_test = obtener_preguntas_recursivas(tema)
 
-        if not preguntas_test:
-            flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
-            return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
+    if not preguntas_test:
+        flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
+        return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
 
-        random.shuffle(preguntas_test)
+    random.shuffle(preguntas_test)
 
-        for pregunta in preguntas_test:
-            if pregunta.tipo_pregunta == 'opcion_multiple':
-                lista_respuestas = list(pregunta.respuestas)
-                random.shuffle(lista_respuestas)
-                pregunta.respuestas_barajadas = lista_respuestas
+    for pregunta in preguntas_test:
+        if pregunta.tipo_pregunta == 'opcion_multiple':
+            lista_respuestas = list(pregunta.respuestas)
+            random.shuffle(lista_respuestas)
+            pregunta.respuestas_barajadas = lista_respuestas
 
-        return render_template('hacer_test.html', 
-                               title=f"Test de {tema.nombre}", 
-                               tema=tema, 
-                               preguntas=preguntas_test, 
-                               form=form) # ✅ 2. PASAMOS EL FORMULARIO A LA PLANTILLA
+    return render_template('hacer_test.html', 
+                           title=f"Test de {tema.nombre}", 
+                           tema=tema, 
+                           preguntas=preguntas_test, 
+                           form=form) # ✅ CORREGIDO: Se pasa el formulario a la plantilla
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -280,6 +287,14 @@ def generador_simulacro():
         preguntas_para_el_test_ids = []
         temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
 
+        # ✅ AÑADIDO: Capturar y guardar el tiempo límite en la sesión
+        try:
+            tiempo_limite = int(request.form.get('tiempo_limite', 30))
+        except (ValueError, TypeError):
+            tiempo_limite = 30
+        session['tiempo_limite_simulacro'] = tiempo_limite
+
+
         if not temas_seleccionados_ids:
             flash('Debes seleccionar al menos un tema.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
@@ -295,14 +310,14 @@ def generador_simulacro():
 
             tema = Tema.query.get_or_404(tema_id)
             preguntas_disponibles = obtener_preguntas_recursivas(tema)
-
             num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
 
-            preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
-            preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
+            if num_a_seleccionar > 0:
+                preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
+                preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
 
         if not preguntas_para_el_test_ids:
-            flash('No se pudieron generar preguntas con los criterios seleccionados (o no había preguntas en los temas).', 'warning')
+            flash('No se pudieron generar preguntas con los criterios seleccionados.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
 
         session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
@@ -314,6 +329,7 @@ def generador_simulacro():
 @main_bp.route('/simulacro/empezar')
 @login_required
 def simulacro_personalizado_test():
+    form = FlaskForm() # ✅ CORREGIDO: Se crea el formulario
     ids_preguntas = session.get('id_preguntas_simulacro', [])
     if not ids_preguntas:
         flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
@@ -327,9 +343,16 @@ def simulacro_personalizado_test():
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
 
-    # Creamos un objeto 'dummy' para el tema, para que la plantilla no falle
-    tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-    return render_template('hacer_test.html', title="Simulacro Personalizado", tema=tema_dummy, preguntas=preguntas_test, is_personalizado=True)
+    # ✅ CORREGIDO: Se lee el tiempo de la sesión y se pasa a la plantilla
+    tiempo_limite = session.get('tiempo_limite_simulacro', 30) # 30 min por defecto
+    tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True, 'tiempo_limite_minutos': tiempo_limite}
+
+    return render_template('hacer_test.html', 
+                           title="Simulacro Personalizado", 
+                           tema=tema_dummy, 
+                           preguntas=preguntas_test, 
+                           is_personalizado=True, 
+                           form=form) # ✅ CORREGIDO: Se pasa el formulario
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
@@ -340,14 +363,11 @@ def corregir_simulacro_personalizado():
         return redirect(url_for('main.generador_simulacro'))
 
     preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
-
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
 
-    # Creamos un tema "virtual" para asociar el resultado
     tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
     if not tema_simulacro_personalizado:
-        # Asumimos que existe un bloque genérico o lo creamos
         bloque_general = Bloque.query.filter_by(nombre="General").first()
         if not bloque_general:
             convo_general = Convocatoria.query.filter_by(nombre="General").first()
@@ -391,6 +411,7 @@ def corregir_simulacro_personalizado():
     nuevo_resultado.nota = nota_final
 
     session.pop('id_preguntas_simulacro', None)
+    session.pop('tiempo_limite_simulacro', None) # Limpiar también el tiempo
 
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
