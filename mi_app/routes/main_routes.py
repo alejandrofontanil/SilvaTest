@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session
 from flask_login import login_required, current_user
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
 from datetime import date
 import random
@@ -24,17 +24,11 @@ def obtener_preguntas_recursivas(tema):
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-    # --- Caso 1: El usuario es un Administrador ---
-    # Los administradores ven todas las convocatorias, sin filtros.
     if current_user.is_authenticated and current_user.es_admin:
         convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
-
-    # --- Caso 2: El usuario está registrado pero NO es admin ---
-    # Ven las convocatorias a las que tienen acceso.
     elif current_user.is_authenticated:
         convocatorias = current_user.convocatorias_accesibles.all()
-        # Aquí va toda tu lógica para mostrar estadísticas al usuario
         resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
         nota_media_global = 0
         if resultados_totales:
@@ -46,11 +40,7 @@ def home():
                                nota_media_global=nota_media_global,
                                ultimo_resultado=ultimo_resultado,
                                ultimas_favoritas=ultimas_favoritas)
-
-    # --- Caso 3: El usuario no ha iniciado sesión (público general) ---
-    # Ven únicamente las convocatorias marcadas como públicas.
     else:
-        # ✅ AQUÍ ESTÁ EL FILTRO IMPORTANTE
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
 
@@ -59,6 +49,8 @@ def home():
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
+    if not convocatoria.es_publica and (not current_user.is_authenticated or not current_user.es_admin):
+        abort(404)
     if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     return render_template('convocatoria_detalle.html', convocatoria=convocatoria)
@@ -78,32 +70,68 @@ def cuenta():
     form = FiltroCuentaForm()
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
+
     convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
+    active_tab = request.args.get('tab', 'evolucion')
+
+    if form.validate_on_submit():
+        id_seleccionado = form.convocatoria.data
+        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=active_tab))
+
+    form.convocatoria.data = convocatoria_id
+
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
     if convocatoria_id != 0:
         query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema.bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
         notas_del_dia = [r.nota for r in grupo]
         if notas_del_dia:
             resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
+
     dias_ordenados = sorted(resultados_agrupados.keys())
     labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
+
     resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
-    total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
-    nota_media_global = 0
-    if resultados_tabla:
-        nota_media_global = sum([r.nota for r in resultados_tabla]) / len(resultados_tabla)
-    if form.validate_on_submit():
-        id_seleccionado = form.convocatoria.data
-        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado))
-    form.convocatoria.data = convocatoria_id
+    total_preguntas_hechas = db.session.query(RespuestaUsuario).filter_by(autor=current_user).count()
+    nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
+
+    stats_temas = []
+    stats_bloques = []
+
+    query_stats = db.session.query(
+        func.count(RespuestaUsuario.id).label('total'),
+        func.sum(case([(RespuestaUsuario.es_correcta, 1)], else_=0)).label('aciertos')
+    ).join(Pregunta).filter(RespuestaUsuario.user_id == current_user.id)
+
+    if convocatoria_id != 0:
+        query_stats = query_stats.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+
+    stats_por_tema_query = query_stats.join(Tema).group_by(Tema.id).add_columns(Tema.nombre.label('nombre'))
+    for r in stats_por_tema_query.all():
+        porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
+        stats_temas.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
+
+    stats_por_bloque_query = query_stats.join(Tema).join(Bloque).group_by(Bloque.id).add_columns(Bloque.nombre.label('nombre'))
+    for r in stats_por_bloque_query.all():
+        porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
+        stats_bloques.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
+
+    stats_temas.sort(key=lambda x: x['porcentaje'])
+    stats_bloques.sort(key=lambda x: x['porcentaje'])
+
     return render_template(
-        'cuenta.html', title='Mi Cuenta', form=form, resultados=resultados_tabla,
+        'cuenta.html', title='Mi Cuenta', form=form, 
+        resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
-        total_preguntas_hechas=total_preguntas_hechas, nota_media_global=nota_media_global
+        total_preguntas_hechas=total_preguntas_hechas, 
+        nota_media_global=nota_media_global,
+        stats_temas=stats_temas,
+        stats_bloques=stats_bloques,
+        active_tab=active_tab
     )
 
 @main_bp.route('/cuenta/favoritas')
@@ -119,21 +147,16 @@ def hacer_test(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-
     preguntas_test = obtener_preguntas_recursivas(tema)
-
     if not preguntas_test:
         flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
         return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
-
     random.shuffle(preguntas_test)
-
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
-
     return render_template('hacer_test.html', 
                            title=f"Test de {tema.nombre}", 
                            tema=tema, 
@@ -284,43 +307,32 @@ def politica_privacidad():
 def terminos_condiciones():
     return render_template('terminos_condiciones.html', title="Términos y Condiciones")
 
-# --- NUEVAS RUTAS PARA EL GENERADOR DE SIMULACROS ---
-
 @main_bp.route('/generador-simulacro', methods=['GET', 'POST'])
 @login_required
 def generador_simulacro():
     if request.method == 'POST':
         preguntas_para_el_test_ids = []
         temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
-
         if not temas_seleccionados_ids:
             flash('Debes seleccionar al menos un tema.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
-
         for tema_id in temas_seleccionados_ids:
             try:
                 num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
             except (ValueError, TypeError):
                 num_preguntas = 10
-
             if num_preguntas == 0:
                 continue
-
             tema = Tema.query.get_or_404(tema_id)
             preguntas_disponibles = obtener_preguntas_recursivas(tema)
-
             num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
-
             preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
             preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
-
         if not preguntas_para_el_test_ids:
             flash('No se pudieron generar preguntas con los criterios seleccionados (o no había preguntas en los temas).', 'warning')
             return redirect(url_for('main.generador_simulacro'))
-
         session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
         return redirect(url_for('main.simulacro_personalizado_test'))
-
     convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
     return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles)
 
@@ -331,19 +343,15 @@ def simulacro_personalizado_test():
     if not ids_preguntas:
         flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
         return redirect(url_for('main.generador_simulacro'))
-
     preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).all()
     random.shuffle(preguntas_test)
-
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
-
     form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-
     return render_template('hacer_test.html', 
                            title="Simulacro Personalizado", 
                            tema=tema_dummy, 
@@ -358,12 +366,9 @@ def corregir_simulacro_personalizado():
     if not ids_preguntas_en_test:
         flash('La sesión de tu simulacro ha expirado. Por favor, genera uno nuevo.', 'danger')
         return redirect(url_for('main.generador_simulacro'))
-
     preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
-
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
-
     tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
     if not tema_simulacro_personalizado:
         bloque_general = Bloque.query.filter_by(nombre="General").first()
@@ -379,11 +384,9 @@ def corregir_simulacro_personalizado():
         tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
         db.session.add(tema_simulacro_personalizado)
         db.session.commit()
-
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
-
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -404,12 +407,9 @@ def corregir_simulacro_personalizado():
                 db.session.add(respuesta_usuario)
         if es_correcta:
             aciertos += 1
-
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
-
     session.pop('id_preguntas_simulacro', None)
-
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
