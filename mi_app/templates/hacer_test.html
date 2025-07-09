@@ -118,46 +118,32 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("--- CHIVATO 1: Script principal iniciado ---");
-
         const testForm = document.getElementById('test-form');
         const submitBtn = document.getElementById('submit-test-btn');
         const totalPreguntas = {{ preguntas|length }};
+        const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = csrfTokenInput ? csrfTokenInput.value : null;
 
-        // --- LÓGICA DEL TEMPORIZADOR CON CHIVATOS ---
+        // --- LÓGICA DEL TEMPORIZADOR ---
         {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
-            console.log("--- CHIVATO 2: Es un simulacro, iniciando lógica del temporizador. ---");
-
             const tiempoLimiteSegundos = {{ tema.tiempo_limite_minutos * 60 }};
             const display = document.querySelector('#temporizador');
-
-            console.log("--- CHIVATO 3: Tiempo en segundos:", tiempoLimiteSegundos);
-            console.log("--- CHIVATO 4: Elemento display:", display);
-
             if (display) {
                 let tiempoRestante = tiempoLimiteSegundos;
                 const intervalId = setInterval(function () {
-                    console.log("--- CHIVATO 5: Tick del reloj. Restan:", tiempoRestante);
-
                     let minutos = parseInt(tiempoRestante / 60, 10);
                     let segundos = parseInt(tiempoRestante % 60, 10);
-
                     minutos = minutos < 10 ? "0" + minutos : minutos;
                     segundos = segundos < 10 ? "0" + segundos : segundos;
-
                     display.textContent = minutos + ":" + segundos;
-
                     if (--tiempoRestante < 0) {
                         clearInterval(intervalId);
                         alert("¡Se ha acabado el tiempo! El test se enviará automáticamente.");
                         testForm.submit();
                     }
                 }, 1000);
-            } else {
-                console.error("--- ERROR: No se encontró el elemento #temporizador. ---");
             }
         {% endif %}
-
 
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
@@ -234,7 +220,10 @@
                 const final_url = url_template.replace('999999', preguntaId);
                 fetch(final_url, { 
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                    }
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -262,7 +251,10 @@
                 const final_url = url_template.replace('999999', preguntaId);
                 fetch(final_url, { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                    }
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -288,7 +280,10 @@
                 }
                 fetch("{{ url_for('main.comprobar_respuesta') }}", { 
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                    },
                     body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
                 })
                 .then(response => response.json())
