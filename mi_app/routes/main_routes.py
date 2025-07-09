@@ -105,7 +105,7 @@ def cuenta():
   query_stats = db.session.query(
       func.count(RespuestaUsuario.id).label('total'),
       func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)).label('aciertos')
-  ).join(Pregunta).filter(RespuestaUsuario.usuario_id == current_user.id) # <-- CORRECCIÓN FINAL
+  ).select_from(RespuestaUsuario).join(Pregunta).filter(RespuestaUsuario.usuario_id == current_user.id)
 
   if convocatoria_id != 0:
       query_stats = query_stats.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
