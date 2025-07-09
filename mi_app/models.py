@@ -58,7 +58,7 @@ class Usuario(db.Model, UserMixin):
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
-    es_publica = db.Column(db.Boolean, nullable=False, default=False) # ✅ CORREGIDO
+    es_publica = db.Column(db.Boolean, nullable=False, default=True) # ✅ CORREGIDO
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion') # ✅ CORREGIDO
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
