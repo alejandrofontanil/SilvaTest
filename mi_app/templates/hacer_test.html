@@ -222,7 +222,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                        'X-CSRFToken': csrfToken
                     }
                 })
                 .then(response => response.json())
@@ -253,7 +253,7 @@
                     method: 'POST', 
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                        'X-CSRFToken': csrfToken
                     }
                 })
                 .then(response => response.json())
@@ -282,7 +282,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken // ✅ CORRECCIÓN AÑADIDA
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
                 })
