@@ -319,7 +319,8 @@ def simulacro_personalizado_test():
         flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
         return redirect(url_for('main.generador_simulacro'))
 
-    preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).order_by(sql_func.random()).all()
+    preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).all()
+    random.shuffle(preguntas_test)
 
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -327,8 +328,7 @@ def simulacro_personalizado_test():
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
 
-    # ✅ --- INICIO DE LA MODIFICACIÓN --- ✅
-    form = FlaskForm()  # Se crea un formulario vacío para el token CSRF
+    form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
 
     return render_template('hacer_test.html', 
@@ -336,8 +336,7 @@ def simulacro_personalizado_test():
                            tema=tema_dummy, 
                            preguntas=preguntas_test, 
                            is_personalizado=True,
-                           form=form) # Se pasa el formulario a la plantilla
-    # ✅ --- FIN DE LA MODIFICACIÓN --- ✅
+                           form=form)
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
@@ -352,10 +351,8 @@ def corregir_simulacro_personalizado():
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
 
-    # Creamos un tema "virtual" para asociar el resultado
     tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
     if not tema_simulacro_personalizado:
-        # Asumimos que existe un bloque genérico o lo creamos
         bloque_general = Bloque.query.filter_by(nombre="General").first()
         if not bloque_general:
             convo_general = Convocatoria.query.filter_by(nombre="General").first()
@@ -403,4 +400,3 @@ def corregir_simulacro_personalizado():
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
-
