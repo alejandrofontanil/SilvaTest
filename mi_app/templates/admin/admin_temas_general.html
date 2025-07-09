@@ -2,22 +2,32 @@
 
 {% macro render_tema_admin(tema) %}
     <div class="list-group-item" data-id="{{ tema.id }}">
-        <div class="d-flex w-100 justify-content-between align-items-center">
-            <div>
-                <i class="bi bi-grip-vertical me-2 handle" style="cursor: grab;" title="Arrastrar para reordenar"></i>
-                <h5 class="mb-1 d-inline">{{ tema.nombre }}</h5>
-                <small class="d-block text-muted ms-4">ID: {{ tema.id }} | Posición: {{ tema.posicion }}</small>
+        <div class="d-flex w-100 justify-content-between align-items-center p-2">
+            
+            <div class="d-flex align-items-center">
+                <i class="bi bi-grip-vertical me-3 handle" style="cursor: grab;" title="Arrastrar para reordenar"></i>
+                <form action="{{ url_for('admin.actualizar_posicion_tema', tema_id=tema.id) }}" method="POST" class="d-flex align-items-center me-3">
+                    <input type="number" name="posicion" value="{{ tema.posicion or 0 }}" class="form-control form-control-sm" style="width: 75px;" title="Posición (0 es el primero)">
+                    <button type="submit" class="btn btn-sm btn-outline-success ms-2" title="Guardar Posición"><i class="bi bi-save"></i></button>
+                </form>
+                <div>
+                    <h5 class="mb-0 d-inline">{{ tema.nombre }}</h5>
+                    <small class="d-block text-muted">ID: {{ tema.id }}</small>
+                </div>
             </div>
+            
             <div class="btn-group" role="group">
                 <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-primary">Preguntas ({{ tema.total_preguntas }})</a>
                 <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
                 <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');" style="display: inline-block;">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Eliminar</button>
                 </form>
             </div>
+
         </div>
+        
         {% if tema.subtemas %}
-            <div class="list-group mt-3 sortable-list" style="margin-left: 20px;">
+            <div class="list-group mt-2 sortable-list" style="margin-left: 50px;">
                 {% for subtema in tema.subtemas %}
                     {{ render_tema_admin(subtema) }}
                 {% endfor %}
@@ -34,13 +44,13 @@
         <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema</a>
     </div>
     <div class="card-body">
-
-        {{ form.csrf_token }}
+        
+        {{ form.csrf_token() }}
 
         <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="bi bi-info-circle-fill me-2"></i>
             <div>
-                ¡Ahora puedes arrastrar y soltar los temas usando el icono <i class="bi bi-grip-vertical"></i> para reordenarlos!
+                Puedes arrastrar y soltar los temas para reordenarlos o cambiar el número de posición y guardar.
             </div>
         </div>
         {% for convocatoria in convocatorias %}
@@ -60,6 +70,7 @@
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -71,14 +82,20 @@
 
         sortableLists.forEach(list => {
             new Sortable(list, {
-                group: 'shared', // Permite arrastrar elementos entre listas con el mismo nombre de grupo
+                group: 'shared',
                 animation: 150,
-                handle: '.handle', // Usamos la clase 'handle' que le dimos al icono
+                handle: '.handle', 
                 onEnd: function (evt) {
-                    const parentList = evt.from;
-                    const itemIds = Array.from(parentList.children).map(item => item.dataset.id);
+                    const itemIds = [];
+                    // Recorremos todos los elementos en todas las listas para obtener el orden global
+                    document.querySelectorAll('.sortable-list > .list-group-item').forEach(item => {
+                        itemIds.push(item.dataset.id);
+                    });
+                    
+                    // Solo enviamos la petición si hay elementos
+                    if (itemIds.length === 0) return;
 
-                    console.log("Nuevo orden enviado:", itemIds); // Un chivato para la consola
+                    console.log("Nuevo orden enviado:", itemIds);
 
                     fetch("{{ url_for('admin.reordenar_temas') }}", {
                         method: 'POST',
@@ -92,8 +109,8 @@
                     .then(data => {
                         if (data.success) {
                             showToast(data.message);
-                            // Opcional: Recargar la página para ver los cambios de posición reflejados
-                            // window.location.reload(); 
+                            // Recargamos la página para ver los nuevos números de posición actualizados
+                            window.location.reload(); 
                         } else {
                             showToast('Error al guardar el orden: ' + (data.error || 'Error desconocido'));
                         }
