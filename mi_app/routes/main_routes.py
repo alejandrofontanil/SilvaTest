@@ -1,3 +1,4 @@
+from flask_wtf import FlaskForm
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc
@@ -99,22 +100,32 @@ def preguntas_favoritas():
     return render_template('favoritas.html', title="Mis Preguntas Favoritas", preguntas=preguntas)
 
 @main_bp.route('/tema/<int:tema_id>/test')
-@login_required
-def hacer_test(tema_id):
-    tema = Tema.query.get_or_404(tema_id)
-    if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
-        abort(403)
-    preguntas_test = obtener_preguntas_recursivas(tema)
-    if not preguntas_test:
-        flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
-        return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
-    random.shuffle(preguntas_test)
-    for pregunta in preguntas_test:
-        if pregunta.tipo_pregunta == 'opcion_multiple':
-            lista_respuestas = list(pregunta.respuestas)
-            random.shuffle(lista_respuestas)
-            pregunta.respuestas_barajadas = lista_respuestas
-    return render_template('hacer_test.html', title=f"Test de {tema.nombre}", tema=tema, preguntas=preguntas_test)
+    @login_required
+    def hacer_test(tema_id):
+        form = FlaskForm()  # ✅ 1. CREAMOS EL FORMULARIO VACÍO
+        tema = Tema.query.get_or_404(tema_id)
+        if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
+            abort(403)
+
+        preguntas_test = obtener_preguntas_recursivas(tema)
+
+        if not preguntas_test:
+            flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
+            return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
+
+        random.shuffle(preguntas_test)
+
+        for pregunta in preguntas_test:
+            if pregunta.tipo_pregunta == 'opcion_multiple':
+                lista_respuestas = list(pregunta.respuestas)
+                random.shuffle(lista_respuestas)
+                pregunta.respuestas_barajadas = lista_respuestas
+
+        return render_template('hacer_test.html', 
+                               title=f"Test de {tema.nombre}", 
+                               tema=tema, 
+                               preguntas=preguntas_test, 
+                               form=form) # ✅ 2. PASAMOS EL FORMULARIO A LA PLANTILLA
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
