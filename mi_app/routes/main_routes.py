@@ -24,8 +24,17 @@ def obtener_preguntas_recursivas(tema):
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-    if current_user.is_authenticated and not current_user.es_admin:
+    # --- Caso 1: El usuario es un Administrador ---
+    # Los administradores ven todas las convocatorias, sin filtros.
+    if current_user.is_authenticated and current_user.es_admin:
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        return render_template('home.html', convocatorias=convocatorias)
+
+    # --- Caso 2: El usuario está registrado pero NO es admin ---
+    # Ven las convocatorias a las que tienen acceso.
+    elif current_user.is_authenticated:
         convocatorias = current_user.convocatorias_accesibles.all()
+        # Aquí va toda tu lógica para mostrar estadísticas al usuario
         resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
         nota_media_global = 0
         if resultados_totales:
@@ -37,8 +46,12 @@ def home():
                                nota_media_global=nota_media_global,
                                ultimo_resultado=ultimo_resultado,
                                ultimas_favoritas=ultimas_favoritas)
+
+    # --- Caso 3: El usuario no ha iniciado sesión (público general) ---
+    # Ven únicamente las convocatorias marcadas como públicas.
     else:
-        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        # ✅ AQUÍ ESTÁ EL FILTRO IMPORTANTE
+        convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
 
 
