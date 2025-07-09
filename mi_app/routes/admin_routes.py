@@ -320,6 +320,25 @@ def eliminar_tema(tema_id):
         flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
     return redirect(url_for('admin.admin_temas'))
 
+@admin_bp.route('/tema/<int:tema_id>/actualizar-posicion', methods=['POST'])
+@admin_required
+def actualizar_posicion_tema(tema_id):
+    tema = Tema.query.get_or_404(tema_id)
+    try:
+        nueva_posicion = request.form.get('posicion', type=int)
+        if nueva_posicion is not None:
+            tema.posicion = nueva_posicion
+            db.session.commit()
+            flash(f'Posición del tema "{tema.nombre}" actualizada a {nueva_posicion}.', 'success')
+        else:
+            flash('No se proporcionó una posición válida.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar la posición: {e}', 'danger')
+
+    return redirect(url_for('admin.admin_temas'))
+
+
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
 @admin_required
 def editar_pregunta(pregunta_id):
