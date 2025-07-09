@@ -12,7 +12,7 @@
 
     <div class="card shadow-sm">
         <div class="card-body p-4">
-            <h1 class="mb-2">PRUEBA - Test: {{ tema.nombre }}</h1>
+            <h1 class="mb-2">Test: {{ tema.nombre }}</h1>
             <p class="text-muted mb-4">
                 {% if tema.es_simulacro %}
                     Estás en modo simulacro. Deberás finalizar el test para ver los resultados.
@@ -20,8 +20,6 @@
                     Selecciona o escribe una respuesta. Puedes usar los botones de cada pregunta para obtener feedback.
                 {% endif %}
             </p>
-
-            <h2 style="color:red;">VERSIÓN DE PRUEBA CON TEMPORIZADOR</h2>
 
             {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
             <div class="alert alert-warning text-center fs-4 sticky-top">
@@ -159,7 +157,6 @@
                 console.error("--- ERROR: No se encontró el elemento #temporizador. ---");
             }
         {% endif %}
-
 
         // --- LÓGICA PARA LA BARRA DE PROGRESO ---
         const progressBar = document.getElementById('progress-bar');
