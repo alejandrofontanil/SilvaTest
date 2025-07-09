@@ -11,15 +11,12 @@
                 <a class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
                     <i class="bi bi-graph-up-arrow me-2"></i>Evolución
                 </a>
-
                 <a class="list-group-item list-group-item-action {% if active_tab == 'stats' %}active{% endif %}" data-bs-toggle="list" href="#estadisticas-detalladas" role="tab">
                     <i class="bi bi-pie-chart-fill me-2"></i>Estadísticas
                 </a>
-
                 <a class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
                     <i class="bi bi-list-task me-2"></i>Historial Detallado
                 </a>
-
                 <a href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
                 <a href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
                 <a href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
@@ -122,7 +119,7 @@
                             </table>
                         </div>
                         {% else %}
-                        <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
+                         <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -188,24 +185,31 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
     }
 
-    // Pequeño script para manejar el cambio de pestaña en la URL al filtrar
-    const form = document.querySelector('form[action="{{ url_for(\'main.cuenta\') }}"]');
+    // ✅ INICIO DE LA CORRECCIÓN
+    // Quitamos la barra '\' que causaba el error de sintaxis
+    const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
+    // ✅ FIN DE LA CORRECCIÓN
+
     if(form){
-        form.addEventListener('submit', function(){
+        form.addEventListener('submit', function(e){
             const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
             if(activeTabEl){
-                const tabId = activeTabEl.getAttribute('href').substring(1); // ej: #evolucion -> evolucion
+                const tabId = activeTabEl.getAttribute('href').substring(1);
                 let urlTab = 'evolucion';
                 if(tabId.includes('estadisticas')){
                     urlTab = 'stats';
                 } else if(tabId.includes('historial')){
                     urlTab = 'historial';
                 }
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'tab';
-                hiddenInput.value = urlTab;
-                form.appendChild(hiddenInput);
+
+                let tabInput = form.querySelector('input[name="tab"]');
+                if(!tabInput){
+                    tabInput = document.createElement('input');
+                    tabInput.type = 'hidden';
+                    tabInput.name = 'tab';
+                    form.appendChild(tabInput);
+                }
+                tabInput.value = urlTab;
             }
         });
     }
