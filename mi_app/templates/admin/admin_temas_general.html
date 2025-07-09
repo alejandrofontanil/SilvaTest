@@ -1,9 +1,134 @@
 {% extends "base.html" %}
 
+{% macro render_tema_admin(tema) %}
+    <div class="list-group-item" data-id="{{ tema.id }}">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-grip-vertical me-2 handle" style="cursor: grab;" title="Arrastrar para reordenar"></i>
+                <h5 class="mb-1 d-inline">{{ tema.nombre }}</h5>
+                <small class="d-block text-muted ms-4">ID: {{ tema.id }} | Posición: {{ tema.posicion }}</small>
+            </div>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-primary">Preguntas ({{ tema.total_preguntas }})</a>
+                <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');" style="display: inline-block;">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+        {% if tema.subtemas %}
+            <div class="list-group mt-3 sortable-list" style="margin-left: 20px;">
+                {% for subtema in tema.subtemas %}
+                    {{ render_tema_admin(subtema) }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
 {% block content %}
-<div class="card">
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h1 class="h4 mb-0"><i class="bi bi-list-nested"></i> Vista General del Temario</h1>
+        <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema</a>
+    </div>
     <div class="card-body">
-        <h1 style="color: red; font-size: 2rem;">SI VES ESTO, EL DESPLIEGUE FUNCIONÓ.</h1>
+
+        {{ form.csrf_token }}
+
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <div>
+                ¡Ahora puedes arrastrar y soltar los temas usando el icono <i class="bi bi-grip-vertical"></i> para reordenarlos!
+            </div>
+        </div>
+        {% for convocatoria in convocatorias %}
+            <h3 class="mt-4">{{ convocatoria.nombre }}</h3>
+            {% for bloque in convocatoria.bloques %}
+                <h4 class="mt-3 text-muted ps-2">{{ bloque.nombre }}</h4>
+                <div class="list-group sortable-list">
+                    {% for tema in bloque.temas.filter_by(parent_id=None) %}
+                        {{ render_tema_admin(tema) }}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No hay convocatorias creadas.</p>
+        {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        const sortableLists = document.querySelectorAll('.sortable-list');
+
+        sortableLists.forEach(list => {
+            new Sortable(list, {
+                group: 'shared', // Permite arrastrar elementos entre listas con el mismo nombre de grupo
+                animation: 150,
+                handle: '.handle', // Usamos la clase 'handle' que le dimos al icono
+                onEnd: function (evt) {
+                    const parentList = evt.from;
+                    const itemIds = Array.from(parentList.children).map(item => item.dataset.id);
+
+                    console.log("Nuevo orden enviado:", itemIds); // Un chivato para la consola
+
+                    fetch("{{ url_for('admin.reordenar_temas') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ 'nuevos_ids_ordenados': itemIds })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message);
+                            // Opcional: Recargar la página para ver los cambios de posición reflejados
+                            // window.location.reload(); 
+                        } else {
+                            showToast('Error al guardar el orden: ' + (data.error || 'Error desconocido'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error de red al guardar el orden.');
+                    });
+                }
+            });
+        });
+
+        function showToast(message) {
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.style.position = 'fixed';
+                toastContainer.style.bottom = '20px';
+                toastContainer.style.right = '20px';
+                toastContainer.style.zIndex = '1055';
+                document.body.appendChild(toastContainer);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = 'toast show align-items-center text-bg-dark border-0';
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            toastContainer.appendChild(toast);
+            new bootstrap.Toast(toast).show();
+        }
+    });
+</script>
 {% endblock %}
