@@ -3,25 +3,51 @@
 {% block content %}
 <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h1 class="h4 mb-0"><i class="bi bi-calendar-check-fill"></i> Gestionar Convocatorias</h1>
-        <a href="{{ url_for('admin.crear_convocatoria') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Convocatoria</a>
+        <h1 class="h4 mb-0"><i class="bi bi-collection-fill"></i> Gestionar Convocatorias</h1>
+        <a href="{{ url_for('admin.crear_convocatoria') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Nueva Convocatoria</a>
     </div>
     <div class="card-body">
-        <div class="list-group list-group-flush">
-            {% for convocatoria in convocatorias %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <span class="fw-bold">{{ convocatoria.nombre }}</span>
-                    <div class="btn-group" role="group">
-                        <a href="{{ url_for('admin.admin_bloques', convocatoria_id=convocatoria.id) }}" class="btn btn-sm btn-outline-primary">Ver Bloques</a>
-                        <a href="{{ url_for('admin.editar_convocatoria', convocatoria_id=convocatoria.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
-                        <form method="POST" action="{{ url_for('admin.eliminar_convocatoria', convocatoria_id=convocatoria.id) }}" onsubmit="return confirm('¿Estás seguro?');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
-                        </form>
-                    </div>
-                </div>
-            {% else %}
-                <p class="text-muted">No hay convocatorias creadas.</p>
-            {% endfor %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Nombre de la Convocatoria</th>
+                        <th class="text-center">Visibilidad</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for convocatoria in convocatorias %}
+                    <tr>
+                        <td class="fw-bold">{{ convocatoria.nombre }}</td>
+                        <td class="text-center">
+                            {% if convocatoria.es_publica %}
+                                <span class="badge text-bg-success">Pública</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Oculta</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('admin.admin_bloques', convocatoria_id=convocatoria.id) }}" class="btn btn-sm btn-outline-primary">Ver Bloques</a>
+                                <a href="{{ url_for('admin.editar_convocatoria', convocatoria_id=convocatoria.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                
+                                <form method="POST" action="{{ url_for('admin.eliminar_convocatoria', convocatoria_id=convocatoria.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta convocatoria y TODO su contenido? Esta acción es irreversible.');" style="display:inline;">
+                                    
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No hay convocatorias creadas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
