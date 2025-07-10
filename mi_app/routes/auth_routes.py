@@ -27,14 +27,31 @@ def login():
         return redirect(url_for('main.home'))
     form = LoginForm()
     if form.validate_on_submit():
-        usuario = Usuario.query.filter_by(email=form.email.data).first()
-        if usuario and usuario.check_password(form.password.data):
+        email_o_usuario = form.email.data.lower().strip()
+        password = form.password.data
+
+        # --- CASO ESPECIAL PARA EL USUARIO INVITADO ---
+        if email_o_usuario == 'invitado' and password == 'invitado':
+            usuario_invitado = Usuario.query.filter_by(nombre='Invitado').first()
+            if usuario_invitado:
+                login_user(usuario_invitado, remember=False)
+                flash('Has iniciado sesión como Invitado.', 'info')
+                return redirect(url_for('main.home'))
+            else:
+                flash('La cuenta de invitado no está configurada. Contacta al administrador.', 'danger')
+                return redirect(url_for('auth.login'))
+        # --- FIN DEL CASO ESPECIAL ---
+
+        # Lógica normal para usuarios reales
+        usuario = Usuario.query.filter_by(email=email_o_usuario).first()
+        if usuario and usuario.check_password(password):
             login_user(usuario, remember=form.remember.data)
             next_page = request.args.get('next')
             flash('¡Has iniciado sesión con éxito!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
             flash('Inicio de sesión fallido. Por favor, comprueba tu email y contraseña.', 'danger')
+            
     return render_template('login.html', title='Iniciar Sesión', form=form)
 
 @auth_bp.route('/logout')
@@ -57,6 +74,7 @@ def google_callback():
         print(f"Error en el callback de Google: {e}")
         flash('Hubo un error al intentar iniciar sesión con Google. Por favor, inténtalo de nuevo.', 'danger')
         return redirect(url_for('auth.login'))
+        
     usuario = Usuario.query.filter_by(email=user_info['email']).first()
     if not usuario:
         usuario = Usuario(
@@ -68,6 +86,7 @@ def google_callback():
         db.session.add(usuario)
         db.session.commit()
         flash('¡Cuenta creada con éxito a través de Google!', 'success')
+        
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))
