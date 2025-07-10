@@ -1,15 +1,18 @@
 {% extends "base.html" %}
 
-{% macro render_tema_admin(tema) %}
+{% macro render_tema_admin(tema, level=0) %}
     <div class="list-group-item" data-id="{{ tema.id }}">
         <div class="d-flex w-100 justify-content-between align-items-center p-2">
             
             <div class="d-flex align-items-center">
-                <i class="bi bi-grip-vertical me-3 handle" style="cursor: grab;" title="Arrastrar para reordenar"></i>
+                <i class="bi bi-grip-vertical me-3" style="cursor: not-allowed;" title="Ordenación manual activa"></i>
+                
                 <form action="{{ url_for('admin.actualizar_posicion_tema', tema_id=tema.id) }}" method="POST" class="d-flex align-items-center me-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="number" name="posicion" value="{{ tema.posicion or 0 }}" class="form-control form-control-sm" style="width: 75px;" title="Posición (0 es el primero)">
                     <button type="submit" class="btn btn-sm btn-outline-success ms-2" title="Guardar Posición"><i class="bi bi-save"></i></button>
                 </form>
+
                 <div>
                     <h5 class="mb-0 d-inline">{{ tema.nombre }}</h5>
                     <small class="d-block text-muted">ID: {{ tema.id }}</small>
@@ -19,7 +22,9 @@
             <div class="btn-group" role="group">
                 <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-primary">Preguntas ({{ tema.total_preguntas }})</a>
                 <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                
                 <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');" style="display: inline-block;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Eliminar</button>
                 </form>
             </div>
@@ -27,9 +32,9 @@
         </div>
         
         {% if tema.subtemas %}
-            <div class="list-group mt-2 sortable-list" style="margin-left: 50px;">
-                {% for subtema in tema.subtemas %}
-                    {{ render_tema_admin(subtema) }}
+            <div class="list-group mt-2" style="margin-left: 50px;">
+                {% for subtema in tema.subtemas|sort(attribute='posicion') %}
+                    {{ render_tema_admin(subtema, level + 1) }}
                 {% endfor %}
             </div>
         {% endif %}
@@ -45,20 +50,19 @@
     </div>
     <div class="card-body">
         
-        {{ form.csrf_token() }}
-
         <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="bi bi-info-circle-fill me-2"></i>
             <div>
-                Puedes arrastrar y soltar los temas para reordenarlos o cambiar el número de posición y guardar.
+                Puedes cambiar el número de posición y hacer clic en el botón de guardar para reordenar.
             </div>
         </div>
+
         {% for convocatoria in convocatorias %}
             <h3 class="mt-4">{{ convocatoria.nombre }}</h3>
             {% for bloque in convocatoria.bloques %}
                 <h4 class="mt-3 text-muted ps-2">{{ bloque.nombre }}</h4>
-                <div class="list-group sortable-list">
-                    {% for tema in bloque.temas.filter_by(parent_id=None) %}
+                <div class="list-group">
+                    {% for tema in bloque.temas.filter_by(parent_id=None).order_by('posicion') %}
                         {{ render_tema_admin(tema) }}
                     {% endfor %}
                 </div>
@@ -68,84 +72,4 @@
         {% endfor %}
     </div>
 </div>
-{% endblock %}
-
-
-{% block scripts %}
-{{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-        const sortableLists = document.querySelectorAll('.sortable-list');
-
-        sortableLists.forEach(list => {
-            new Sortable(list, {
-                group: 'shared',
-                animation: 150,
-                handle: '.handle', 
-                onEnd: function (evt) {
-                    const itemIds = [];
-                    // Recorremos todos los elementos en todas las listas para obtener el orden global
-                    document.querySelectorAll('.sortable-list > .list-group-item').forEach(item => {
-                        itemIds.push(item.dataset.id);
-                    });
-                    
-                    // Solo enviamos la petición si hay elementos
-                    if (itemIds.length === 0) return;
-
-                    console.log("Nuevo orden enviado:", itemIds);
-
-                    fetch("{{ url_for('admin.reordenar_temas') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({ 'nuevos_ids_ordenados': itemIds })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast(data.message);
-                            // Recargamos la página para ver los nuevos números de posición actualizados
-                            window.location.reload(); 
-                        } else {
-                            showToast('Error al guardar el orden: ' + (data.error || 'Error desconocido'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Error de red al guardar el orden.');
-                    });
-                }
-            });
-        });
-
-        function showToast(message) {
-            let toastContainer = document.getElementById('toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.id = 'toast-container';
-                toastContainer.style.position = 'fixed';
-                toastContainer.style.bottom = '20px';
-                toastContainer.style.right = '20px';
-                toastContainer.style.zIndex = '1055';
-                document.body.appendChild(toastContainer);
-            }
-
-            const toast = document.createElement('div');
-            toast.className = 'toast show align-items-center text-bg-dark border-0';
-            toast.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            `;
-            toastContainer.appendChild(toast);
-            new bootstrap.Toast(toast).show();
-        }
-    });
-</script>
 {% endblock %}

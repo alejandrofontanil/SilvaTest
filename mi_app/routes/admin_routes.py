@@ -318,6 +318,24 @@ def eliminar_tema(tema_id):
         flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
     return redirect(url_for('admin.admin_temas'))
 
+# ✅ --- RUTA RESTAURADA PARA EL ORDEN MANUAL --- ✅
+@admin_bp.route('/tema/<int:tema_id>/actualizar-posicion', methods=['POST'])
+@admin_required
+def actualizar_posicion_tema(tema_id):
+    tema = Tema.query.get_or_404(tema_id)
+    try:
+        nueva_posicion_str = request.form.get('posicion', '').strip()
+        if nueva_posicion_str.isdigit():
+            tema.posicion = int(nueva_posicion_str)
+            db.session.commit()
+            flash(f'Posición del tema "{tema.nombre}" actualizada.', 'success')
+        else:
+            flash('No se proporcionó una posición numérica válida.', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar la posición: {e}', 'danger')
+    return redirect(url_for('admin.admin_temas'))
+
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
 @admin_required
 def editar_pregunta(pregunta_id):
@@ -482,28 +500,3 @@ def hacerme_admin_temporalmente():
         print(f"ERROR al hacer admin: {e}")
 
     return redirect(url_for('admin.admin_dashboard'))
-
-# ✅ --- RUTA NUEVA PARA GUARDAR EL ORDEN --- ✅
-@admin_bp.route('/temas/actualizar-orden', methods=['POST'])
-@login_required
-def actualizar_orden_temas():
-    # Solo los admins pueden hacer esto
-    if not current_user.es_admin:
-        abort(403)
-
-    data = request.get_json()
-    orden_ids = data.get('orden')
-    parent_id = data.get('parent_id') # Obtenemos el id del padre
-
-    if orden_ids is None:
-        return jsonify({'success': False, 'error': 'No se proporcionaron datos de orden'}), 400
-
-    for indice, tema_id in enumerate(orden_ids):
-        tema = Tema.query.get(tema_id)
-        if tema:
-            tema.posicion = indice
-            # Actualizamos el parent_id si ha cambiado de lista
-            tema.parent_id = parent_id 
-    
-    db.session.commit()
-    return jsonify({'success': True})
