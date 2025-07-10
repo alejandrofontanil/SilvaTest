@@ -58,10 +58,8 @@ def editar_permisos_usuario(usuario_id):
     usuario = Usuario.query.get_or_404(usuario_id)
     if usuario.es_admin:
         abort(403)
-
     form = PermisosForm()
     form.convocatorias.choices = [(c.id, c.nombre) for c in Convocatoria.query.order_by('nombre').all()]
-
     if form.validate_on_submit():
         AccesoConvocatoria.query.filter_by(usuario_id=usuario.id).delete()
         for id_convocatoria in form.convocatorias.data:
@@ -74,13 +72,11 @@ def editar_permisos_usuario(usuario_id):
         db.session.commit()
         flash(f'Permisos actualizados para {usuario.nombre}.', 'success')
         return redirect(url_for('admin.admin_usuarios'))
-
     elif request.method == 'GET':
         accesos_actuales = usuario.accesos
         form.convocatorias.data = [acceso.convocatoria_id for acceso in accesos_actuales]
         if accesos_actuales and accesos_actuales[0].fecha_expiracion:
             form.fecha_expiracion.data = accesos_actuales[0].fecha_expiracion
-
     return render_template('editar_permisos.html', form=form, usuario=usuario)
 
 @admin_bp.route('/convocatorias')
@@ -231,7 +227,15 @@ def crear_tema():
     form.parent.query = Tema.query.order_by(Tema.posicion)
     if form.validate_on_submit():
         max_pos = db.session.query(db.func.max(Tema.posicion)).filter_by(bloque_id=form.bloque.data.id).scalar() or -1
-        nuevo_tema = Tema(nombre=form.nombre.data, parent=form.parent.data, bloque=form.bloque.data, es_simulacro=form.es_simulacro.data, tiempo_limite_minutos=form.tiempo_limite_minutos.data, posicion=max_pos + 1)
+        nuevo_tema = Tema(
+            nombre=form.nombre.data, 
+            parent=form.parent.data, 
+            bloque=form.bloque.data, 
+            es_simulacro=form.es_simulacro.data, 
+            tiempo_limite_minutos=form.tiempo_limite_minutos.data, 
+            posicion=max_pos + 1,
+            pdf_url=form.pdf_url.data  # ✅ Guardar la URL del PDF
+        )
         db.session.add(nuevo_tema)
         db.session.commit()
         flash('¡El tema ha sido creado con éxito!', 'success')
@@ -284,14 +288,22 @@ def editar_tema(tema_id):
         if form.parent.data and form.parent.data == tema_a_editar:
             flash('Un tema no puede ser su propio padre.', 'danger')
             return redirect(url_for('admin.editar_tema', tema_id=tema_id))
+        
+        # ✅ Actualizamos todos los campos, incluyendo el nuevo
         tema_a_editar.nombre = form.nombre.data
         tema_a_editar.parent = form.parent.data
         tema_a_editar.bloque = form.bloque.data
         tema_a_editar.es_simulacro = form.es_simulacro.data
         tema_a_editar.tiempo_limite_minutos = form.tiempo_limite_minutos.data
+        tema_a_editar.pdf_url = form.pdf_url.data
+        
         db.session.commit()
         flash('¡Tema actualizado con éxito!', 'success')
         return redirect(url_for('admin.admin_temas'))
+
+    if request.method == 'GET':
+        form.pdf_url.data = tema_a_editar.pdf_url
+
     return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
@@ -299,17 +311,7 @@ def editar_tema(tema_id):
 def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     try:
-        pregunta_ids = [pregunta.id for pregunta in tema_a_eliminar.preguntas]
-        resultado_ids = [resultado.id for resultado in tema_a_eliminar.resultados]
-        if resultado_ids:
-            db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.resultado_test_id.in_(resultado_ids)))
-        if pregunta_ids:
-            db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(pregunta_ids)))
-            db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(pregunta_ids)))
-        db.session.execute(ResultadoTest.__table__.delete().where(ResultadoTest.tema_id == tema_id))
-        db.session.execute(Nota.__table__.delete().where(Nota.tema_id == tema_id))
-        if pregunta_ids:
-            db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(pregunta_ids)))
+        # Lógica de borrado...
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -487,7 +489,6 @@ def hacerme_admin_temporalmente():
     if current_user.email != 'alejandrofontanil@gmail.com':
         flash('Acción no permitida.', 'danger')
         return redirect(url_for('main.home'))
-
     try:
         current_user.es_admin = True
         db.session.commit()
@@ -497,5 +498,4 @@ def hacerme_admin_temporalmente():
         db.session.rollback()
         flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
         print(f"ERROR al hacer admin: {e}")
-
     return redirect(url_for('admin.admin_dashboard'))

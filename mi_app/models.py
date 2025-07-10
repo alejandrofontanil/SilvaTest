@@ -84,6 +84,10 @@ class Tema(db.Model):
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
+    
+    # ✅ LÍNEA AÑADIDA PARA GUARDAR LA URL DEL PDF
+    pdf_url = db.Column(db.String(300), nullable=True)
+
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True, cascade="all, delete-orphan")
