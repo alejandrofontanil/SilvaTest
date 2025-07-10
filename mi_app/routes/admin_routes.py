@@ -513,3 +513,27 @@ def hacerme_admin_temporalmente():
         print(f"ERROR al hacer admin: {e}")
 
     return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/temas/actualizar-orden', methods=['POST'])
+@login_required
+def actualizar_orden_temas():
+    # Solo los admins pueden hacer esto
+    if not current_user.es_admin:
+        abort(403)
+
+    data = request.get_json()
+    orden_ids = data.get('orden')
+    parent_id = data.get('parent_id') # Obtenemos el id del padre
+
+    if orden_ids is None:
+        return jsonify({'success': False, 'error': 'No se proporcionaron datos de orden'}), 400
+
+    for indice, tema_id in enumerate(orden_ids):
+        tema = Tema.query.get(tema_id)
+        if tema:
+            tema.posicion = indice
+            # Actualizamos el parent_id si ha cambiado de lista
+            tema.parent_id = parent_id 
+    
+    db.session.commit()
+    return jsonify({'success': True})

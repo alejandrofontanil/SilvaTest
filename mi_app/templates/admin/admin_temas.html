@@ -1,24 +1,30 @@
 {% extends "base.html" %}
 
-{% macro render_tema(tema) %}
-    <li class="list-group-item">
+{% macro render_tema_sortable(tema, level=0) %}
+    {# Añadimos un atributo data-id para identificar cada tema #}
+    <li class="list-group-item" data-id="{{ tema.id }}">
         <div class="d-flex justify-content-between align-items-center" data-aos="fade-left">
-            {# CAMBIO: Hemos envuelto el nombre en un enlace con clases que respetan el tema #}
-            <a href="{{ url_for('detalle_tema', tema_id=tema.id) }}" class="text-body text-decoration-none fs-5">
-                {{ tema.nombre }}
-            </a>
+            <div class="d-flex align-items-center">
+                {# Icono para arrastrar y un poco de margen para la jerarquía #}
+                <i class="bi bi-grip-vertical me-2 handle" style="cursor: grab; margin-left: {{ level * 20 }}px;"></i>
+                <a href="{{ url_for('admin.admin_preguntas', tema_id=tema.id) }}" class="text-body text-decoration-none fs-5">
+                    {{ tema.nombre }}
+                </a>
+            </div>
             <div class="btn-group">
-                <a href="{{ url_for('editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
-                <form method="POST" action="{{ url_for('eliminar_tema', tema_id=tema.id) }}" 
-                      onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema? ¡Esta acción no se puede deshacer!');">
+                <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-fill"></i> Editar</a>
+                <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" 
+                      onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema y todos sus subtemas y preguntas?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3-fill"></i> Eliminar</button>
                 </form>
             </div>
         </div>
         {% if tema.subtemas %}
-            <ul class="list-group mt-2 ms-4 border-start">
+            {# Añadimos la clase 'sortable-list' a las listas de subtemas #}
+            <ul class="list-group mt-2 sortable-list" data-parent-id="{{ tema.id }}">
                 {% for subtema in tema.subtemas %}
-                    {{ render_tema(subtema) }}
+                    {{ render_tema_sortable(subtema, level + 1) }}
                 {% endfor %}
             </ul>
         {% endif %}
@@ -28,16 +34,80 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="bi bi-list-nested"></i> Gestionar Temas</h1>
-        <a href="{{ url_for('crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Tema</a>
+        <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Tema</a>
     </div>
 
     <div class="card">
+        <div class="card-header">
+            <p class="mb-0 text-muted"><i class="bi bi-info-circle-fill"></i> Arrastra y suelta los temas para reordenarlos. El orden se guarda automáticamente.</p>
+        </div>
         <div class="card-body">
-            <ul class="list-group list-group-flush">
+            {# Le damos un ID a la lista principal para que el JavaScript la encuentre #}
+            <ul class="list-group list-group-flush sortable-list" id="temas-principales">
                 {% for tema in temas %}
-                    {{ render_tema(tema) }}
+                    {{ render_tema_sortable(tema) }}
                 {% endfor %}
             </ul>
         </div>
     </div>
+{% endblock %}
+
+
+{% block scripts %}
+    {{ super() }}
+    {# Incluimos la librería SortableJS desde un CDN #}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Obtenemos el token de seguridad que ya tenemos en base.html
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Función que se ejecutará para guardar el nuevo orden
+        function guardarOrden(elementos, parentId) {
+            const ordenIds = Array.from(elementos).map(el => el.dataset.id);
+
+            // Hacemos la petición POST al servidor
+            fetch("{{ url_for('admin.actualizar_orden_temas') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken // ✅ Token de seguridad incluido
+                },
+                body: JSON.stringify({
+                    parent_id: parentId, // Enviamos el ID del padre si existe
+                    orden: ordenIds      // Enviamos el nuevo array de IDs
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    console.log("Orden guardado con éxito.");
+                } else {
+                    console.error("Error al guardar el orden.");
+                }
+            })
+            .catch(error => console.error('Error en la petición:', error));
+        }
+
+        // Hacemos que todas las listas con la clase 'sortable-list' se puedan ordenar
+        document.querySelectorAll('.sortable-list').forEach(function(lista) {
+            new Sortable(lista, {
+                animation: 150,
+                handle: '.handle', // Solo se puede arrastrar desde el icono de agarre
+                group: 'nested',   // Permite mover temas entre diferentes listas
+                onEnd: function (evt) {
+                    // Cuando se suelta un tema, guardamos el orden de su lista original y de la nueva
+                    const parentIdOriginal = evt.from.dataset.parentId || null;
+                    const parentIdNuevo = evt.to.dataset.parentId || null;
+                    
+                    guardarOrden(evt.from.children, parentIdOriginal);
+                    if (evt.from !== evt.to) {
+                        guardarOrden(evt.to.children, parentIdNuevo);
+                    }
+                }
+            });
+        });
+    });
+    </script>
 {% endblock %}
