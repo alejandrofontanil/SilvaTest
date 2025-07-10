@@ -9,7 +9,9 @@
         <p class="text-muted">Selecciona los temas que quieres incluir en tu test y especifica cuántas preguntas quieres de cada uno.</p>
 
         <form method="POST" action="{{ url_for('main.generador_simulacro') }}">
-            {{ form.hidden_tag() if form }} <div class="table-responsive">
+            {{ form.hidden_tag() }}
+            
+            <div class="table-responsive">
                 <table class="table">
                     <tbody>
                     {% for convo in convocatorias %}

@@ -310,12 +310,18 @@ def terminos_condiciones():
 @main_bp.route('/generador-simulacro', methods=['GET', 'POST'])
 @login_required
 def generador_simulacro():
-    if request.method == 'POST':
+    # ✅ 1. Creamos un formulario vacío al principio
+    form = FlaskForm()
+
+    # ✅ 2. Usamos form.validate_on_submit() para gestionar el envío
+    if form.validate_on_submit():
         preguntas_para_el_test_ids = []
         temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
+        
         if not temas_seleccionados_ids:
             flash('Debes seleccionar al menos un tema.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
+            
         for tema_id in temas_seleccionados_ids:
             try:
                 num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
@@ -326,15 +332,21 @@ def generador_simulacro():
             tema = Tema.query.get_or_404(tema_id)
             preguntas_disponibles = obtener_preguntas_recursivas(tema)
             num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
-            preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
-            preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
+            if num_a_seleccionar > 0:
+                preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
+                preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
+
         if not preguntas_para_el_test_ids:
-            flash('No se pudieron generar preguntas con los criterios seleccionados (o no había preguntas en los temas).', 'warning')
+            flash('No se pudieron generar preguntas con los criterios seleccionados.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
+            
         session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
         return redirect(url_for('main.simulacro_personalizado_test'))
+
+    # Para la petición GET, ahora pasamos el formulario a la plantilla
     convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
-    return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles)
+    # ✅ 3. Añadimos form=form al final
+    return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles, form=form)
 
 @main_bp.route('/simulacro/empezar')
 @login_required
