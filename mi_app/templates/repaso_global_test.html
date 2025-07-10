@@ -1,44 +1,162 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="card shadow-sm">
-        <div class="card-body p-4">
-            <h1 class="mb-2">Test de Repaso Global</h1>
-            <p class="text-muted mb-4">Este test contiene todas las preguntas que has fallado alguna vez. ¡A por ellas!</p>
-            <hr>
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <h1 class="mb-2">Test de Repaso Global</h1>
+        <p class="text-muted mb-4">Este test contiene todas las preguntas que has fallado alguna vez. ¡A por ellas!</p>
+        <hr>
 
-            {% if preguntas %}
-            <form method="POST" action="{{ url_for('main.corregir_repaso_global') }}">
-                {% for pregunta in preguntas %}
-                    <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
-                        </div>
-                        <div class="card-body">
-                            <p class="card-text fs-5">{{ pregunta.texto }}</p>
-                            <div class="list-group mt-3">
-                                {% for respuesta in pregunta.respuestas_barajadas %}
-                                    <label class="list-group-item list-group-item-action">
-                                        <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}" required>
-                                        {{ respuesta.texto }}
-                                    </label>
-                                {% endfor %}
-                            </div>
+        {% if preguntas %}
+        <form method="POST" action="{{ url_for('main.corregir_repaso_global') }}">
+            
+            {{ form.hidden_tag() }}
+
+            {% for pregunta in preguntas %}
+                <div class="card my-4" id="card-pregunta-{{ pregunta.id }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
+                        
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-info btn-comprobar" data-pregunta-id="{{ pregunta.id }}" title="Comprobar Respuesta"><i class="bi bi-check-circle-fill"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-warning btn-reportar" data-pregunta-id="{{ pregunta.id }}" title="Reportar error">
+                                <i class="bi bi-flag-fill"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ pregunta.id }}" title="Marcar como favorita">
+                                <i class="bi {% if current_user.es_favorita(pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                            </button>
                         </div>
                     </div>
-                {% endfor %}
-                <div class="d-grid mt-4">
-                    <button type="submit" class="btn btn-success btn-lg">Finalizar Repaso</button>
+                    <div class="card-body">
+                        <p class="card-text fs-5">{{ pregunta.texto }}</p>
+
+                        <div class="feedback-container mt-3" style="display: none;"></div>
+
+                        <div class="list-group mt-3">
+                            {% for respuesta in pregunta.respuestas_barajadas %}
+                                <label class="list-group-item list-group-item-action">
+                                    <input class="form-check-input me-2" type="radio" name="pregunta-{{ pregunta.id }}" value="{{ respuesta.id }}" required>
+                                    {{ respuesta.texto }}
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
-            </form>
-            {% else %}
-            <div class="text-center p-5">
-                <i class="bi bi-award-fill" style="font-size: 4rem; color: var(--bs-success);"></i>
-                <h2 class="mt-3">¡Enhorabuena!</h2>
-                <p class="fs-4 text-muted">No tienes preguntas falladas para repasar.</p>
-                <a href="{{ url_for('main.home') }}" class="btn btn-primary mt-3">Volver al Inicio</a>
+            {% endfor %}
+            <div class="d-grid mt-4">
+                <button type="submit" class="btn btn-success btn-lg">Finalizar Repaso</button>
             </div>
-            {% endif %}
+        </form>
+        {% else %}
+        <div class="text-center p-5">
+            <i class="bi bi-award-fill" style="font-size: 4rem; color: var(--bs-success);"></i>
+            <h2 class="mt-3">¡Enhorabuena!</h2>
+            <p class="fs-4 text-muted">No tienes preguntas falladas para repasar.</p>
+            <a href="{{ url_for('main.home') }}" class="btn btn-primary mt-3">Volver al Inicio</a>
         </div>
+        {% endif %}
     </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Función para mostrar notificaciones (toast)
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        // Lógica para el botón de Favorito
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url = `{{ url_for('main.toggle_favorito', pregunta_id=0) }}`.replace('0', preguntaId);
+                
+                fetch(url, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        let message = '';
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                            message = 'Añadida a favoritos';
+                        } else {
+                            icono.className = 'bi bi-star';
+                            message = 'Quitada de favoritos';
+                        }
+                        showToast(message);
+                    }
+                });
+            });
+        });
+        
+        // Lógica para el botón de Reportar
+        document.querySelectorAll('.btn-reportar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                if (!confirm('¿Seguro que quieres reportar esta pregunta?')) return;
+                const url = `{{ url_for('main.reportar_pregunta', pregunta_id=0) }}`.replace('0', preguntaId);
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        this.classList.add('disabled', 'btn-warning');
+                        showToast(data.message);
+                    }
+                });
+            });
+        });
+
+        // Lógica para el botón de Comprobar
+        document.querySelectorAll('.btn-comprobar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const card = this.closest('.card');
+                const respuestaSeleccionada = card.querySelector(`input[name="pregunta-${preguntaId}"]:checked`);
+                const feedbackContainer = card.querySelector('.feedback-container');
+
+                if (!respuestaSeleccionada) {
+                    showToast('Por favor, selecciona una respuesta.');
+                    return;
+                }
+
+                fetch("{{ url_for('main.comprobar_respuesta') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ respuesta_id: respuestaSeleccionada.value })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    feedbackContainer.style.display = 'block';
+                    feedbackContainer.className = data.es_correcta ? 'feedback-container feedback-correcto' : 'feedback-container feedback-incorrecto';
+                    feedbackContainer.innerHTML = `<strong>${data.es_correcta ? '¡Correcto!' : 'Incorrecto.'}</strong> ${data.retroalimentacion || ''}`;
+                });
+            });
+        });
+    });
+    </script>
 {% endblock %}
