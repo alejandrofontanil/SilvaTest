@@ -7,7 +7,7 @@ from authlib.integrations.flask_client import OAuth
 from sqlalchemy import inspect
 import os
 import cloudinary
-from flask_wtf.csrf import CSRFProtect # <-- 1. LÍNEA AÑADIDA
+from flask_wtf.csrf import CSRFProtect
 
 # Inicializamos las extensiones
 db = SQLAlchemy()
@@ -15,7 +15,7 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 migrate = Migrate()
 oauth = OAuth()
-csrf = CSRFProtect() # <-- 2. LÍNEA AÑADIDA
+csrf = CSRFProtect()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -43,7 +43,7 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
     oauth.init_app(app)
-    csrf.init_app(app) # <-- 3. LÍNEA AÑADIDA
+    csrf.init_app(app)
 
     # --- REGISTRO DE GOOGLE OAUTH ---
     oauth.register(
@@ -76,16 +76,24 @@ def create_app():
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
 
-        # --- CÓDIGO NUEVO PARA CREAR TABLAS AUTOMÁTICAMENTE ---
-        inspector = inspect(db.engine)
-        if not inspector.has_table("usuario"):
-            print("¡ATENCIÓN: Base de datos vacía! Creando todas las tablas...")
-            db.create_all()
-            print("¡Tablas creadas con éxito!")
-        else:
-            print("La base de datos ya contiene tablas. No se necesita crear nada.")
-        # ----------------------------------------------------
-
+        # ✅ --- LÓGICA PARA CREAR USUARIO INVITADO AL ARRANCAR --- ✅
+        try:
+            from .models import Usuario
+            invitado = Usuario.query.filter_by(nombre='Invitado').first()
+            if not invitado:
+                print("Creando usuario 'Invitado'...")
+                nuevo_invitado = Usuario(nombre='Invitado', email='invitado@example.com')
+                nuevo_invitado.set_password('invitado')
+                db.session.add(nuevo_invitado)
+                db.session.commit()
+                print("¡Usuario 'Invitado' creado con éxito!")
+            else:
+                print("El usuario 'Invitado' ya existe.")
+        except Exception as e:
+            print(f"Error al intentar crear el usuario invitado: {e}")
+            # Esto puede pasar si la base de datos aún no está lista, no es un problema grave.
+            db.session.rollback()
+            
     # Manejadores de Errores
     @app.errorhandler(404)
     def not_found_error(error):
