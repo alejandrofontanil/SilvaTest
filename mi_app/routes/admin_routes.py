@@ -318,7 +318,6 @@ def eliminar_tema(tema_id):
         flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
     return redirect(url_for('admin.admin_temas'))
 
-# ✅ --- RUTA RESTAURADA PARA EL ORDEN MANUAL --- ✅
 @admin_bp.route('/tema/<int:tema_id>/actualizar-posicion', methods=['POST'])
 @admin_required
 def actualizar_posicion_tema(tema_id):
