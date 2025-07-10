@@ -7,7 +7,7 @@
             <div class="d-flex align-items-center">
                 {# Icono para arrastrar y un poco de margen para la jerarquía #}
                 <i class="bi bi-grip-vertical me-2 handle" style="cursor: grab; margin-left: {{ level * 20 }}px;"></i>
-                <a href="{{ url_for('admin.admin_preguntas', tema_id=tema.id) }}" class="text-body text-decoration-none fs-5">
+                <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="text-body text-decoration-none fs-5">
                     {{ tema.nombre }}
                 </a>
             </div>
@@ -72,7 +72,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken // ✅ Token de seguridad incluido
+                    'X-CSRFToken': csrfToken // Token de seguridad incluido
                 },
                 body: JSON.stringify({
                     parent_id: parentId, // Enviamos el ID del padre si existe

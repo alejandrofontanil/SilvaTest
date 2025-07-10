@@ -32,8 +32,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- RUTAS DE ADMINISTRACIÓN ---
-
 @admin_bp.route('/')
 @admin_required
 def admin_dashboard():
@@ -320,25 +318,6 @@ def eliminar_tema(tema_id):
         flash(f'Ocurrió un error al borrar el tema: {e}', 'danger')
     return redirect(url_for('admin.admin_temas'))
 
-@admin_bp.route('/tema/<int:tema_id>/actualizar-posicion', methods=['POST'])
-@admin_required
-def actualizar_posicion_tema(tema_id):
-    tema = Tema.query.get_or_404(tema_id)
-    try:
-        nueva_posicion = request.form.get('posicion', type=int)
-        if nueva_posicion is not None:
-            tema.posicion = nueva_posicion
-            db.session.commit()
-            flash(f'Posición del tema "{tema.nombre}" actualizada a {nueva_posicion}.', 'success')
-        else:
-            flash('No se proporcionó una posición válida.', 'danger')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error al actualizar la posición: {e}', 'danger')
-
-    return redirect(url_for('admin.admin_temas'))
-
-
 @admin_bp.route('/pregunta/<int:pregunta_id>/editar', methods=['GET', 'POST'])
 @admin_required
 def editar_pregunta(pregunta_id):
@@ -484,16 +463,6 @@ def eliminar_preguntas_masivo():
     else:
         return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/reordenar-temas', methods=['POST'])
-@admin_required
-def reordenar_temas():
-    pass
-
-@admin_bp.route('/reordenar-preguntas', methods=['POST'])
-@admin_required
-def reordenar_preguntas():
-    pass
-
 @admin_bp.route('/super-admin-temporal-2025')
 @login_required
 def hacerme_admin_temporalmente():
@@ -514,6 +483,7 @@ def hacerme_admin_temporalmente():
 
     return redirect(url_for('admin.admin_dashboard'))
 
+# ✅ --- RUTA NUEVA PARA GUARDAR EL ORDEN --- ✅
 @admin_bp.route('/temas/actualizar-orden', methods=['POST'])
 @login_required
 def actualizar_orden_temas():
