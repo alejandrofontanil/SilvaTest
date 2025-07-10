@@ -227,16 +227,22 @@ def repaso_test(resultado_id):
 @main_bp.route('/repaso_global')
 @login_required
 def repaso_global():
+    # ✅ 1. AÑADIMOS LA CREACIÓN DEL FORMULARIO
+    form = FlaskForm()
+    
     respuestas_falladas = RespuestaUsuario.query.filter_by(autor=current_user, es_correcta=False).all()
     ids_preguntas_falladas = list({r.pregunta_id for r in respuestas_falladas})
     preguntas_a_repasar = Pregunta.query.filter(Pregunta.id.in_(ids_preguntas_falladas)).all()
     random.shuffle(preguntas_a_repasar)
+    
     for pregunta in preguntas_a_repasar:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             respuestas_barajadas = list(pregunta.respuestas)
             random.shuffle(respuestas_barajadas)
             pregunta.respuestas_barajadas = respuestas_barajadas
-    return render_template('repaso_global_test.html', preguntas=preguntas_a_repasar)
+            
+    # ✅ 2. PASAMOS EL FORMULARIO A LA PLANTILLA
+    return render_template('repaso_global_test.html', preguntas=preguntas_a_repasar, form=form)
 
 @main_bp.route('/repaso_global/corregir', methods=['POST'])
 @login_required
