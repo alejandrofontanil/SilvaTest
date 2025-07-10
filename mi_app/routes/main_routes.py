@@ -82,8 +82,7 @@ def cuenta():
 
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
     if convocatoria_id != 0:
-        query_resultados = query_resultados.join(ResultadoTest.tema).join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
-    
+        query_resultados = query_resultados.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
