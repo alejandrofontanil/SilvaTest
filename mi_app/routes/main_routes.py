@@ -138,6 +138,23 @@ def cuenta():
         active_tab=active_tab
     )
 
+@main_bp.route('/cuenta/resetear', methods=['POST'])
+@login_required
+def resetear_estadisticas():
+    # Por seguridad, esta acción solo se puede hacer con un formulario POST
+    
+    # Borra todas las respuestas individuales del usuario
+    RespuestaUsuario.query.filter_by(autor=current_user).delete()
+    
+    # Borra todos los resultados de tests del usuario
+    ResultadoTest.query.filter_by(autor=current_user).delete()
+    
+    # Confirma los cambios en la base de datos
+    db.session.commit()
+    
+    flash('¡Tus estadísticas han sido reseteadas con éxito!', 'success')
+    return redirect(url_for('main.cuenta'))
+
 @main_bp.route('/cuenta/favoritas')
 @login_required
 def preguntas_favoritas():

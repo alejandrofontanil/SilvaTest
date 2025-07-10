@@ -40,7 +40,7 @@
             </div>
         </div>
 
-        <div class="tab-content">
+<div class="tab-content">
             <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
                 <div class="card shadow-sm">
                     <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
@@ -59,7 +59,6 @@
                     <div class="card-header"><h3 class="h5 mb-0">Estadísticas de Rendimiento</h3></div>
                     <div class="card-body">
                         <p class="card-subtitle mb-4 text-muted">Aquí puedes ver tu rendimiento por cada bloque y tema para identificar tus puntos débiles.</p>
-
                         <h5>Rendimiento por Bloque</h5>
                         {% if stats_bloques %}
                         <div class="table-responsive">
@@ -89,9 +88,7 @@
                         {% else %}
                         <p class="text-muted">No hay datos para mostrar estadísticas por bloque.</p>
                         {% endif %}
-
                         <hr class="my-4">
-
                         <h5 class="mt-3">Rendimiento por Tema</h5>
                         {% if stats_temas %}
                         <div class="table-responsive">
@@ -119,7 +116,7 @@
                             </table>
                         </div>
                         {% else %}
-                         <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
+                       <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -168,7 +165,22 @@
                 </div>
             </div>
         </div>
-    </div>
+
+<div class="card shadow-sm mt-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Zona de Peligro</h5>
+            </div>
+            <div class="card-body">
+                <p>Esta acción es irreversible. Se borrará todo tu historial de tests, tus notas y tus estadísticas de aciertos y fallos.</p>
+                <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Estás a punto de borrar todo tu progreso. Esta acción no se puede deshacer. ¿Estás seguro?');">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash3-fill"></i> Resetear mis estadísticas
+                    </button>
+                </form>
+            </div>
+        </div>
+        </div>
 </div>
 
 <script>
@@ -185,11 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
     }
 
-    // ✅ INICIO DE LA CORRECCIÓN
-    // Quitamos la barra '\' que causaba el error de sintaxis
     const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
-    // ✅ FIN DE LA CORRECCIÓN
-
     if(form){
         form.addEventListener('submit', function(e){
             const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
