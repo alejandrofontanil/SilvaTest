@@ -10,8 +10,19 @@
 
         {% for respuesta_usuario in resultado.desglose_respuestas %}
             <div class="card my-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-warning btn-reportar" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Reportar error">
+                            <i class="bi bi-flag-fill"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Marcar como favorita">
+                            <i class="bi {% if current_user.es_favorita(respuesta_usuario.pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="card-body">
-                    <p class="fw-bold">{{ loop.index }}. {{ respuesta_usuario.pregunta.texto }}</p>
+                    <p class="fw-bold">{{ respuesta_usuario.pregunta.texto }}</p>
 
                     {% for respuesta in respuesta_usuario.pregunta.respuestas %}
                         <div class="p-2 rounded {% if respuesta.es_correcta %}bg-success-subtle{% elif respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}bg-danger-subtle{% endif %}">
@@ -33,4 +44,74 @@
 
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        // Lógica para el botón de Favorito
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url = `{{ url_for('main.toggle_favorito', pregunta_id=0) }}`.replace('0', preguntaId);
+                
+                fetch(url, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        let message = '';
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                            message = 'Añadida a favoritos';
+                        } else {
+                            icono.className = 'bi bi-star';
+                            message = 'Quitada de favoritos';
+                        }
+                        showToast(message);
+                    }
+                });
+            });
+        });
+        
+        // Lógica para el botón de Reportar
+        document.querySelectorAll('.btn-reportar').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                if (!confirm('¿Seguro que quieres reportar esta pregunta?')) return;
+                const url = `{{ url_for('main.reportar_pregunta', pregunta_id=0) }}`.replace('0', preguntaId);
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        this.classList.add('disabled', 'btn-warning');
+                        showToast(data.message);
+                    }
+                });
+            });
+        });
+    });
+    </script>
 {% endblock %}
