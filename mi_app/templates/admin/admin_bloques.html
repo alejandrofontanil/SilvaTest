@@ -24,12 +24,15 @@
                     <div class="btn-group" role="group">
                         <a href="{{ url_for('admin.admin_temas') }}" class="btn btn-sm btn-outline-primary">Ver Temas</a>
                         <a href="{{ url_for('admin.editar_bloque', bloque_id=bloque.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
-                        <form method="POST" action="{{ url_for('admin.eliminar_bloque', bloque_id=bloque.id) }}" onsubmit="return confirm('¿Estás seguro?');" class="ms-2">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                        
+                        <form method="POST" action="{{ url_for('admin.eliminar_bloque', bloque_id=bloque.id) }}" onsubmit="return confirm('¿Estás seguro?');" style="display: inline-block;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Eliminar</button>
                         </form>
 
-                        <form method="POST" action="{{ url_for('admin.toggle_visibilidad_bloque', bloque_id=bloque.id) }}" class="ms-2">
-                            <button type="submit" class="btn btn-sm btn-info">
+                        <form method="POST" action="{{ url_for('admin.toggle_visibilidad_bloque', bloque_id=bloque.id) }}" style="display: inline-block;">
+                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm {% if bloque.esta_oculto %}btn-outline-success{% else %}btn-outline-warning{% endif %} ms-2">
                                 {% if bloque.esta_oculto %}
                                     <i class="bi bi-eye-fill"></i> Mostrar
                                 {% else %}
