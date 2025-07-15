@@ -125,7 +125,7 @@ class Pregunta(db.Model):
 
 class Respuesta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    texto = db.Column(db.String(500), nullable=False)
+    texto = db.Column(db.Text, nullable=False)
     es_correcta = db.Column(db.Boolean, default=False, nullable=False)
     pregunta_id = db.Column(db.Integer, db.ForeignKey('pregunta.id'), nullable=False)
     veces_seleccionada = db.relationship('RespuestaUsuario', backref='respuesta_seleccionada', lazy=True)
