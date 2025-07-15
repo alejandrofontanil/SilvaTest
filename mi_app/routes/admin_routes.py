@@ -44,6 +44,15 @@ def preguntas_a_revisar():
     preguntas = Pregunta.query.filter_by(necesita_revision=True).order_by(Pregunta.posicion).all()
     return render_template('preguntas_a_revisar.html', preguntas=preguntas)
 
+@admin_bp.route('/pregunta/<int:pregunta_id>/marcar-revisada', methods=['POST'])
+@admin_required
+def marcar_pregunta_revisada(pregunta_id):
+    pregunta = Pregunta.query.get_or_404(pregunta_id)
+    pregunta.necesita_revision = False
+    db.session.commit()
+    flash(f'La pregunta #{pregunta.id} ha sido marcada como revisada.', 'success')
+    return redirect(url_for('admin.preguntas_a_revisar'))
+
 @admin_bp.route('/usuarios')
 @admin_required
 def admin_usuarios():
