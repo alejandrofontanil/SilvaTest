@@ -27,7 +27,7 @@ def create_app():
 
     # --- CONFIGURACIÓN DE LA APP ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-    app.debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     basedir = os.path.abspath(os.path.dirname(__file__))
     db_uri = os.environ.get('DATABASE_URL')
     if db_uri and db_uri.startswith("postgres://"):
@@ -66,8 +66,6 @@ def create_app():
     login_manager.login_message = "Por favor, inicia sesión para acceder a esta página."
 
     with app.app_context():
-        from . import models
-
         # Registramos los blueprints
         from .routes.auth_routes import auth_bp
         app.register_blueprint(auth_bp)
@@ -76,23 +74,26 @@ def create_app():
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
 
-        # ✅ --- LÓGICA PARA CREAR USUARIO INVITADO AL ARRANCAR --- ✅
+        # ✅ --- LÓGICA ACTUALIZADA PARA CREAR TABLAS Y USUARIO INVITADO --- ✅
         try:
+            # db.create_all() es seguro, no borra tablas existentes.
+            db.create_all()
+
             from .models import Usuario
-            invitado = Usuario.query.filter_by(nombre='Invitado').first()
-            if not invitado:
+            if not Usuario.query.filter_by(nombre='Invitado').first():
                 print("Creando usuario 'Invitado'...")
-                nuevo_invitado = Usuario(nombre='Invitado', email='invitado@example.com')
-                nuevo_invitado.set_password('invitado')
-                db.session.add(nuevo_invitado)
+                invitado = Usuario(nombre='Invitado', email='invitado@example.com')
+                invitado.set_password('invitado')
+                db.session.add(invitado)
                 db.session.commit()
                 print("¡Usuario 'Invitado' creado con éxito!")
             else:
                 print("El usuario 'Invitado' ya existe.")
         except Exception as e:
-            print(f"Error al intentar crear el usuario invitado: {e}")
-            # Esto puede pasar si la base de datos aún no está lista, no es un problema grave.
+            # Esto puede pasar si la base de datos aún no está lista durante el despliegue.
+            print(f"AVISO: No se pudo verificar/crear el usuario invitado al arrancar: {e}")
             db.session.rollback()
+        # ✅ --- FIN DE LA LÓGICA ACTUALIZADA --- ✅
             
     # Manejadores de Errores
     @app.errorhandler(404)
