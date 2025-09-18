@@ -1,33 +1,18 @@
-// Define un nombre para nuestra caché
-const CACHE_NAME = 'silvatest-v1';
-// Lista de archivos que queremos cachear al instalar el Service Worker.
-// El más importante es nuestra página offline.
-const urlsToCache = [
-  '/offline'
-];
+// sw.js (Versión Mínima para Diagnóstico)
 
-// Evento 'install': Se dispara cuando el Service Worker se instala.
 self.addEventListener('install', event => {
-  // Espera hasta que la promesa se resuelva
-  event.waitUntil(
-    // Abre la caché con el nombre que definimos
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Cache abierta');
-        // Añade todos los archivos de nuestra lista a la caché
-        return cache.addAll(urlsToCache);
-      })
-  );
+  console.log('Service Worker Mínimo: Instalado');
+  // Forzamos al nuevo Service Worker a activarse inmediatamente.
+  self.skipWaiting();
 });
 
-// Evento 'fetch': Se dispara cada vez que la página pide un recurso (una página, una imagen, etc.)
+self.addEventListener('activate', event => {
+  console.log('Service Worker Mínimo: Activado');
+});
+
+// Lo más importante: un evento 'fetch', aunque no haga nada.
+// Esto es un requisito para que la PWA sea instalable.
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    // Intenta obtener el recurso de la red primero
-    fetch(event.request)
-      .catch(() => {
-        // Si falla (porque no hay conexión), devuelve la página offline desde la caché
-        return caches.match('/offline');
-      })
-  );
+  // No hacemos nada con la petición, solo la dejamos pasar.
+  return; 
 });
