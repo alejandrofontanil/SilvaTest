@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
@@ -36,10 +36,10 @@ def home():
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
-                               convocatorias=convocatorias,
-                               nota_media_global=nota_media_global,
-                               ultimo_resultado=ultimo_resultado,
-                               ultimas_favoritas=ultimas_favoritas)
+                                  convocatorias=convocatorias,
+                                  nota_media_global=nota_media_global,
+                                  ultimo_resultado=ultimo_resultado,
+                                  ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -141,17 +141,9 @@ def cuenta():
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
-    # Por seguridad, esta acción solo se puede hacer con un formulario POST
-    
-    # Borra todas las respuestas individuales del usuario
     RespuestaUsuario.query.filter_by(autor=current_user).delete()
-    
-    # Borra todos los resultados de tests del usuario
     ResultadoTest.query.filter_by(autor=current_user).delete()
-    
-    # Confirma los cambios en la base de datos
     db.session.commit()
-    
     flash('¡Tus estadísticas han sido reseteadas con éxito!', 'success')
     return redirect(url_for('main.cuenta'))
 
@@ -244,9 +236,7 @@ def repaso_test(resultado_id):
 @main_bp.route('/repaso_global')
 @login_required
 def repaso_global():
-    # ✅ 1. AÑADIMOS LA CREACIÓN DEL FORMULARIO
     form = FlaskForm()
-    
     respuestas_falladas = RespuestaUsuario.query.filter_by(autor=current_user, es_correcta=False).all()
     ids_preguntas_falladas = list({r.pregunta_id for r in respuestas_falladas})
     preguntas_a_repasar = Pregunta.query.filter(Pregunta.id.in_(ids_preguntas_falladas)).all()
@@ -258,7 +248,6 @@ def repaso_global():
             random.shuffle(respuestas_barajadas)
             pregunta.respuestas_barajadas = respuestas_barajadas
             
-    # ✅ 2. PASAMOS EL FORMULARIO A LA PLANTILLA
     return render_template('repaso_global_test.html', preguntas=preguntas_a_repasar, form=form)
 
 @main_bp.route('/repaso_global/corregir', methods=['POST'])
@@ -442,6 +431,17 @@ def corregir_simulacro_personalizado():
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
+
+# =============================================
+# = RUTAS PARA LA PWA (PROGRESSIVE WEB APP)   =
+# =============================================
+
+@main_bp.route('/sw.js')
+def sw():
+    response = send_from_directory('static', 'sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
 
 @main_bp.route('/offline')
 def offline():
