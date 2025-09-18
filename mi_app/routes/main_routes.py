@@ -53,7 +53,17 @@ def convocatoria_detalle(convocatoria_id):
         abort(404)
     if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-    return render_template('convocatoria_detalle.html', convocatoria=convocatoria)
+    
+    # --- BREADCRUMBS ---
+    breadcrumbs = [
+        ('Inicio', url_for('main.home')),
+        (convocatoria.nombre, None)
+    ]
+    # --------------------
+
+    return render_template('convocatoria_detalle.html', 
+                           convocatoria=convocatoria,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/bloque/<int:bloque_id>')
 @login_required
@@ -62,7 +72,20 @@ def bloque_detalle(bloque_id):
     if not current_user.es_admin and bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
-    return render_template('bloque_detalle.html', bloque=bloque, temas=temas)
+    
+    # --- BREADCRUMBS ---
+    convocatoria = bloque.convocatoria
+    breadcrumbs = [
+        ('Inicio', url_for('main.home')),
+        (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)),
+        (bloque.nombre, None)
+    ]
+    # --------------------
+
+    return render_template('bloque_detalle.html', 
+                           bloque=bloque, 
+                           temas=temas,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
@@ -160,6 +183,18 @@ def hacer_test(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
+    
+    # --- BREADCRUMBS ---
+    bloque = tema.bloque
+    convocatoria = bloque.convocatoria
+    breadcrumbs = [
+        ('Inicio', url_for('main.home')),
+        (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)),
+        (bloque.nombre, url_for('main.bloque_detalle', bloque_id=bloque.id)),
+        (tema.nombre, None)
+    ]
+    # --------------------
+
     preguntas_test = obtener_preguntas_recursivas(tema)
     if not preguntas_test:
         flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
@@ -174,7 +209,8 @@ def hacer_test(tema_id):
                            title=f"Test de {tema.nombre}", 
                            tema=tema, 
                            preguntas=preguntas_test, 
-                           form=form)
+                           form=form,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -432,9 +468,6 @@ def corregir_simulacro_personalizado():
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
-# =============================================
-# = RUTAS PARA LA PWA (PROGRESSIVE WEB APP)   =
-# =============================================
 
 @main_bp.route('/sw.js')
 def sw():
