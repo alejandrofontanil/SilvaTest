@@ -1,33 +1,48 @@
-// Define un nombre para nuestra caché
-const CACHE_NAME = 'silvatest-v1';
-// Lista de archivos que queremos cachear al instalar el Service Worker.
-// El más importante es nuestra página offline.
-const urlsToCache = [
-  '/offline'
+const CACHE_NAME = 'silvatest-v2'; // Importante: Cambia la versión para forzar la actualización
+const STATIC_ASSETS = [
+  '/offline',
+  '/static/logo.png',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
+  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css',
+  'https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap'
 ];
 
-// Evento 'install': Se dispara cuando el Service Worker se instala.
 self.addEventListener('install', event => {
-  // Espera hasta que la promesa se resuelva
   event.waitUntil(
-    // Abre la caché con el nombre que definimos
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Cache abierta');
-        // Añade todos los archivos de nuestra lista a la caché
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('Cache abierta y assets estáticos guardados');
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
+  self.skipWaiting();
+});
+
+// Limpia cachés antiguas
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
 });
 
-// Evento 'fetch': Se dispara cada vez que la página pide un recurso (una página, una imagen, etc.)
 self.addEventListener('fetch', event => {
+  // Estrategia: Cache first para los assets estáticos
+  if (STATIC_ASSETS.includes(new URL(event.request.url).pathname)) {
+    event.respondWith(caches.match(event.request));
+    return;
+  }
+
+  // Estrategia: Network first para el resto (contenido dinámico)
   event.respondWith(
-    // Intenta obtener el recurso de la red primero
-    fetch(event.request)
-      .catch(() => {
-        // Si falla (porque no hay conexión), devuelve la página offline desde la caché
-        return caches.match('/offline');
-      })
+    fetch(event.request).catch(() => {
+      return caches.match('/offline');
+    })
   );
 });
