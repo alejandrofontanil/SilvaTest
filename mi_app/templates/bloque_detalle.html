@@ -27,9 +27,22 @@
 
 
 {% block content %}
+
+{% if breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-4">
+  <ol class="breadcrumb">
+    {% for text, url in breadcrumbs %}
+      {% if loop.last %}
+        <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
+      {% else %}
+        <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
+      {% endif %}
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}
 <div class="card shadow-sm">
     <div class="card-body p-4">
-        <a href="{{ url_for('main.convocatoria_detalle', convocatoria_id=bloque.convocatoria.id) }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a los bloques de {{ bloque.convocatoria.nombre }}</a>
         <h1 class="display-5">{{ bloque.nombre }}</h1>
         <p class="fs-4 text-muted">Temario de este bloque.</p>
         <hr class="my-4">

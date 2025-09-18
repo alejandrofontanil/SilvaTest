@@ -10,6 +10,19 @@
         .toast-notification.show { bottom: 40px; opacity: 1; }
     </style>
 
+    {% if breadcrumbs %}
+    <nav aria-label="breadcrumb" class="mb-4">
+      <ol class="breadcrumb">
+        {% for text, url in breadcrumbs %}
+          {% if loop.last %}
+            <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
+          {% else %}
+            <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
     <div class="card shadow-sm">
         <div class="card-body p-4">
             <h1 class="mb-2">Test: {{ tema.nombre }}</h1>
@@ -96,10 +109,10 @@
                             <g transform="translate(50, 50)">
                                 <rect x="-5" y="10" width="10" height="20" fill="#8B5A2B" rx="2" />
                                 <g>
-                                  <circle r="20" cy="-15" fill="#4CAF50" />
-                                  <circle r="15" cx="-15" cy="-10" fill="#43A047" />
-                                  <circle r="15" cx="15" cy="-10" fill="#388E3C" />
-                                  <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.5s" repeatCount="indefinite" />
+                                    <circle r="20" cy="-15" fill="#4CAF50" />
+                                    <circle r="15" cx="-15" cy="-10" fill="#43A047" />
+                                    <circle r="15" cx="15" cy="-10" fill="#388E3C" />
+                                    <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.5s" repeatCount="indefinite" />
                                 </g>
                             </g>
                         </svg>
@@ -122,10 +135,7 @@
         const submitBtn = document.getElementById('submit-test-btn');
         const totalPreguntas = {{ preguntas|length }};
         
-        // ✅ --- INICIO DE LA MODIFICACIÓN --- ✅
-        // Lee el token directamente de la metaetiqueta en el <head>
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        // ✅ --- FIN DE LA MODIFICACIÓN --- ✅
 
         // --- LÓGICA DEL TEMPORIZADOR ---
         {% if tema.es_simulacro and tema.tiempo_limite_minutos %}
