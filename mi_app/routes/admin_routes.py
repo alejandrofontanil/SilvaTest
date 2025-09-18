@@ -9,6 +9,7 @@ import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
 from flask_wtf import FlaskForm
+import traceback  # <-- 1. CAMBIO AÑADIDO AQUÍ
 
 from mi_app import db
 from mi_app.models import (
@@ -243,7 +244,7 @@ def crear_tema():
             es_simulacro=form.es_simulacro.data, 
             tiempo_limite_minutos=form.tiempo_limite_minutos.data, 
             posicion=max_pos + 1,
-            pdf_url=form.pdf_url.data  # ✅ Guardar la URL del PDF
+            pdf_url=form.pdf_url.data
         )
         db.session.add(nuevo_tema)
         db.session.commit()
@@ -298,7 +299,6 @@ def editar_tema(tema_id):
             flash('Un tema no puede ser su propio padre.', 'danger')
             return redirect(url_for('admin.editar_tema', tema_id=tema_id))
         
-        # ✅ Actualizamos todos los campos, incluyendo el nuevo
         tema_a_editar.nombre = form.nombre.data
         tema_a_editar.parent = form.parent.data
         tema_a_editar.bloque = form.bloque.data
@@ -398,7 +398,6 @@ def subir_sheets():
     form = GoogleSheetImportForm()
     if form.validate_on_submit():
         try:
-            # --- 1. Conexión a Google Sheets (sin cambios) ---
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
             creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
             if not creds_json_str:
@@ -416,20 +415,16 @@ def subir_sheets():
             headers = [h.strip().lower() for h in list_of_lists[0]]
             data_rows = list_of_lists[1:]
 
-            # --- 2. Borrado masivo y eficiente ---
             tema_ids_a_importar = {int(row[headers.index('tema_id')]) for row in data_rows if 'tema_id' in headers and row[headers.index('tema_id')].isdigit()}
             
             if tema_ids_a_importar:
-                # Obtenemos directamente los IDs de las preguntas a borrar
                 ids_a_borrar = db.session.query(Pregunta.id).filter(Pregunta.tema_id.in_(tema_ids_a_importar)).scalar_subquery()
                 
-                # Ejecutamos borrados en cascada con SQL puro para máxima eficiencia
                 db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar)))
                 db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar)))
                 db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar)))
                 db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar)))
 
-            # --- 3. Bucle de creación optimizado ---
             posiciones_tema = {}
             for row in data_rows:
                 row_data = {headers[i]: cell for i, cell in enumerate(row)}
@@ -442,7 +437,6 @@ def subir_sheets():
                 tema_id = int(tema_id_str)
 
                 if tema_id not in posiciones_tema:
-                    # Calculamos la posición inicial para cada tema
                     max_pos = db.session.query(db.func.max(Pregunta.posicion)).filter_by(tema_id=tema_id).scalar() or -1
                     posiciones_tema[tema_id] = max_pos
                 
@@ -458,7 +452,7 @@ def subir_sheets():
                     respuesta_correcta_texto=row_data.get('respuesta_correcta_texto')
                 )
                 db.session.add(nueva_pregunta)
-                db.session.flush()  # <-- ¡Clave! Asigna el ID a nueva_pregunta sin hacer commit
+                db.session.flush()
 
                 if nueva_pregunta.tipo_pregunta == 'opcion_multiple':
                     opciones = [(row_data.get('opcion_a'), 'a'), (row_data.get('opcion_b'), 'b'), (row_data.get('opcion_c'), 'c'), (row_data.get('opcion_d'), 'd')]
@@ -470,14 +464,13 @@ def subir_sheets():
                             respuesta = Respuesta(texto=texto_opcion, es_correcta=es_correcta, pregunta_id=nueva_pregunta.id)
                             db.session.add(respuesta)
 
-            # --- 4. Un único COMMIT para toda la operación ---
             db.session.commit()
             flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas.', 'success')
 
         except Exception as e:
             db.session.rollback()
-            # Ahora sí deberíamos ver este error en los logs si algo falla
-            print(f"ERROR DURANTE LA IMPORTACIÓN: {e}") 
+            # <-- 2. CAMBIO MODIFICADO AQUÍ
+            print(f"ERROR DURANTE LA IMPORTACIÓN:\n{traceback.format_exc()}") 
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
         
         return redirect(url_for('admin.admin_dashboard'))
@@ -518,7 +511,6 @@ def eliminar_preguntas_masivo():
 @admin_bp.route('/super-admin-temporal-2025')
 @login_required
 def hacerme_admin_temporalmente():
-    # Doble seguridad: solo funciona para tu email específico
     if current_user.email != 'alejandrofontanil@gmail.com':
         flash('Acción no permitida.', 'danger')
         return redirect(url_for('main.home'))
