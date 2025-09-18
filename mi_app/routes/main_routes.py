@@ -442,3 +442,7 @@ def corregir_simulacro_personalizado():
     db.session.commit()
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
+
+@main_bp.route('/offline')
+def offline():
+    return render_template('offline.html')

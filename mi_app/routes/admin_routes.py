@@ -524,7 +524,3 @@ def hacerme_admin_temporalmente():
         flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
         print(f"ERROR al hacer admin: {e}")
     return redirect(url_for('admin.admin_dashboard'))
-
-@main_bp.route('/offline')
-def offline():
-    return render_template('offline.html')
