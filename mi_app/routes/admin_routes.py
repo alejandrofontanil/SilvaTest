@@ -398,42 +398,56 @@ def subir_sheets():
     form = GoogleSheetImportForm()
     if form.validate_on_submit():
         try:
+            # --- 1. Conexión a Google Sheets (sin cambios) ---
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
             creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
             if not creds_json_str:
                 flash('Credenciales de Google no configuradas en los Secrets.', 'danger')
                 return redirect(url_for('admin.subir_sheets'))
+            
             creds_json = json.loads(creds_json_str)
             creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
             client = gspread.authorize(creds)
+            
             sheet_url = form.sheet_url.data
             spreadsheet = client.open_by_url(sheet_url)
             sheet = spreadsheet.get_worksheet(0)
             list_of_lists = sheet.get_all_values()
             headers = [h.strip().lower() for h in list_of_lists[0]]
             data_rows = list_of_lists[1:]
+
+            # --- 2. Borrado masivo y eficiente ---
             tema_ids_a_importar = {int(row[headers.index('tema_id')]) for row in data_rows if 'tema_id' in headers and row[headers.index('tema_id')].isdigit()}
+            
             if tema_ids_a_importar:
-                preguntas_a_borrar = Pregunta.query.filter(Pregunta.tema_id.in_(tema_ids_a_importar)).all()
-                if preguntas_a_borrar:
-                    ids_a_borrar = [p.id for p in preguntas_a_borrar]
-                    db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar)))
-                    db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar)))
-                    db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar)))
-                    db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar)))
-                    db.session.commit()
+                # Obtenemos directamente los IDs de las preguntas a borrar
+                ids_a_borrar = db.session.query(Pregunta.id).filter(Pregunta.tema_id.in_(tema_ids_a_importar)).scalar_subquery()
+                
+                # Ejecutamos borrados en cascada con SQL puro para máxima eficiencia
+                db.session.execute(favoritos.delete().where(favoritos.c.pregunta_id.in_(ids_a_borrar)))
+                db.session.execute(RespuestaUsuario.__table__.delete().where(RespuestaUsuario.pregunta_id.in_(ids_a_borrar)))
+                db.session.execute(Respuesta.__table__.delete().where(Respuesta.pregunta_id.in_(ids_a_borrar)))
+                db.session.execute(Pregunta.__table__.delete().where(Pregunta.id.in_(ids_a_borrar)))
+
+            # --- 3. Bucle de creación optimizado ---
             posiciones_tema = {}
             for row in data_rows:
                 row_data = {headers[i]: cell for i, cell in enumerate(row)}
                 tema_id_str = row_data.get('tema_id')
                 enunciado = row_data.get('enunciado')
+
                 if not tema_id_str or not tema_id_str.isdigit() or not enunciado:
                     continue
+
                 tema_id = int(tema_id_str)
+
                 if tema_id not in posiciones_tema:
+                    # Calculamos la posición inicial para cada tema
                     max_pos = db.session.query(db.func.max(Pregunta.posicion)).filter_by(tema_id=tema_id).scalar() or -1
                     posiciones_tema[tema_id] = max_pos
+                
                 posiciones_tema[tema_id] += 1
+
                 nueva_pregunta = Pregunta(
                     texto=enunciado,
                     tema_id=tema_id,
@@ -444,23 +458,33 @@ def subir_sheets():
                     respuesta_correcta_texto=row_data.get('respuesta_correcta_texto')
                 )
                 db.session.add(nueva_pregunta)
-                db.session.flush()
+                db.session.flush()  # <-- ¡Clave! Asigna el ID a nueva_pregunta sin hacer commit
+
                 if nueva_pregunta.tipo_pregunta == 'opcion_multiple':
                     opciones = [(row_data.get('opcion_a'), 'a'), (row_data.get('opcion_b'), 'b'), (row_data.get('opcion_c'), 'c'), (row_data.get('opcion_d'), 'd')]
-                    letra_correcta = row_data.get('respuesta_correcta_multiple', '').lower()
+                    letra_correcta = row_data.get('respuesta_correcta_multiple', '').strip().lower()
+                    
                     for texto_opcion, letra in opciones:
                         if texto_opcion:
                             es_correcta = (letra == letra_correcta)
                             respuesta = Respuesta(texto=texto_opcion, es_correcta=es_correcta, pregunta_id=nueva_pregunta.id)
                             db.session.add(respuesta)
+
+            # --- 4. Un único COMMIT para toda la operación ---
             db.session.commit()
             flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas.', 'success')
+
         except Exception as e:
             db.session.rollback()
+            # Ahora sí deberíamos ver este error en los logs si algo falla
+            print(f"ERROR DURANTE LA IMPORTACIÓN: {e}") 
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
+        
         return redirect(url_for('admin.admin_dashboard'))
+
     elif request.method == 'POST':
         print(f"--- El formulario NO se ha validado. Errores: {form.errors} ---")
+        
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
