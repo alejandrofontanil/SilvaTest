@@ -1,6 +1,7 @@
 from flask_login import UserMixin
 from datetime import datetime
 from . import db, bcrypt
+from werkzeug.utils import cached_property # Opcional, para mejora de rendimiento
 
 class AccesoConvocatoria(db.Model):
     __tablename__ = 'accesos_usuario_convocatoria'
@@ -21,12 +22,16 @@ class Usuario(db.Model, UserMixin):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
+    
+    # --- RELACIONES (SIN CAMBIOS) ---
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
     accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', cascade="all, delete-orphan")
 
-    @property
+    # --- PROPIEDADES (SIN CAMBIOS, PERO MIRA LA NOTA SOBRE CACHED_PROPERTY) ---
+    @property 
+    # Para optimizar a futuro, podrías cambiar @property por @cached_property
     def convocatorias_accesibles(self):
         """Devuelve una query con las convocatorias a las que el usuario tiene acceso."""
         if self.es_admin:
@@ -38,6 +43,7 @@ class Usuario(db.Model, UserMixin):
             (AccesoConvocatoria.fecha_expiracion == None) | (AccesoConvocatoria.fecha_expiracion > datetime.utcnow())
         ).order_by(Convocatoria.nombre)
 
+    # --- MÉTODOS DE FAVORITOS (SIN CAMBIOS) ---
     def es_favorita(self, pregunta):
         return self.preguntas_favoritas.filter(favoritos.c.pregunta_id == pregunta.id).count() > 0
 
@@ -49,17 +55,25 @@ class Usuario(db.Model, UserMixin):
         if self.es_favorita(pregunta):
             self.preguntas_favoritas.remove(pregunta)
 
-    def set_password(self, password):
+    # --- GESTIÓN DE CONTRASEÑA (CÓDIGO MEJORADO) ---
+    @property
+    def password(self):
+        raise AttributeError('La contraseña no es un atributo legible.')
+
+    @password.setter
+    def password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
+    # --- FIN DE LA MEJORA ---
 
+# --- Resto de las clases (Convocatoria, Bloque, Tema, etc.) SIN NINGÚN CAMBIO ---
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
-    es_publica = db.Column(db.Boolean, nullable=False, default=True) # ✅ CORREGIDO
-    bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion') # ✅ CORREGIDO
+    es_publica = db.Column(db.Boolean, nullable=False, default=True)
+    bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -84,8 +98,6 @@ class Tema(db.Model):
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
-    
-    # ✅ LÍNEA AÑADIDA PARA GUARDAR LA URL DEL PDF
     pdf_url = db.Column(db.String(300), nullable=True)
 
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
