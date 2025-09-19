@@ -35,6 +35,7 @@
         --bs-secondary-text-emphasis: #5D4037;
         --bs-border-color: #dee2e6;
         --bs-btn-color: #FFFFFF;
+        --bs-info-rgb: 13, 202, 240;
       }
       [data-bs-theme="dark"] {
         --bs-body-bg: #1F1F1F;
@@ -104,6 +105,15 @@
       .breadcrumb-item + .breadcrumb-item::before {
           color: var(--bs-secondary-text-emphasis);
       }
+      #iniciar-tour-cuenta {
+          animation: pulse-animation 2s infinite;
+          box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7);
+      }
+      @keyframes pulse-animation {
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7); }
+          70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
+      }
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
@@ -148,10 +158,12 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
+                    {% if category != 'onboarding_trigger' %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
@@ -188,7 +200,6 @@
     {{ super() if super }}
     <script>
       (function() {
-        // ... (código del tema oscuro/claro sin cambios) ...
         const htmlElement = document.documentElement;
         const themeToggleBtn = document.getElementById('theme-toggle');
         const themeToggleIcon = document.getElementById('theme-toggle-icon');
@@ -227,7 +238,9 @@
                 {% if category == 'onboarding_trigger' %}
                     <script>
                         document.addEventListener('DOMContentLoaded', function() {
-                            // ... (código del onboarding con SweetAlert2 sin cambios) ...
+                            const tourUrl = "{{ url_for('main.cuenta', tour='true') }}";
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                            
                             Swal.mixin({
                                 confirmButtonText: 'Siguiente &rarr;',
                                 progressSteps: ['1', '2', '3']
@@ -244,20 +257,26 @@
                                     html: 'Durante los tests, usa el icono de la estrella ⭐ para marcar preguntas y repasarlas más tarde desde "Mi Cuenta".'
                                 },
                                 {
-                                    title: 'Estudia en cualquier lugar',
-                                    text: '¡Instala la app en tu móvil para acceder más rápido y poder estudiar incluso sin conexión!',
-                                    confirmButtonText: '¡Entendido!'
+                                    title: '¡Todo listo para empezar!',
+                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.',
+                                    showCancelButton: true,
+                                    confirmButtonText: '<i class="bi bi-compass-fill"></i> Hacer un Tour Rápido',
+                                    cancelButtonText: 'Empezar a practicar',
+                                    reverseButtons: true
                                 }
                             ]).then((result) => {
+                                // Siempre marcamos el onboarding como visto para que no vuelva a salir
+                                fetch("{{ url_for('main.marcar_onboarding_visto') }}", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfToken
+                                    }
+                                });
+
+                                // Si el usuario hizo clic en "Hacer un Tour"
                                 if (result.value) {
-                                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                                    fetch("{{ url_for('main.marcar_onboarding_visto') }}", {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRFToken': csrfToken
-                                        }
-                                    });
+                                    window.location.href = tourUrl;
                                 }
                             });
                         });
