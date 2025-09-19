@@ -3,9 +3,12 @@ from flask_login import login_user, logout_user, current_user
 from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm
+# 'secrets' ya no es necesario aquí si quieres, pero no hace daño dejarlo
 import secrets
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__,
+                    template_folder='../templates/auth', 
+                    url_prefix='/auth') # Te sugiero añadir un prefijo para organizar mejor las URLs
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 def registro():
@@ -13,8 +16,9 @@ def registro():
         return redirect(url_for('main.home'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data)
-        nuevo_usuario.set_password(form.password.data)
+        # Ahora usamos la propiedad 'password' que definimos en el modelo
+        nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data.lower())
+        nuevo_usuario.password = form.password.data
         db.session.add(nuevo_usuario)
         db.session.commit()
         flash('¡Tu cuenta ha sido creada! Ya puedes iniciar sesión.', 'success')
@@ -41,12 +45,20 @@ def login():
                 flash('La cuenta de invitado no está configurada. Contacta al administrador.', 'danger')
                 return redirect(url_for('auth.login'))
         # --- FIN DEL CASO ESPECIAL ---
-
-        # Lógica normal para usuarios reales
+        
         usuario = Usuario.query.filter_by(email=email_o_usuario).first()
+
+        # --- MEJORA AÑADIDA ---
+        # Si el usuario existe pero su cuenta es de Google, le guiamos.
+        if usuario and usuario.password_hash == 'OAUTH_NO_PASSWORD':
+            flash('Esa cuenta fue creada con Google. Por favor, utiliza el botón "Iniciar Sesión con Google".', 'info')
+            return redirect(url_for('auth.login'))
+        # --- FIN DE LA MEJORA ---
+
         if usuario and usuario.check_password(password):
             login_user(usuario, remember=form.remember.data)
             next_page = request.args.get('next')
+            # Aquí podrías añadir la validación de 'is_safe_url' que te comenté
             flash('¡Has iniciado sesión con éxito!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
@@ -76,13 +88,16 @@ def google_callback():
         return redirect(url_for('auth.login'))
         
     usuario = Usuario.query.filter_by(email=user_info['email']).first()
+    
     if not usuario:
         usuario = Usuario(
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google')
         )
-        random_password = secrets.token_urlsafe(16)
-        usuario.set_password(random_password)
+        # --- MEJORA AÑADIDA ---
+        # En lugar de una contraseña aleatoria, marcamos la cuenta como 'solo OAuth'.
+        usuario.password_hash = 'OAUTH_NO_PASSWORD'
+        # --- FIN DE LA MEJORA ---
         db.session.add(usuario)
         db.session.commit()
         flash('¡Cuenta creada con éxito a través de Google!', 'success')
