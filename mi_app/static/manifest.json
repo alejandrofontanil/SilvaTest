@@ -1,7 +1,7 @@
 {
-  "name": "SilvaTest Oposiciones",
+  "name": "SilvaTest: Oposiciones y Licencias",
   "short_name": "SilvaTest",
-  "description": "Plataforma de tests para oposiciones de Agente Medioambiental.",
+  "description": "Plataforma de tests para preparar oposiciones (Agente Medioambiental) y exámenes para la obtención de licencias (caza, armas, etc.).",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
