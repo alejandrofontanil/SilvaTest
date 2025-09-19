@@ -524,3 +524,31 @@ def hacerme_admin_temporalmente():
         flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
         print(f"ERROR al hacer admin: {e}")
     return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/usuario/<int:usuario_id>/eliminar', methods=['POST'])
+@admin_required
+def eliminar_usuario(usuario_id):
+    usuario_a_eliminar = Usuario.query.get_or_404(usuario_id)
+
+    # Prevenir que un admin se borre a sí mismo o a otro admin
+    if usuario_a_eliminar.es_admin:
+        flash('No se pueden eliminar cuentas de administrador.', 'danger')
+        return redirect(url_for('admin.admin_usuarios'))
+    
+    # Prevenir que se borre el usuario Invitado
+    if usuario_a_eliminar.nombre == 'Invitado':
+        flash('La cuenta de invitado no puede ser eliminada.', 'warning')
+        return redirect(url_for('admin.admin_usuarios'))
+
+    try:
+        # Gracias a la configuración 'cascade' en tus modelos, 
+        # al borrar un usuario, se borrarán automáticamente sus resultados,
+        # respuestas, favoritos, etc.
+        db.session.delete(usuario_a_eliminar)
+        db.session.commit()
+        flash(f'El usuario "{usuario_a_eliminar.nombre}" ha sido eliminado con éxito.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al eliminar al usuario: {e}', 'danger')
+
+    return redirect(url_for('admin.admin_usuarios'))

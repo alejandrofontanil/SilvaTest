@@ -74,26 +74,34 @@ def create_app():
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
 
-        # ✅ --- LÓGICA ACTUALIZADA PARA CREAR TABLAS Y USUARIO INVITADO --- ✅
+        # --- LÓGICA MEJORADA PARA CREAR/ACTUALIZAR USUARIO INVITADO ---
         try:
-            # db.create_all() es seguro, no borra tablas existentes.
             db.create_all()
-
             from .models import Usuario
-            if not Usuario.query.filter_by(nombre='Invitado').first():
+            invitado = Usuario.query.filter_by(nombre='Invitado').first()
+
+            if not invitado:
                 print("Creando usuario 'Invitado'...")
                 invitado = Usuario(nombre='Invitado', email='invitado@example.com')
-                invitado.set_password('invitado')
+                invitado.password = '13579' # Usamos el @password.setter del modelo
                 db.session.add(invitado)
                 db.session.commit()
                 print("¡Usuario 'Invitado' creado con éxito!")
             else:
-                print("El usuario 'Invitado' ya existe.")
+                # Si ya existe, nos aseguramos de que tenga la contraseña correcta
+                if not invitado.check_password('13579'):
+                    print("Actualizando contraseña del usuario 'Invitado'...")
+                    invitado.password = '13579'
+                    db.session.commit()
+                    print("¡Contraseña del invitado actualizada!")
+                else:
+                    print("El usuario 'Invitado' ya existe y tiene la contraseña correcta.")
+
         except Exception as e:
             # Esto puede pasar si la base de datos aún no está lista durante el despliegue.
             print(f"AVISO: No se pudo verificar/crear el usuario invitado al arrancar: {e}")
             db.session.rollback()
-        # ✅ --- FIN DE LA LÓGICA ACTUALIZADA --- ✅
+        # --- FIN DE LA LÓGICA MEJORADA ---
             
     # Manejadores de Errores
     @app.errorhandler(404)
