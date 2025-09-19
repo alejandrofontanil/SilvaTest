@@ -18,9 +18,7 @@ function iniciarVisitaGuiada() {
         text: 'Te mostraremos rápidamente las funciones principales. Puedes cancelar en cualquier momento.',
         buttons: [
             {
-                action() {
-                    return this.next();
-                },
+                action() { return this.next(); },
                 text: 'Empezar'
             }
         ]
@@ -66,3 +64,81 @@ function iniciarVisitaGuiada() {
 
     tour.start();
 }
+
+
+// --- INICIO DEL NUEVO TOUR PARA LA PÁGINA "MI CUENTA" ---
+
+function iniciarTourCuenta() {
+    const tourCuenta = new Shepherd.Tour({
+        useModalOverlay: true,
+        defaultStepOptions: {
+            classes: 'shadow-md',
+            cancelIcon: { enabled: true },
+            scrollTo: { behavior: 'smooth', block: 'center' }
+        }
+    });
+
+    tourCuenta.addStep({
+        title: 'Tu Panel Personal',
+        text: 'Este es tu centro de control. Vamos a ver rápidamente qué puedes hacer aquí.',
+        buttons: [{ action() { return this.next(); }, text: 'Empezar' }]
+    });
+
+    tourCuenta.addStep({
+        title: 'Filtra tus Resultados',
+        text: 'Usa este menú para ver tus estadísticas de una convocatoria específica o de todas a la vez.',
+        attachTo: { element: '.filtro-convocatoria', on: 'bottom' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
+    });
+
+    tourCuenta.addStep({
+        title: 'Tu Evolución',
+        text: 'Aquí verás un gráfico con la media de tus notas a lo largo del tiempo. ¡Ideal para ver tu progreso!',
+        attachTo: { element: '#evolucion-link', on: 'right' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
+    });
+
+    tourCuenta.addStep({
+        title: 'Repasar Fallos',
+        text: '¡Esta es una de las herramientas más potentes! Aquí podrás hacer tests solo con las preguntas que has fallado.',
+        attachTo: { element: '#repasar-fallos-link', on: 'right' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
+    });
+
+    tourCuenta.addStep({
+        title: 'Preguntas Favoritas',
+        text: 'Las preguntas que marques con la estrella ⭐ en los tests aparecerán aquí para que puedas repasarlas cuando quieras.',
+        attachTo: { element: '#preguntas-favoritas-link', on: 'right' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
+    });
+    
+    tourCuenta.addStep({
+        title: 'Zona de Peligro',
+        text: 'Ten cuidado aquí. Este botón borrará TODO tu historial de tests y estadísticas de forma permanente.',
+        attachTo: { element: '.zona-peligro', on: 'top' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.complete(); }, text: 'Finalizar' }]
+    });
+
+    tourCuenta.start();
+}
+
+// --- CÓDIGO PARA ACTIVAR LOS BOTONES DE LOS TOURS ---
+document.addEventListener('DOMContentLoaded', function() {
+    // Para el tour de la página principal
+    const botonTourPrincipal = document.getElementById('iniciar-tour');
+    if (botonTourPrincipal) {
+        botonTourPrincipal.addEventListener('click', function(e) {
+            e.preventDefault();
+            iniciarVisitaGuiada();
+        });
+    }
+
+    // Para el tour de la página "Mi Cuenta"
+    const botonTourCuenta = document.getElementById('iniciar-tour-cuenta');
+    if (botonTourCuenta) {
+        botonTourCuenta.addEventListener('click', function(e) {
+            e.preventDefault();
+            iniciarTourCuenta();
+        });
+    }
+});

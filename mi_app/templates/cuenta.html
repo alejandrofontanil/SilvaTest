@@ -8,24 +8,31 @@
                 <h5 class="mb-0">Panel de Estudiante</h5>
             </div>
             <div class="list-group list-group-flush" id="panel-menu" role="tablist">
-                <a class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
+                <a id="evolucion-link" class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
                     <i class="bi bi-graph-up-arrow me-2"></i>Evolución
                 </a>
-                <a class="list-group-item list-group-item-action {% if active_tab == 'stats' %}active{% endif %}" data-bs-toggle="list" href="#estadisticas-detalladas" role="tab">
+                <a id="estadisticas-link" class="list-group-item list-group-item-action {% if active_tab == 'stats' %}active{% endif %}" data-bs-toggle="list" href="#estadisticas-detalladas" role="tab">
                     <i class="bi bi-pie-chart-fill me-2"></i>Estadísticas
                 </a>
-                <a class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
+                <a id="historial-link" class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
                     <i class="bi bi-list-task me-2"></i>Historial Detallado
                 </a>
-                <a href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
-                <a href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
-                <a href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
+                <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
+                <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
+                <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
             </div>
         </div>
     </div>
 
     <div class="col-md-9">
-        <div class="card shadow-sm mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 mb-0">Mi Progreso</h1>
+            <button id="iniciar-tour-cuenta" class="btn btn-sm btn-outline-info">
+                <i class="bi bi-compass-fill"></i> Hacer un Tour
+            </button>
+        </div>
+
+        <div class="card shadow-sm mb-4 filtro-convocatoria">
             <div class="card-body">
                 <form method="POST" action="{{ url_for('main.cuenta') }}" class="row g-3 align-items-end">
                     {{ form.hidden_tag() }}
@@ -166,7 +173,7 @@
             </div>
         </div>
 
-<div class="card shadow-sm mt-4 border-danger">
+        <div class="card shadow-sm mt-4 border-danger zona-peligro">
             <div class="card-header bg-danger text-white">
                 <h5 class="mb-0">Zona de Peligro</h5>
             </div>
@@ -180,7 +187,7 @@
                 </form>
             </div>
         </div>
-        </div>
+    </div>
 </div>
 
 <script>
