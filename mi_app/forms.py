@@ -4,7 +4,7 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Radi
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from wtforms_sqlalchemy.fields import QuerySelectField
-from .models import Bloque, Tema
+from .models import Bloque, Tema, Usuario # <-- IMPORTACIÓN AÑADIDA
 
 def bloques_query():
     return Bloque.query
@@ -64,7 +64,6 @@ class RegistrationForm(FlaskForm):
                                    Length(min=2, max=20)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     
-    # --- LÍNEA MODIFICADA CON LA MEJORA ---
     password = PasswordField('Contraseña', validators=[DataRequired(), Length(min=8, message='La contraseña debe tener al menos 8 caracteres.')])
     
     confirm_password = PasswordField(
@@ -75,6 +74,17 @@ class RegistrationForm(FlaskForm):
         ])
     recaptcha = RecaptchaField()
     submit = SubmitField('Crear Cuenta')
+
+    # --- MÉTODO AÑADIDO CON LA MEJORA ---
+    def validate_email(self, email):
+        """
+        Comprueba si ya existe un usuario con este email en la base de datos.
+        """
+        usuario = Usuario.query.filter_by(email=email.data.lower()).first()
+        if usuario:
+            raise ValidationError('Ya existe una cuenta con ese correo electrónico. Por favor, inicia sesión o utiliza otro email.')
+    # --- FIN DE LA MEJORA ---
+
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
