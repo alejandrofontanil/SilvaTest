@@ -1,72 +1,43 @@
 // mi_app/static/js/tour.js
 
+// --- TOUR PARA LA PÁGINA PRINCIPAL (SIN CAMBIOS) ---
 function iniciarVisitaGuiada() {
+    // ... (El código de este tour se queda exactamente igual) ...
     const tour = new Shepherd.Tour({
-        useModalOverlay: true, // Pone un fondo oscuro para enfocar la atención
+        useModalOverlay: true,
         defaultStepOptions: {
             classes: 'shadow-md',
-            cancelIcon: {
-                enabled: true
-            },
+            cancelIcon: { enabled: true },
             scrollTo: { behavior: 'smooth', block: 'center' }
         }
     });
-
-    // PASO 1: Bienvenida
     tour.addStep({
         title: '¡Bienvenido a SilvaTest!',
-        text: 'Te mostraremos rápidamente las funciones principales. Puedes cancelar en cualquier momento.',
-        buttons: [
-            {
-                action() { return this.next(); },
-                text: 'Empezar'
-            }
-        ]
+        text: 'Te mostraremos rápidamente las funciones principales.',
+        buttons: [{ action() { return this.next(); }, text: 'Empezar' }]
     });
-
-    // PASO 2: Elegir Examen
     tour.addStep({
         title: 'Elige tu Examen',
         text: 'Todo empieza aquí. Selecciona la oposición o licencia que quieres preparar para ver su temario.',
-        attachTo: {
-            element: '.card-convocatoria', // Resalta la primera tarjeta de la lista
-            on: 'bottom'
-        },
-        buttons: [
-            { action() { return this.back(); }, text: 'Anterior' },
-            { action() { return this.next(); }, text: 'Siguiente' }
-        ]
+        attachTo: { element: '.card-convocatoria', on: 'bottom' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
     });
-
-    // PASO 3: Mi Cuenta
     tour.addStep({
         title: 'Tu Progreso',
         text: 'Una vez registrado, en "Mi Cuenta" podrás ver todas tus estadísticas, resultados y preguntas favoritas.',
-        attachTo: {
-            element: '#mi-cuenta-link', // Apunta al enlace al que le pusimos el id
-            on: 'bottom'
-        },
-        buttons: [
-            { action() { return this.back(); }, text: 'Anterior' },
-            { action() { return this.next(); }, text: 'Siguiente' }
-        ]
+        attachTo: { element: '#mi-cuenta-link', on: 'bottom' },
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
     });
-    
-    // PASO 4: Final
     tour.addStep({
         title: '¡Listo para Empezar!',
         text: 'Ya conoces lo básico. ¡Mucha suerte con tu preparación!',
-        buttons: [
-            { action() { return this.back(); }, text: 'Anterior' },
-            { action() { return this.complete(); }, text: 'Finalizar' }
-        ]
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.complete(); }, text: 'Finalizar' }]
     });
-
     tour.start();
 }
 
 
-// --- INICIO DEL NUEVO TOUR PARA LA PÁGINA "MI CUENTA" ---
+// --- TOUR MEJORADO PARA LA PÁGINA "MI CUENTA" ---
 
 function iniciarTourCuenta() {
     const tourCuenta = new Shepherd.Tour({
@@ -77,6 +48,20 @@ function iniciarTourCuenta() {
             scrollTo: { behavior: 'smooth', block: 'center' }
         }
     });
+
+    // Función auxiliar para "hacer clic" en las pestañas del menú
+    const mostrarTab = (elementId) => {
+        return new Promise((resolve) => {
+            const tabElement = document.getElementById(elementId);
+            if (tabElement) {
+                // Usamos la API de Bootstrap para mostrar la pestaña
+                const tab = new bootstrap.Tab(tabElement);
+                tab.show();
+            }
+            // Damos un pequeño margen para que la animación de la pestaña termine
+            setTimeout(resolve, 300); 
+        });
+    };
 
     tourCuenta.addStep({
         title: 'Tu Panel Personal',
@@ -95,12 +80,23 @@ function iniciarTourCuenta() {
         title: 'Tu Evolución',
         text: 'Aquí verás un gráfico con la media de tus notas a lo largo del tiempo. ¡Ideal para ver tu progreso!',
         attachTo: { element: '#evolucion-link', on: 'right' },
+        // ANTES de mostrar este paso, nos aseguramos de que la pestaña "Evolución" esté activa
+        beforeShowPromise: () => mostrarTab('evolucion-link'),
+        buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
+    });
+
+    tourCuenta.addStep({
+        title: 'Estadísticas Detalladas',
+        text: 'En esta sección podrás ver tu porcentaje de aciertos por bloque y por tema para saber dónde tienes que mejorar.',
+        attachTo: { element: '#estadisticas-link', on: 'right' },
+        // ANTES de mostrar este paso, hacemos clic en la pestaña "Estadísticas"
+        beforeShowPromise: () => mostrarTab('estadisticas-link'),
         buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
     });
 
     tourCuenta.addStep({
         title: 'Repasar Fallos',
-        text: '¡Esta es una de las herramientas más potentes! Aquí podrás hacer tests solo con las preguntas que has fallado.',
+        text: '¡Esta es una de las herramientas más potentes! Al hacer clic aquí, generarás un test solo con las preguntas que has fallado.',
         attachTo: { element: '#repasar-fallos-link', on: 'right' },
         buttons: [{ action() { return this.back(); }, text: 'Anterior' }, { action() { return this.next(); }, text: 'Siguiente' }]
     });
@@ -122,9 +118,8 @@ function iniciarTourCuenta() {
     tourCuenta.start();
 }
 
-// --- CÓDIGO PARA ACTIVAR LOS BOTONES DE LOS TOURS ---
+// --- CÓDIGO PARA ACTIVAR LOS BOTONES DE LOS TOURS (SIN CAMBIOS) ---
 document.addEventListener('DOMContentLoaded', function() {
-    // Para el tour de la página principal
     const botonTourPrincipal = document.getElementById('iniciar-tour');
     if (botonTourPrincipal) {
         botonTourPrincipal.addEventListener('click', function(e) {
@@ -132,8 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
             iniciarVisitaGuiada();
         });
     }
-
-    // Para el tour de la página "Mi Cuenta"
     const botonTourCuenta = document.getElementById('iniciar-tour-cuenta');
     if (botonTourCuenta) {
         botonTourCuenta.addEventListener('click', function(e) {
