@@ -1,14 +1,28 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_user, logout_user, current_user
 from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm
-# 'secrets' ya no es necesario aquí si quieres, pero no hace daño dejarlo
 import secrets
+from urllib.parse import urlparse, urljoin # <-- IMPORTACIÓN AÑADIDA
 
 auth_bp = Blueprint('auth', __name__,
                     template_folder='../templates/auth', 
-                    url_prefix='/auth') # Te sugiero añadir un prefijo para organizar mejor las URLs
+                    url_prefix='/auth')
+
+# --- FUNCIÓN DE SEGURIDAD AÑADIDA ---
+def is_safe_url(target):
+    """
+    Comprueba si una URL es segura para redirigir, evitando vulnerabilidades
+    de redirección abierta.
+    """
+    if not target:
+        return True
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and \
+           ref_url.netloc == test_url.netloc
+# --- FIN DE LA FUNCIÓN ---
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 def registro():
@@ -16,7 +30,6 @@ def registro():
         return redirect(url_for('main.home'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        # Ahora usamos la propiedad 'password' que definimos en el modelo
         nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data.lower())
         nuevo_usuario.password = form.password.data
         db.session.add(nuevo_usuario)
@@ -48,17 +61,19 @@ def login():
         
         usuario = Usuario.query.filter_by(email=email_o_usuario).first()
 
-        # --- MEJORA AÑADIDA ---
-        # Si el usuario existe pero su cuenta es de Google, le guiamos.
         if usuario and usuario.password_hash == 'OAUTH_NO_PASSWORD':
             flash('Esa cuenta fue creada con Google. Por favor, utiliza el botón "Iniciar Sesión con Google".', 'info')
             return redirect(url_for('auth.login'))
-        # --- FIN DE LA MEJORA ---
 
         if usuario and usuario.check_password(password):
             login_user(usuario, remember=form.remember.data)
             next_page = request.args.get('next')
-            # Aquí podrías añadir la validación de 'is_safe_url' que te comenté
+            
+            # --- MEJORA DE SEGURIDAD AÑADIDA ---
+            if not is_safe_url(next_page):
+                return abort(400, "URL de redirección no segura.")
+            # --- FIN DE LA MEJORA ---
+
             flash('¡Has iniciado sesión con éxito!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
@@ -94,14 +109,12 @@ def google_callback():
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google')
         )
-        # --- MEJORA AÑADIDA ---
-        # En lugar de una contraseña aleatoria, marcamos la cuenta como 'solo OAuth'.
         usuario.password_hash = 'OAUTH_NO_PASSWORD'
-        # --- FIN DE LA MEJORA ---
         db.session.add(usuario)
         db.session.commit()
         flash('¡Cuenta creada con éxito a través de Google!', 'success')
         
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
+    # Aquí también podrías añadir la lógica de 'next_page' segura si quisieras
     return redirect(url_for('main.home'))
