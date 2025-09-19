@@ -27,7 +27,7 @@
     <div class="col-md-9">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">Mi Progreso</h1>
-            <button id="iniciar-tour-cuenta" class="btn btn-sm btn-outline-info">
+            <button id="iniciar-tour-cuenta" class="btn btn-sm btn-info text-white">
                 <i class="bi bi-compass-fill"></i> Hacer un Tour
             </button>
         </div>
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-<div class="tab-content">
+        <div class="tab-content">
             <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
                 <div class="card shadow-sm">
                     <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
@@ -190,44 +190,58 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('graficoNotas')) {
-        const ctx = document.getElementById('graficoNotas').getContext('2d');
-        const labels = {{ labels_grafico|tojson }};
-        const data = {{ datos_grafico|tojson }};
-        const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
-        const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-        const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
-        const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-        new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
-    }
+{% endblock %}
 
-    const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
-    if(form){
-        form.addEventListener('submit', function(e){
-            const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
-            if(activeTabEl){
-                const tabId = activeTabEl.getAttribute('href').substring(1);
-                let urlTab = 'evolucion';
-                if(tabId.includes('estadisticas')){
-                    urlTab = 'stats';
-                } else if(tabId.includes('historial')){
-                    urlTab = 'historial';
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('graficoNotas')) {
+            const ctx = document.getElementById('graficoNotas').getContext('2d');
+            const labels = {{ labels_grafico|tojson }};
+            const data = {{ datos_grafico|tojson }};
+            const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+            const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+            const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+            new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
+        }
+    
+        const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
+        if(form){
+            form.addEventListener('submit', function(e){
+                const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
+                if(activeTabEl){
+                    const tabId = activeTabEl.getAttribute('href').substring(1);
+                    let urlTab = 'evolucion';
+                    if(tabId.includes('estadisticas')){
+                        urlTab = 'stats';
+                    } else if(tabId.includes('historial')){
+                        urlTab = 'historial';
+                    }
+    
+                    let tabInput = form.querySelector('input[name="tab"]');
+                    if(!tabInput){
+                        tabInput = document.createElement('input');
+                        tabInput.type = 'hidden';
+                        tabInput.name = 'tab';
+                        form.appendChild(tabInput);
+                    }
+                    tabInput.value = urlTab;
                 }
+            });
+        }
+    });
+    </script>
 
-                let tabInput = form.querySelector('input[name="tab"]');
-                if(!tabInput){
-                    tabInput = document.createElement('input');
-                    tabInput.type = 'hidden';
-                    tabInput.name = 'tab';
-                    form.appendChild(tabInput);
-                }
-                tabInput.value = urlTab;
-            }
+    {% if iniciar_tour_automaticamente %}
+    <script>
+        // Esperamos a que la página cargue completamente para que Shepherd encuentre todos los elementos
+        window.addEventListener('load', function() {
+            // La función iniciarTourCuenta() está definida en nuestro fichero tour.js
+            iniciarTourCuenta();
         });
-    }
-});
-</script>
+    </script>
+    {% endif %}
 {% endblock %}
