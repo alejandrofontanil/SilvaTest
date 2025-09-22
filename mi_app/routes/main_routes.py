@@ -525,3 +525,28 @@ def sw():
 @main_bp.route('/offline')
 def offline():
     return render_template('offline.html')
+
+# === RUTA DE DEPURACIÓN TEMPORAL ===
+@main_bp.route('/debug-db')
+@login_required
+def debug_db():
+    # Solo permitimos que el admin acceda a esta ruta
+    if not current_user.es_admin:
+        abort(403) # Prohibido para usuarios normales
+
+    from .models import Usuario # Importamos el modelo de Usuario
+    
+    # Consultamos a todos los usuarios y sus preferencias de resumen
+    usuarios = Usuario.query.all()
+    
+    # Creamos un texto HTML simple para mostrar los resultados
+    output = "<h1>Estado de la Base de Datos</h1>"
+    output += "<table border='1'><tr><th>ID</th><th>Email</th><th>Recibir Resumen?</th></tr>"
+    
+    for usuario in usuarios:
+        output += f"<tr><td>{usuario.id}</td><td>{usuario.email}</td><td><b>{usuario.recibir_resumen_semanal}</b></td></tr>"
+        
+    output += "</table>"
+    
+    return output
+# === FIN DE LA RUTA DE DEPURACIÓN ===
