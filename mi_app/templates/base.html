@@ -155,7 +155,7 @@
         display: block;
       }
 
-      /* --- ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
+      /* --- AÑADIDO: ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
       @media (max-width: 768px) {
           .shepherd-element {
               position: fixed !important;
@@ -363,6 +363,17 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    <div id="ios-install-prompt" class="p-3">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="50" height="50" class="me-3">
+            <div class="flex-grow-1">
+                <p class="fw-bold mb-1">Instala SilvaTest en tu dispositivo</p>
+                <p class="small mb-0">Toca el icono <i class="bi bi-box-arrow-up"></i> y luego "Añadir a la pantalla de inicio".</p>
+            </div>
+            <button type="button" id="close-ios-prompt" class="btn-close ms-2" aria-label="Cerrar"></button>
+        </div>
+    </div>
     
     <script>
         (function() {
@@ -448,6 +459,36 @@
                     stopPomodoro();
                 }
             });
+        })();
+
+        (function() {
+            function isIOS() {
+            return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            }
+
+            function isInStandaloneMode() {
+            return ('standalone' in window.navigator) && (window.navigator.standalone);
+            }
+
+            if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
+            
+            const promptElement = document.getElementById('ios-install-prompt');
+            const closeButton = document.getElementById('close-ios-prompt');
+
+            if (promptElement && closeButton) {
+                setTimeout(function() {
+                promptElement.style.display = 'block';
+                setTimeout(function() { 
+                    promptElement.classList.add('show');
+                }, 100);
+                }, 5000);
+
+                closeButton.addEventListener('click', function() {
+                promptElement.classList.remove('show');
+                localStorage.setItem('iosInstallPromptDismissed', 'true');
+                });
+            }
+            }
         })();
     </script>
 
