@@ -33,16 +33,24 @@
                 <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
             </div>
             
-            <div class="col-md-6 col-lg-4" data-aos="fade-up">
+            <!-- =============================================================== -->
+            <!-- ===== INICIO: TARJETA DE GRÁFICO DE EVOLUCIÓN (NUEVA) ======== -->
+            <!-- =============================================================== -->
+            <div class="col-lg-12" data-aos="fade-up">
                 <div class="card h-100">
-                    <div class="card-body text-center d-flex flex-column justify-content-center">
-                        <h5 class="card-title text-muted">Nota Media Global</h5>
-                        <p class="display-4 fw-bold mb-0">{{ "%.2f"|format(nota_media_global) }}</p>
+                    <div class="card-body p-4">
+                        <h5 class="card-title text-muted mb-3">Evolución de Notas (Últimos 30 días)</h5>
+                        <div style="height: 300px;">
+                            <canvas id="evolucionNotasChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
+            <!-- =============================================================== -->
+            <!-- ======= FIN: TARJETA DE GRÁFICO DE EVOLUCIÓN (NUEVA) ========= -->
+            <!-- =============================================================== -->
 
-            <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="100">
+            <div class="col-md-6" data-aos="fade-up" data-aos-delay="100">
                 <div class="card h-100">
                     <div class="card-body">
                         <h5 class="card-title text-muted mb-3">Último Test Realizado</h5>
@@ -58,7 +66,7 @@
                 </div>
             </div>
 
-            <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
+            <div class="col-md-6" data-aos="fade-up" data-aos-delay="200">
                 <div class="card h-100">
                      <div class="card-body">
                         <h5 class="card-title text-muted mb-3">Acceso Rápido a Favoritas</h5>
@@ -110,56 +118,17 @@
 
     <!-- SECCIÓN DE CARACTERÍSTICAS -->
     <div class="row text-center g-4" style="padding: 2rem 0;">
-        <!-- Característica 1 -->
         <div class="col-md-6 col-lg-3" data-aos="fade-up">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="mb-3">
-                        <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i>
-                    </div>
-                    <h3 class="fs-5">Analiza tu Evolución</h3>
-                    <p class="text-muted small">Con nuestros gráficos de Evolución de Notas, visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p>
-                </div>
-            </div>
+            <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Analiza tu Evolución</h3> <p class="text-muted small">Con nuestros gráficos de Evolución de Notas, visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p> </div> </div>
         </div>
-
-        <!-- Característica 2 -->
         <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="mb-3">
-                        <i class="bi bi-search" style="font-size: 3rem; color: var(--bs-primary);"></i>
-                    </div>
-                    <h3 class="fs-5">Descubre tus Puntos Débiles</h3>
-                    <p class="text-muted small">Nuestras Estadísticas detalladas te muestran en qué temas y bloques fallas más para que sepas dónde tienes que reforzar.</p>
-                </div>
-            </div>
+            <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-search" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Descubre tus Puntos Débiles</h3> <p class="text-muted small">Nuestras Estadísticas detalladas te muestran en qué temas y bloques fallas más para que sepas dónde tienes que reforzar.</p> </div> </div>
         </div>
-
-        <!-- Característica 3 -->
         <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="mb-3">
-                        <i class="bi bi-recycle" style="font-size: 3rem; color: var(--bs-primary);"></i>
-                    </div>
-                    <h3 class="fs-5">Repasa Fallos de Forma Inteligente</h3>
-                    <p class="text-muted small">Nuestra herramienta crea tests solo con las preguntas que has fallado, para un estudio 100% eficiente.</p>
-                </div>
-            </div>
+            <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-recycle" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Repasa Fallos de Forma Inteligente</h3> <p class="text-muted small">Nuestra herramienta crea tests solo con las preguntas que has fallado, para un estudio 100% eficiente.</p> </div> </div>
         </div>
-
-        <!-- Característica 4 -->
         <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="mb-3">
-                        <i class="bi bi-tools" style="font-size: 3rem; color: var(--bs-primary);"></i>
-                    </div>
-                    <h3 class="fs-5">Crea Exámenes a tu Medida</h3>
-                    <p class="text-muted small">Con el Generador de Tests, puedes crear simulacros personalizados, eligiendo los temas y el número de preguntas.</p>
-                </div>
-            </div>
+            <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-tools" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Crea Exámenes a tu Medida</h3> <p class="text-muted small">Con el Generador de Tests, puedes crear simulacros personalizados, eligiendo los temas y el número de preguntas.</p> </div> </div>
         </div>
     </div>
     
@@ -219,3 +188,99 @@
     }
 </style>
 {% endblock %}
+
+
+<!-- =============================================================== -->
+<!-- ====== INICIO: SCRIPT PARA EL GRÁFICO DE EVOLUCIÓN (NUEVO) ====== -->
+<!-- =============================================================== -->
+{% block scripts %}
+{{ super() if super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Solo ejecutamos este código si el elemento del gráfico existe en la página
+    // (es decir, si el usuario ha iniciado sesión y no es admin)
+    const chartCanvas = document.getElementById('evolucionNotasChart');
+    if (chartCanvas) {
+        
+        // Hacemos una petición a nuestra nueva ruta de la API
+        fetch("{{ url_for('main.api_evolucion_notas') }}")
+            .then(response => response.json())
+            .then(data => {
+                const ctx = chartCanvas.getContext('2d');
+                
+                // Si no hay datos, mostramos un mensaje en el canvas
+                if (!data || data.labels.length === 0) {
+                    ctx.font = "16px 'Lato', sans-serif";
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bs-body-color');
+                    ctx.textAlign = "center";
+                    ctx.fillText("Realiza algunos tests para ver tu evolución aquí.", chartCanvas.width / 2, chartCanvas.height / 2);
+                    return;
+                }
+
+                const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+                const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+                const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+
+                // Creamos el gráfico con Chart.js
+                new Chart(chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Nota Media Diaria',
+                            data: data.data,
+                            fill: true,
+                            borderColor: colorBordeGrafico,
+                            backgroundColor: colorFondoGrafico,
+                            tension: 0.3, // Suaviza la línea
+                            pointBackgroundColor: colorBordeGrafico,
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 10,
+                                ticks: { color: colorTexto },
+                                grid: { color: colorGrid }
+                            },
+                            x: {
+                                ticks: { color: colorTexto },
+                                grid: { color: colorGrid }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Ocultamos la leyenda para un look más limpio
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Nota media: ' + context.parsed.y;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error("Error al cargar los datos del gráfico:", error);
+                const ctx = chartCanvas.getContext('2d');
+                ctx.font = "16px 'Lato', sans-serif";
+                ctx.fillStyle = 'red';
+                ctx.textAlign = "center";
+                ctx.fillText("No se pudieron cargar los datos del gráfico.", chartCanvas.width / 2, chartCanvas.height / 2);
+            });
+    }
+});
+</script>
+{% endblock %}
+<!-- =============================================================== -->
+<!-- ======== FIN: SCRIPT PARA EL GRÁFICO DE EVOLUCIÓN (NUEVO) ======= -->
+<!-- =============================================================== -->
