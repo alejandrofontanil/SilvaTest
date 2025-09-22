@@ -36,10 +36,10 @@ def home():
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
-                                  convocatorias=convocatorias,
-                                  nota_media_global=nota_media_global,
-                                  ultimo_resultado=ultimo_resultado,
-                                  ultimas_favoritas=ultimas_favoritas)
+                                 convocatorias=convocatorias,
+                                 nota_media_global=nota_media_global,
+                                 ultimo_resultado=ultimo_resultado,
+                                 ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -150,6 +150,11 @@ def cuenta():
     stats_temas.sort(key=lambda x: x['porcentaje'])
     stats_bloques.sort(key=lambda x: x['porcentaje'])
 
+    # --- LÓGICA AÑADIDA PARA EL TOUR AUTOMÁTICO ---
+    # Revisa si la URL contiene el parámetro "?tour=true"
+    iniciar_tour = request.args.get('tour', 'false').lower() == 'true'
+    # -----------------------------------------------
+
     return render_template(
         'cuenta.html', title='Mi Cuenta', form=form, 
         resultados=resultados_tabla,
@@ -158,7 +163,9 @@ def cuenta():
         nota_media_global=nota_media_global,
         stats_temas=stats_temas,
         stats_bloques=stats_bloques,
-        active_tab=active_tab
+        active_tab=active_tab,
+        # Pasa la variable a la plantilla para que el script se ejecute
+        iniciar_tour_automaticamente=iniciar_tour
     )
 
 @main_bp.route('/cuenta/resetear', methods=['POST'])
@@ -170,6 +177,7 @@ def resetear_estadisticas():
     flash('¡Tus estadísticas han sido reseteadas con éxito!', 'success')
     return redirect(url_for('main.cuenta'))
 
+# ... (El resto del archivo sigue igual)
 @main_bp.route('/cuenta/favoritas')
 @login_required
 def preguntas_favoritas():
