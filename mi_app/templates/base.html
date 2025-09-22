@@ -114,11 +114,10 @@
           70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
       }
-      /* --- ESTILOS PARA EL MODO CONCENTRACIÓN --- */
+      /* --- ESTILOS PARA EL MODO CONCENTRACIÓN (CORREGIDO) --- */
       .focus-mode .navbar,
       .focus-mode footer,
-      .focus-mode .footer-border,
-      .focus-mode .breadcrumb {
+      .focus-mode .footer-border { /* <-- Se ha quitado la línea que ocultaba ".breadcrumb" */
           display: none !important;
       }
       .focus-mode main.container {
@@ -355,8 +354,6 @@
             const timerDisplay = document.getElementById('pomodoro-timer');
             let pomodoroInterval;
 
-            // --- Lógica del Temporizador Persistente ---
-
             function stopPomodoro() {
                 clearInterval(pomodoroInterval);
                 localStorage.removeItem('pomodoroEndTime');
@@ -370,16 +367,16 @@
                 pomodoroInterval = setInterval(() => {
                     const endTime = localStorage.getItem('pomodoroEndTime');
                     if (!endTime) {
-                        stopPomodoro();
+                        clearInterval(pomodoroInterval);
                         return;
                     }
 
-                    const remainingTime = endTime - Date.now();
+                    const remainingTime = parseInt(endTime) - Date.now();
                     if (remainingTime < 0) {
                         stopPomodoro();
                         if (localStorage.getItem('focusMode') === 'true') {
                             localStorage.setItem('focusMode', 'false');
-                            applyFocusMode('false');
+                            body.classList.remove('focus-mode');
                             Swal.fire({
                                 title: '¡Tiempo finalizado!',
                                 text: 'Tu sesión de concentración de 20 minutos ha terminado. ¡Buen trabajo!',
@@ -406,39 +403,40 @@
                 runPomodoroTick();
             }
             
-            // --- Lógica del Modo Concentración ---
+            // --- Lógica de Inicialización Reforzada ---
 
-            function applyFocusMode(state) {
-                if (state === 'true') {
-                    body.classList.add('focus-mode');
-                    const existingEndTime = localStorage.getItem('pomodoroEndTime');
-                    if (!existingEndTime || Date.now() >= parseInt(existingEndTime)) {
-                        startPomodoro();
-                    } else {
-                        runPomodoroTick();
-                    }
-                } else {
-                    body.classList.remove('focus-mode');
-                    stopPomodoro();
-                }
-            }
-
-            // --- Inicialización al cargar la página ---
-            const initialState = localStorage.getItem('focusMode');
-            applyFocusMode(initialState);
-            
+            // 1. Asignar eventos a los botones
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'true');
-                    applyFocusMode('true');
+                    body.classList.add('focus-mode');
+                    startPomodoro();
                 });
             }
             if (exitFocusBtn) {
                 exitFocusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'false');
-                    applyFocusMode('false');
+                    body.classList.remove('focus-mode');
+                    stopPomodoro();
                 });
             }
+
+            // 2. Al cargar la página, comprobar el estado
+            document.addEventListener('DOMContentLoaded', function() {
+                // Primero, aplicar el estado visual
+                if (localStorage.getItem('focusMode') === 'true') {
+                    body.classList.add('focus-mode');
+                }
+
+                // Segundo, comprobar si hay un temporizador que deba continuar
+                const endTime = localStorage.getItem('pomodoroEndTime');
+                if (endTime && Date.now() < parseInt(endTime)) {
+                    runPomodoroTick(); // Reanudar el contador si es válido
+                } else {
+                    // Si el tiempo ya pasó o no hay, nos aseguramos de que todo esté limpio
+                    stopPomodoro();
+                }
+            });
         })();
     </script>
 
