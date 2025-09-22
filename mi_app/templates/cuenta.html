@@ -21,6 +21,7 @@
                 <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
                     <i class="bi bi-robot me-2"></i>Analizador Inteligente <span class="badge bg-primary ms-1">Nuevo</span>
                 </a>
+                
                 <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
                 <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
                 <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
@@ -53,7 +54,7 @@
 
         <div class="tab-content">
             <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
-                <div class="card shadow-sm">
+                 <div class="card shadow-sm">
                     <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
                     <div class="card-body">
                         {% if datos_grafico and labels_grafico %}
@@ -189,7 +190,20 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header"><h5 class="mb-0">Preferencias de Notificaciones</h5></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.guardar_preferencias') }}">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="resumenSemanal" name="resumen_semanal" {% if current_user.recibir_resumen_semanal %}checked{% endif %}>
+                        <label class="form-check-label" for="resumenSemanal">Recibir un resumen semanal de mi progreso por email.</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-3">Guardar Preferencias</button>
+                </form>
             </div>
+        </div>
 
         <div class="card shadow-sm mt-4 border-danger zona-peligro">
             <div class="card-header bg-danger text-white">
