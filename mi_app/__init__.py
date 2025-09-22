@@ -8,19 +8,23 @@ from sqlalchemy import inspect
 import os
 import cloudinary
 from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail  # <--- 1. AÑADIR ESTA IMPORTACIÓN
 
 # Inicializamos las extensiones
 db = SQLAlchemy()
 bcrypt = Bcrypt()
 login_manager = LoginManager()
+mail = Mail()  # <--- 2. AÑADIR ESTA LÍNEA
 migrate = Migrate()
 oauth = OAuth()
 csrf = CSRFProtect()
+
 
 @login_manager.user_loader
 def load_user(user_id):
     from .models import Usuario
     return Usuario.query.get(int(user_id))
+
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -37,10 +41,18 @@ def create_app():
     app.config['RECAPTCHA_PUBLIC_KEY'] = os.environ.get('RECAPTCHA_PUBLIC_KEY')
     app.config['RECAPTCHA_PRIVATE_KEY'] = os.environ.get('RECAPTCHA_PRIVATE_KEY')
 
+    # <--- 3. AÑADIR LA CONFIGURACIÓN DEL CORREO ---
+    app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
+    app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+    app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+
     # Conectamos las extensiones con la app
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
+    mail.init_app(app)  # <--- 4. AÑADIR ESTA LÍNEA
     migrate.init_app(app, db)
     oauth.init_app(app)
     csrf.init_app(app)
@@ -56,9 +68,9 @@ def create_app():
 
     # --- CONFIGURACIÓN DE CLOUDINARY ---
     cloudinary.config(
-        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
-        api_key = os.environ.get('CLOUDINARY_API_KEY'),
-        api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        api_key=os.environ.get('CLOUDINARY_API_KEY'),
+        api_secret=os.environ.get('CLOUDINARY_API_SECRET')
     )
 
     login_manager.login_view = 'auth.login'
@@ -83,12 +95,11 @@ def create_app():
             if not invitado:
                 print("Creando usuario 'Invitado'...")
                 invitado = Usuario(nombre='Invitado', email='invitado@example.com')
-                invitado.password = '13579' # Usamos el @password.setter del modelo
+                invitado.password = '13579'
                 db.session.add(invitado)
                 db.session.commit()
                 print("¡Usuario 'Invitado' creado con éxito!")
             else:
-                # Si ya existe, nos aseguramos de que tenga la contraseña correcta
                 if not invitado.check_password('13579'):
                     print("Actualizando contraseña del usuario 'Invitado'...")
                     invitado.password = '13579'
@@ -98,11 +109,10 @@ def create_app():
                     print("El usuario 'Invitado' ya existe y tiene la contraseña correcta.")
 
         except Exception as e:
-            # Esto puede pasar si la base de datos aún no está lista durante el despliegue.
             print(f"AVISO: No se pudo verificar/crear el usuario invitado al arrancar: {e}")
             db.session.rollback()
         # --- FIN DE LA LÓGICA MEJORADA ---
-            
+
     # Manejadores de Errores
     @app.errorhandler(404)
     def not_found_error(error):
