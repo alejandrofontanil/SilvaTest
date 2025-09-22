@@ -36,10 +36,10 @@ def home():
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
-                                 convocatorias=convocatorias,
-                                 nota_media_global=nota_media_global,
-                                 ultimo_resultado=ultimo_resultado,
-                                 ultimas_favoritas=ultimas_favoritas)
+                                  convocatorias=convocatorias,
+                                  nota_media_global=nota_media_global,
+                                  ultimo_resultado=ultimo_resultado,
+                                  ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -105,6 +105,7 @@ def cuenta():
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
     if convocatoria_id != 0:
         query_resultados = query_resultados.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
+    
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
@@ -199,12 +200,14 @@ def hacer_test(tema_id):
     if not preguntas_test:
         flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
         return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
+    
     random.shuffle(preguntas_test)
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
+    
     return render_template('hacer_test.html', 
                            title=f"Test de {tema.nombre}", 
                            tema=tema, 
@@ -218,15 +221,18 @@ def corregir_test(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
+    
     preguntas_en_test = obtener_preguntas_recursivas(tema)
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
     if not preguntas_en_test:
         flash('No se puede corregir un test sin preguntas.', 'warning')
         return redirect(url_for('main.home'))
+    
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
+    
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -245,11 +251,14 @@ def corregir_test(tema_id):
             if respuesta_texto_usuario is not None:
                 respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
                 db.session.add(respuesta_usuario)
+        
         if es_correcta:
             aciertos += 1
+            
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     db.session.commit()
+    
     flash(f'¡Test finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
@@ -292,10 +301,12 @@ def corregir_repaso_global():
     aciertos = 0
     ids_preguntas_enviadas = [key.split('-')[1] for key in request.form if key.startswith('pregunta-')]
     total_preguntas = len(ids_preguntas_enviadas)
+    
     for pregunta_id in ids_preguntas_enviadas:
         respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta_id}')
         pregunta = Pregunta.query.get(pregunta_id)
         es_correcta = False
+        
         if pregunta.tipo_pregunta == 'opcion_multiple':
             if respuesta_texto_usuario:
                 respuesta_marcada = Respuesta.query.get(int(respuesta_texto_usuario))
@@ -305,11 +316,13 @@ def corregir_repaso_global():
             if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
                respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
                 es_correcta = True
+        
         if es_correcta:
             aciertos += 1
             respuestas_a_limpiar = RespuestaUsuario.query.filter_by(autor=current_user, pregunta_id=pregunta_id, es_correcta=False).all()
             for r in respuestas_a_limpiar:
                 db.session.delete(r)
+                
     db.session.commit()
     nota_string = f"Has acertado {aciertos} de {total_preguntas}."
     flash(f'¡Repaso finalizado! {nota_string}', 'success')
@@ -322,9 +335,11 @@ def comprobar_respuesta():
     id_respuesta = datos.get('respuesta_id')
     if not id_respuesta:
         return jsonify({'error': 'No se recibió ID de respuesta'}), 400
+    
     respuesta = Respuesta.query.get(id_respuesta)
     if not respuesta:
         return jsonify({'error': 'Respuesta no encontrada'}), 404
+    
     if respuesta.es_correcta:
         return jsonify({'es_correcta': True, 'retroalimentacion': respuesta.pregunta.retroalimentacion})
     else:
@@ -366,27 +381,35 @@ def generador_simulacro():
     if form.validate_on_submit():
         preguntas_para_el_test_ids = []
         temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
+        
         if not temas_seleccionados_ids:
             flash('Debes seleccionar al menos un tema.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
+            
         for tema_id in temas_seleccionados_ids:
             try:
                 num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
             except (ValueError, TypeError):
                 num_preguntas = 10
+            
             if num_preguntas == 0:
                 continue
+
             tema = Tema.query.get_or_404(tema_id)
             preguntas_disponibles = obtener_preguntas_recursivas(tema)
             num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
+            
             if num_a_seleccionar > 0:
                 preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
                 preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
+                
         if not preguntas_para_el_test_ids:
             flash('No se pudieron generar preguntas con los criterios seleccionados.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
+        
         session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
         return redirect(url_for('main.simulacro_personalizado_test'))
+    
     convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
     return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles, form=form)
 
@@ -397,13 +420,16 @@ def simulacro_personalizado_test():
     if not ids_preguntas:
         flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
         return redirect(url_for('main.generador_simulacro'))
+    
     preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).all()
     random.shuffle(preguntas_test)
+    
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
+            
     form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
     return render_template('hacer_test.html', 
@@ -420,9 +446,11 @@ def corregir_simulacro_personalizado():
     if not ids_preguntas_en_test:
         flash('La sesión de tu simulacro ha expirado. Por favor, genera uno nuevo.', 'danger')
         return redirect(url_for('main.generador_simulacro'))
+    
     preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
     aciertos = 0
     total_preguntas = len(preguntas_en_test)
+    
     tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
     if not tema_simulacro_personalizado:
         bloque_general = Bloque.query.filter_by(nombre="General").first()
@@ -438,9 +466,11 @@ def corregir_simulacro_personalizado():
         tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
         db.session.add(tema_simulacro_personalizado)
         db.session.commit()
+        
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
+    
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -459,25 +489,31 @@ def corregir_simulacro_personalizado():
             if respuesta_texto_usuario is not None:
                 respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
                 db.session.add(respuesta_usuario)
+        
         if es_correcta:
             aciertos += 1
+            
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     session.pop('id_preguntas_simulacro', None)
     db.session.commit()
+    
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
-# === NUEVA RUTA AÑADIDA ===
+# === CÓDIGO CORREGIDO ===
 @main_bp.route('/guardar_preferencias', methods=['POST'])
 @login_required
 def guardar_preferencias():
-    recibir_resumen = request.form.get('resumen_semanal')
-    current_user.recibir_resumen_semanal = True if recibir_resumen else False
-    db.session.commit()
+    # La forma correcta de comprobar un checkbox es ver si existe en el form
+    recibir_resumen = 'resumen_semanal' in request.form
+    
+    current_user.recibir_resumen_semanal = recibir_resumen
+    db.session.commit() # ¡Esta es la línea clave que guarda en la BBDD!
+    
     flash('Tus preferencias han sido guardadas.', 'success')
     return redirect(url_for('main.cuenta'))
-# === FIN DE LA NUEVA RUTA ===
+# === FIN DEL CÓDIGO ===
 
 @main_bp.route('/sw.js')
 def sw():
