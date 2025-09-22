@@ -196,7 +196,8 @@
             <div class="card-header"><h5 class="mb-0">Preferencias de Notificaciones</h5></div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('main.guardar_preferencias') }}">
-                    {{ csrf_token() }}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="resumenSemanal" name="resumen_semanal" {% if current_user.recibir_resumen_semanal %}checked{% endif %}>
                         <label class="form-check-label" for="resumenSemanal">Recibir un resumen semanal de mi progreso por email.</label>
