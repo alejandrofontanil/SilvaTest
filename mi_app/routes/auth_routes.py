@@ -4,10 +4,11 @@ from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm
 import secrets
-from urllib.parse import urlparse, urljoin # <-- IMPORTACIÓN AÑADIDA
+from urllib.parse import urlparse, urljoin
+from sqlalchemy import or_  # <-- 1. IMPORTACIÓN AÑADIDA
 
 auth_bp = Blueprint('auth', __name__,
-                    template_folder='../templates/auth', 
+                    template_folder='../templates/auth',
                     url_prefix='/auth')
 
 # --- FUNCIÓN DE SEGURIDAD AÑADIDA ---
@@ -44,11 +45,13 @@ def login():
         return redirect(url_for('main.home'))
     form = LoginForm()
     if form.validate_on_submit():
-        email_o_usuario = form.email.data.lower().strip()
+        # <-- 2. LÓGICA DE LOGIN MODIFICADA ---
+        identifier = form.email.data.strip()  # Mantenemos mayúsculas/minúsculas para el nombre de usuario
         password = form.password.data
 
         # --- CASO ESPECIAL PARA EL USUARIO INVITADO ---
-        if email_o_usuario == 'invitado' and password == 'invitado':
+        # Se comprueba antes de la búsqueda en la base de datos
+        if identifier.lower() == 'invitado' and password == 'invitado':
             usuario_invitado = Usuario.query.filter_by(nombre='Invitado').first()
             if usuario_invitado:
                 login_user(usuario_invitado, remember=False)
@@ -59,7 +62,8 @@ def login():
                 return redirect(url_for('auth.login'))
         # --- FIN DEL CASO ESPECIAL ---
         
-        usuario = Usuario.query.filter_by(email=email_o_usuario).first()
+        # Se busca un usuario cuyo nombre de usuario (sensible a mayúsculas) O email (insensible) coincidan
+        usuario = Usuario.query.filter(or_(Usuario.nombre == identifier, Usuario.email == identifier.lower())).first()
 
         if usuario and usuario.password_hash == 'OAUTH_NO_PASSWORD':
             flash('Esa cuenta fue creada con Google. Por favor, utiliza el botón "Iniciar Sesión con Google".', 'info')
@@ -77,7 +81,8 @@ def login():
             flash('¡Has iniciado sesión con éxito!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
-            flash('Inicio de sesión fallido. Por favor, comprueba tu email y contraseña.', 'danger')
+            # <-- 3. MENSAJE DE ERROR ACTUALIZADO ---
+            flash('Inicio de sesión fallido. Por favor, comprueba tu email/usuario y contraseña.', 'danger')
             
     return render_template('login.html', title='Iniciar Sesión', form=form)
 

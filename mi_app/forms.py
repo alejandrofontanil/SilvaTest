@@ -4,7 +4,7 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Radi
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from wtforms_sqlalchemy.fields import QuerySelectField
-from .models import Bloque, Tema, Usuario # <-- IMPORTACIÓN AÑADIDA
+from .models import Bloque, Tema, Usuario
 
 def bloques_query():
     return Bloque.query
@@ -19,8 +19,8 @@ class ConvocatoriaForm(FlaskForm):
 
 class BloqueForm(FlaskForm):
     nombre = StringField('Nombre del Bloque',
-                       validators=[DataRequired(),
-                                   Length(min=3, max=200)])
+                         validators=[DataRequired(),
+                                     Length(min=3, max=200)])
     submit = SubmitField('Guardar Bloque')
 
 class TemaForm(FlaskForm):
@@ -75,7 +75,6 @@ class RegistrationForm(FlaskForm):
     recaptcha = RecaptchaField()
     submit = SubmitField('Crear Cuenta')
 
-    # --- MÉTODO AÑADIDO CON LA MEJORA ---
     def validate_email(self, email):
         """
         Comprueba si ya existe un usuario con este email en la base de datos.
@@ -83,14 +82,17 @@ class RegistrationForm(FlaskForm):
         usuario = Usuario.query.filter_by(email=email.data.lower()).first()
         if usuario:
             raise ValidationError('Ya existe una cuenta con ese correo electrónico. Por favor, inicia sesión o utiliza otro email.')
-    # --- FIN DE LA MEJORA ---
 
 
+# --- LoginForm MODIFICADO ---
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    # 1. Etiqueta del campo actualizada para mayor claridad
+    # 2. Se ha eliminado el validador de Email() para permitir nombres de usuario
+    email = StringField('Email o Nombre de Usuario', validators=[DataRequired()])
     password = PasswordField('Contraseña', validators=[DataRequired()])
     remember = BooleanField('Recuérdame')
     submit = SubmitField('Iniciar Sesión')
+# --- FIN DE LA MODIFICACIÓN ---
 
 class PreguntaForm(FlaskForm):
     texto = TextAreaField('Enunciado de la Pregunta',
