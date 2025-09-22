@@ -172,6 +172,26 @@
               display: none !important;
           }
       }
+      
+      /* --- AÑADIDO: ESTILOS PARA EL BANNER DE INSTALACIÓN PWA --- */
+      #ios-install-prompt {
+        display: none; /* Oculto por defecto */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--bs-light-bg-subtle, #FFFFFF);
+        color: var(--bs-body-color);
+        border-top: 1px solid var(--bs-border-color);
+        z-index: 1000;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+        transform: translateY(100%);
+      }
+      #ios-install-prompt.show {
+        /* display: block; No es necesario si el script lo maneja */
+        transform: translateY(0);
+      }
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
@@ -270,6 +290,17 @@
         </svg>
     </div>
 
+    <div id="ios-install-prompt" class="p-3">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="50" height="50" class="me-3">
+            <div class="flex-grow-1">
+                <p class="fw-bold mb-1">Instala SilvaTest en tu dispositivo</p>
+                <p class="small mb-0">Toca el icono <i class="bi bi-box-arrow-up"></i> y luego "Añadir a la pantalla de inicio".</p>
+            </div>
+            <button type="button" id="close-ios-prompt" class="btn-close ms-2" aria-label="Cerrar"></button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
@@ -364,17 +395,6 @@
         {% endif %}
     {% endwith %}
 
-    <div id="ios-install-prompt" class="p-3">
-        <div class="d-flex align-items-center">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="50" height="50" class="me-3">
-            <div class="flex-grow-1">
-                <p class="fw-bold mb-1">Instala SilvaTest en tu dispositivo</p>
-                <p class="small mb-0">Toca el icono <i class="bi bi-box-arrow-up"></i> y luego "Añadir a la pantalla de inicio".</p>
-            </div>
-            <button type="button" id="close-ios-prompt" class="btn-close ms-2" aria-label="Cerrar"></button>
-        </div>
-    </div>
-    
     <script>
         (function() {
             const focusBtn = document.getElementById('focus-mode-btn');
@@ -462,33 +482,37 @@
         })();
 
         (function() {
-            function isIOS() {
+          // Función para detectar si es un dispositivo iOS (iPhone, iPad, iPod)
+          function isIOS() {
             return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-            }
+          }
 
-            function isInStandaloneMode() {
+          // Función para detectar si la app ya está en modo "instalado" (standalone)
+          function isInStandaloneMode() {
             return ('standalone' in window.navigator) && (window.navigator.standalone);
-            }
+          }
 
-            if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
+          // Solo muestra el aviso si es iOS, no está ya instalada, y no ha sido descartada antes
+          if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
             
             const promptElement = document.getElementById('ios-install-prompt');
             const closeButton = document.getElementById('close-ios-prompt');
 
             if (promptElement && closeButton) {
-                setTimeout(function() {
-                promptElement.style.display = 'block';
-                setTimeout(function() { 
-                    promptElement.classList.add('show');
-                }, 100);
-                }, 5000);
+              // Espera 5 segundos antes de mostrar el aviso
+              setTimeout(function() {
+                promptElement.classList.add('show');
+              }, 5000);
 
-                closeButton.addEventListener('click', function() {
+              // Lógica para cerrar el aviso y recordarlo
+              closeButton.addEventListener('click', function() {
                 promptElement.classList.remove('show');
                 localStorage.setItem('iosInstallPromptDismissed', 'true');
-                });
+                // Añadido para que la transición de salida funcione
+                setTimeout(() => { promptElement.style.display = 'none'; }, 300);
+              });
             }
-            }
+          }
         })();
     </script>
 
