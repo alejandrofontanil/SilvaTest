@@ -535,3 +535,38 @@ def debug_db():
         output += f"<tr><td>{usuario.id}</td><td>{usuario.email}</td><td><b>{usuario.recibir_resumen_semanal}</b></td></tr>"
     output += "</table>"
     return output
+
+# === NUEVA RUTA PARA DATOS DEL GRÁFICO ===
+@main_bp.route('/api/evolucion-notas')
+@login_required
+def api_evolucion_notas():
+    """
+    Esta ruta devuelve los datos de la evolución de notas del usuario
+    en formato JSON para que Chart.js los pueda usar.
+    """
+    from datetime import datetime, timedelta
+
+    # Filtramos los resultados de los últimos 30 días
+    fecha_inicio = datetime.utcnow() - timedelta(days=30)
+
+    resultados_periodo = ResultadoTest.query.filter(
+        ResultadoTest.autor == current_user,
+        ResultadoTest.fecha >= fecha_inicio
+    ).order_by(ResultadoTest.fecha.asc()).all()
+
+    # Agrupamos los resultados por día y calculamos la nota media
+    resultados_agrupados = defaultdict(list)
+    for resultado in resultados_periodo:
+        resultados_agrupados[resultado.fecha.date()].append(resultado.nota)
+
+    notas_medias_por_dia = {
+        fecha: sum(notas) / len(notas)
+        for fecha, notas in resultados_agrupados.items()
+    }
+
+    # Preparamos los datos para el gráfico
+    dias_ordenados = sorted(notas_medias_por_dia.keys())
+    labels_grafico = [dia.strftime('%d/%m') for dia in dias_ordenados]
+    datos_grafico = [round(notas_medias_por_dia[dia], 2) for dia in dias_ordenados]
+
+    return jsonify({'labels': labels_grafico, 'data': datos_grafico})
