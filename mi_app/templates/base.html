@@ -143,6 +143,11 @@
                     <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
                 {% else %}
+                    <li class="nav-item">
+                        <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
+                            <i class="bi bi-compass"></i> Visita Guiada
+                        </a>
+                    </li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
                 {% endif %}
@@ -174,7 +179,6 @@
     <footer class="container mt-auto py-4">
         <ul class="nav justify-content-center border-top pt-3 mb-3">
           <li class="nav-item"><a href="{{ url_for('main.home') }}" class="nav-link px-2 text-body-secondary">Home</a></li>
-          <li class="nav-item"><a href="#" id="iniciar-tour" class="nav-link px-2 text-body-secondary">Visita Guiada</a></li>
           <li class="nav-item"><a href="{{ url_for('main.terminos_condiciones') }}" class="nav-link px-2 text-body-secondary">Términos</a></li>
           <li class="nav-item"><a href="{{ url_for('main.politica_privacidad') }}" class="nav-link px-2 text-body-secondary">Privacidad</a></li>
         </ul>
@@ -285,19 +289,6 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const botonTour = document.getElementById('iniciar-tour');
-            if (botonTour) {
-                botonTour.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    // Llama a la función que está en tu fichero tour.js
-                    iniciarVisitaGuiada();
-                });
-            }
-        });
-    </script>
 
     {% endblock %}
   </body>
