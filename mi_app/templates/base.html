@@ -115,10 +115,9 @@
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
       }
       
-      /* --- ESTILOS PARA EL MODO CONCENTRACIÓN (CORREGIDO) --- */
       .focus-mode .navbar,
       .focus-mode footer,
-      .focus-mode .footer-border { /* <-- Se ha quitado la línea que ocultaba ".breadcrumb" */
+      .focus-mode .footer-border {
           display: none !important;
       }
       
@@ -138,7 +137,6 @@
           display: block;
       }
 
-      /* --- CSS PARA EL TEMPORIZADOR POMODORO --- */
       #pomodoro-timer {
         display: none;
         position: fixed;
@@ -155,6 +153,34 @@
       }
       .focus-mode #pomodoro-timer {
         display: block;
+      }
+
+      /* --- NUEVO: ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
+      @media (max-width: 768px) {
+          .shepherd-element {
+              max-width: 90vw !important;
+              left: 50% !important;
+              transform: translateX(-50%) !important;
+              margin: 0 auto;
+          }
+          .shepherd-text {
+              font-size: 0.95rem;
+              padding: 0.5em 1em;
+          }
+          .shepherd-title {
+              font-size: 1.1rem;
+          }
+          .shepherd-element[data-popper-placement^="left"],
+          .shepherd-element[data-popper-placement^="right"] {
+              top: auto !important;
+              bottom: 60px !important;
+              left: 50% !important;
+              transform: translateX(-50%) !important;
+          }
+          .shepherd-element[data-popper-placement^="left"] .shepherd-arrow,
+          .shepherd-element[data-popper-placement^="right"] .shepherd-arrow {
+              display: none;
+          }
       }
     </style>
   </head>
@@ -405,9 +431,6 @@
                 runPomodoroTick();
             }
             
-            // --- Lógica de Inicialización Reforzada ---
-
-            // 1. Asignar eventos a los botones
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'true');
@@ -423,19 +446,15 @@
                 });
             }
 
-            // 2. Al cargar la página, comprobar el estado
             document.addEventListener('DOMContentLoaded', function() {
-                // Primero, aplicar el estado visual
                 if (localStorage.getItem('focusMode') === 'true') {
                     body.classList.add('focus-mode');
                 }
 
-                // Segundo, comprobar si hay un temporizador que deba continuar
                 const endTime = localStorage.getItem('pomodoroEndTime');
                 if (endTime && Date.now() < parseInt(endTime)) {
-                    runPomodoroTick(); // Reanudar el contador si es válido
+                    runPomodoroTick();
                 } else {
-                    // Si el tiempo ya pasó o no hay, nos aseguramos de que todo esté limpio
                     stopPomodoro();
                 }
             });
