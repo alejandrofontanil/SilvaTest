@@ -359,14 +359,14 @@
 
             function stopPomodoro() {
                 clearInterval(pomodoroInterval);
-                localStorage.removeItem('pomodoroEndTime'); // Clave: Limpia el localStorage
+                localStorage.removeItem('pomodoroEndTime');
                 if (timerDisplay) {
                     timerDisplay.textContent = '20:00';
                 }
             }
             
             function runPomodoroTick() {
-                clearInterval(pomodoroInterval); // Limpia cualquier intervalo anterior
+                clearInterval(pomodoroInterval);
                 pomodoroInterval = setInterval(() => {
                     const endTime = localStorage.getItem('pomodoroEndTime');
                     if (!endTime) {
@@ -375,17 +375,18 @@
                     }
 
                     const remainingTime = endTime - Date.now();
-
-                    if (remainingTime <= 0) {
+                    if (remainingTime < 0) {
                         stopPomodoro();
-                        localStorage.setItem('focusMode', 'false');
-                        applyFocusMode('false');
-                        Swal.fire({
-                            title: '¡Tiempo finalizado!',
-                            text: 'Tu sesión de concentración de 20 minutos ha terminado. ¡Buen trabajo!',
-                            icon: 'success',
-                            confirmButtonText: 'Entendido'
-                        });
+                        if (localStorage.getItem('focusMode') === 'true') {
+                            localStorage.setItem('focusMode', 'false');
+                            applyFocusMode('false');
+                            Swal.fire({
+                                title: '¡Tiempo finalizado!',
+                                text: 'Tu sesión de concentración de 20 minutos ha terminado. ¡Buen trabajo!',
+                                icon: 'success',
+                                confirmButtonText: 'Entendido'
+                            });
+                        }
                         return;
                     }
 
@@ -405,14 +406,16 @@
                 runPomodoroTick();
             }
             
-            // --- Lógica del Modo Concentración (Modificada) ---
+            // --- Lógica del Modo Concentración ---
 
             function applyFocusMode(state) {
                 if (state === 'true') {
                     body.classList.add('focus-mode');
-                    // Inicia el temporizador SÓLO si no hay uno ya activo
-                    if (!localStorage.getItem('pomodoroEndTime')) {
+                    const existingEndTime = localStorage.getItem('pomodoroEndTime');
+                    if (!existingEndTime || Date.now() >= parseInt(existingEndTime)) {
                         startPomodoro();
+                    } else {
+                        runPomodoroTick();
                     }
                 } else {
                     body.classList.remove('focus-mode');
@@ -420,22 +423,10 @@
                 }
             }
 
-            // --- Código de inicialización (se ejecuta al cargar cada página) ---
-            
-            // Reanuda el contador si la página se recarga en modo concentración
-            const initialEndTime = localStorage.getItem('pomodoroEndTime');
-            if (initialEndTime && Date.now() < initialEndTime && localStorage.getItem('focusMode') === 'true') {
-                runPomodoroTick();
-            } else if (initialEndTime && Date.now() >= initialEndTime) {
-                // Limpia si el tiempo ya pasó
-                stopPomodoro();
-            }
-            
-            // Aplica el estado visual del modo concentración
+            // --- Inicialización al cargar la página ---
             const initialState = localStorage.getItem('focusMode');
             applyFocusMode(initialState);
             
-            // Asigna eventos a los botones
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'true');

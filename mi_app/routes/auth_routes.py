@@ -51,7 +51,7 @@ def login():
 
         # --- CASO ESPECIAL PARA EL USUARIO INVITADO ---
         # Se comprueba antes de la búsqueda en la base de datos
-        if identifier.lower() == 'invitado' and password == 'invitado':
+        if identifier.lower() == 'invitado' and password == '13579':
             usuario_invitado = Usuario.query.filter_by(nombre='Invitado').first()
             if usuario_invitado:
                 login_user(usuario_invitado, remember=False)
