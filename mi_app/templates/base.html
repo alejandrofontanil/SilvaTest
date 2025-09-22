@@ -166,16 +166,23 @@
             </ul>
             <ul class="navbar-nav ms-auto align-items-center">
                 {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
-                {% else %}
+                    
+                    {% if not current_user.es_admin %}
                     <li class="nav-item">
                         <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
                             <i class="bi bi-compass"></i> Visita Guiada
                         </a>
                     </li>
+                    {% endif %}
+
+                    <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+                
+                {% else %}
+                    
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
+                
                 {% endif %}
                 <li class="nav-item">
                     <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">

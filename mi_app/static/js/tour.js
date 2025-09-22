@@ -3,7 +3,7 @@
 // Tour para la página de inicio (home.html)
 function iniciarVisitaGuiada() {
     const tourHome = new Shepherd.Tour({
-        use  ModalOverlay: true,
+        useModalOverlay: true, // CORREGIDO: Error de sintaxis
         defaultStepOptions: {
             classes: 'shadow-md bg-purple-dark',
             scrollTo: true,
@@ -28,7 +28,8 @@ function iniciarVisitaGuiada() {
     tourHome.addStep({
         id: 'elige-examen',
         text: 'Todo empieza aquí. Selecciona la oposición o licencia que quieres preparar para ver su temario y empezar a practicar.',
-        attachTo: { element: '.grid-examenes > div:first-child', on: 'top' }, // Apunta al primer card visible
+        // CORREGIDO: El selector ahora apunta al contenedor correcto en tu HTML
+        attachTo: { element: '.row.g-4 > .col-lg-6:first-child', on: 'top' },
         buttons: [
             {
                 action() { return this.back(); },
@@ -82,7 +83,7 @@ function iniciarVisitaGuiada() {
 // Tour para la página "Mi Cuenta" (cuenta.html)
 function iniciarTourCuenta() {
     const tourCuenta = new Shepherd.Tour({
-        use  ModalOverlay: true,
+        useModalOverlay: true, // CORREGIDO: Error de sintaxis
         defaultStepOptions: {
             classes: 'shadow-md bg-purple-dark',
             scrollTo: true,
