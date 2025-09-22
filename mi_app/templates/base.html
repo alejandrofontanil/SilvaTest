@@ -137,7 +137,7 @@
           display: block;
       }
 
-      /* --- CSS AÑADIDO PARA EL TEMPORIZADOR POMODORO --- */
+      /* --- CSS PARA EL TEMPORIZADOR POMODORO --- */
       #pomodoro-timer {
         display: none;
         position: fixed;
@@ -155,14 +155,15 @@
       .focus-mode #pomodoro-timer {
         display: block;
       }
-      /* ------------------------------------------------ */
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
 
     <div id="pomodoro-timer">20:00</div>
+    
     <button id="exit-focus-btn" class="btn btn-light btn-lg" title="Salir del Modo Concentración">
-        <i class="bi bi-box-arrow-in-up-right"></i> Salir del Modo Concentración
+        <i class="bi bi-box-arrow-in-up-right"></i>
+        <span class="d-none d-sm-inline"> Salir del Modo Concentración</span>
     </button>
 
     <nav class="navbar navbar-expand-lg sticky-top">
@@ -351,62 +352,90 @@
             const focusBtn = document.getElementById('focus-mode-btn');
             const exitFocusBtn = document.getElementById('exit-focus-btn');
             const body = document.body;
-
-            /* --- JAVASCRIPT AÑADIDO PARA EL TEMPORIZADOR --- */
             const timerDisplay = document.getElementById('pomodoro-timer');
             let pomodoroInterval;
-            let pomodoroTime = 20 * 60; // 20 minutos en segundos
+
+            // --- Lógica del Temporizador Persistente ---
 
             function stopPomodoro() {
                 clearInterval(pomodoroInterval);
-                pomodoroTime = 20 * 60; // Resetea el tiempo
-                if(timerDisplay) {
+                localStorage.removeItem('pomodoroEndTime'); // Clave: Limpia el localStorage
+                if (timerDisplay) {
                     timerDisplay.textContent = '20:00';
                 }
             }
-
-            function startPomodoro() {
-                stopPomodoro(); // Asegura que no hay otro temporizador activo
-                
+            
+            function runPomodoroTick() {
+                clearInterval(pomodoroInterval); // Limpia cualquier intervalo anterior
                 pomodoroInterval = setInterval(() => {
-                    pomodoroTime--;
-                    const minutes = Math.floor(pomodoroTime / 60);
-                    let seconds = pomodoroTime % 60;
-                    seconds = seconds < 10 ? '0' + seconds : seconds;
-                    
-                    if(timerDisplay) {
-                        timerDisplay.textContent = `${minutes}:${seconds}`;
+                    const endTime = localStorage.getItem('pomodoroEndTime');
+                    if (!endTime) {
+                        stopPomodoro();
+                        return;
                     }
 
-                    if (pomodoroTime <= 0) {
+                    const remainingTime = endTime - Date.now();
+
+                    if (remainingTime <= 0) {
                         stopPomodoro();
-                        // Salir del modo concentración automáticamente
                         localStorage.setItem('focusMode', 'false');
                         applyFocusMode('false');
-                        // Notificación con SweetAlert2
                         Swal.fire({
                             title: '¡Tiempo finalizado!',
                             text: 'Tu sesión de concentración de 20 minutos ha terminado. ¡Buen trabajo!',
                             icon: 'success',
                             confirmButtonText: 'Entendido'
                         });
+                        return;
+                    }
+
+                    const minutes = Math.floor((remainingTime / 1000) / 60);
+                    let seconds = Math.floor((remainingTime / 1000) % 60);
+                    seconds = seconds < 10 ? '0' + seconds : seconds;
+                    
+                    if (timerDisplay) {
+                        timerDisplay.textContent = `${minutes}:${seconds}`;
                     }
                 }, 1000);
             }
-            /* ------------------------------------------- */
+
+            function startPomodoro() {
+                const endTime = Date.now() + 20 * 60 * 1000;
+                localStorage.setItem('pomodoroEndTime', endTime);
+                runPomodoroTick();
+            }
+            
+            // --- Lógica del Modo Concentración (Modificada) ---
 
             function applyFocusMode(state) {
                 if (state === 'true') {
                     body.classList.add('focus-mode');
-                    startPomodoro(); // Inicia el temporizador
+                    // Inicia el temporizador SÓLO si no hay uno ya activo
+                    if (!localStorage.getItem('pomodoroEndTime')) {
+                        startPomodoro();
+                    }
                 } else {
                     body.classList.remove('focus-mode');
-                    stopPomodoro(); // Detiene el temporizador
+                    stopPomodoro();
                 }
             }
+
+            // --- Código de inicialización (se ejecuta al cargar cada página) ---
+            
+            // Reanuda el contador si la página se recarga en modo concentración
+            const initialEndTime = localStorage.getItem('pomodoroEndTime');
+            if (initialEndTime && Date.now() < initialEndTime && localStorage.getItem('focusMode') === 'true') {
+                runPomodoroTick();
+            } else if (initialEndTime && Date.now() >= initialEndTime) {
+                // Limpia si el tiempo ya pasó
+                stopPomodoro();
+            }
+            
+            // Aplica el estado visual del modo concentración
             const initialState = localStorage.getItem('focusMode');
             applyFocusMode(initialState);
-
+            
+            // Asigna eventos a los botones
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'true');
