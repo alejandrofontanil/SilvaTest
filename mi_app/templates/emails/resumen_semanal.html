@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tu Resumen Semanal en SilvaTest</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; margin: 0; padding: 0; background-color: #f4f4f4;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; border: 1px solid #ddd;">
+                    <tr>
+                        <td align="center" style="padding: 20px 0;">
+                            <img src="{{ url_for('static', filename='logo.png', _external=True) }}" alt="SilvaTest Logo" style="max-width: 120px;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 20px 30px; color: #333; text-align: center;">
+                            <h2 style="color: #333; margin-top: 0;">¡Tu progreso de esta semana, {{ user.nombre }}!</h2>
+                            
+                            {% if stats %}
+                                <p style="font-size: 16px; line-height: 1.5;">¡Buen trabajo! Aquí tienes un resumen de tu actividad en los últimos 7 días:</p>
+                                <div style="font-size: 1.3em; margin: 30px 0; background-color: #f9f9f9; padding: 20px; border-radius: 5px;">
+                                    <p style="margin: 10px 0;"><strong>Tests Completados:</strong> <span style="color: #2E7D32; font-weight: bold;">{{ stats.tests_completados }}</span></p>
+                                    <p style="margin: 10px 0;"><strong>Nota Media:</strong> <span style="color: #2E7D32; font-weight: bold;">{{ stats.nota_media }} / 10</span></p>
+                                </div>
+                                <a href="{{ url_for('main.home', _external=True) }}" style="display: inline-block; padding: 12px 25px; background-color: #2E7D32; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                    ¡A seguir practicando!
+                                </a>
+                            {% else %}
+                                <p style="font-size: 16px; line-height: 1.5;">No hemos registrado actividad en tu cuenta esta semana. ¡Te echamos de menos! Un pequeño test puede marcar una gran diferencia.</p>
+                                <a href="{{ url_for('main.home', _external=True) }}" style="display: inline-block; padding: 12px 25px; background-color: #2E7D32; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                    Volver a practicar
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding: 20px 30px; font-size: 0.8em; color: #888; border-top: 1px solid #ddd;">
+                            <p style="margin: 0;">Para dejar de recibir estos emails, puedes cambiar tus preferencias en "Mi Cuenta".</p>
+                            <p style="margin: 5px 0;">© {{ now().year }} SilvaTest. Todos los derechos reservados.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
