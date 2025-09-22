@@ -114,6 +114,18 @@
           70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
       }
+      /* --- ESTILOS PARA EL MODO CONCENTRACIÓN --- */
+      .focus-mode .navbar,
+      .focus-mode footer,
+      .focus-mode .footer-border,
+      .focus-mode .breadcrumb {
+          display: none !important;
+      }
+      .focus-mode main.container {
+          padding-top: 0;
+          margin-top: 0;
+          max-width: 100%; /* Opcional: para que ocupe todo el ancho */
+      }
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
@@ -151,6 +163,11 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
                 {% endif %}
+                <li class="nav-item">
+                    <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">
+                        <i class="bi bi-aspect-ratio"></i>
+                    </button>
+                </li>
                 <li class="nav-item ms-2">
                     <button id="theme-toggle" class="btn"><i id="theme-toggle-icon" class="bi"></i></button>
                 </li>
@@ -269,7 +286,6 @@
                                     reverseButtons: true
                                 }
                             ]).then((result) => {
-                                // Siempre marcamos el onboarding como visto para que no vuelva a salir
                                 fetch("{{ url_for('main.marcar_onboarding_visto') }}", {
                                     method: 'POST',
                                     headers: {
@@ -277,8 +293,6 @@
                                         'X-CSRFToken': csrfToken
                                     }
                                 });
-
-                                // Si el usuario hizo clic en "Hacer un Tour"
                                 if (result.value) {
                                     window.location.href = tourUrl;
                                 }
@@ -289,6 +303,35 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+    
+    <script>
+        (function() {
+            const focusBtn = document.getElementById('focus-mode-btn');
+            const body = document.body;
+            const focusModeState = localStorage.getItem('focusMode');
+
+            function applyFocusMode(state) {
+                if (state === 'true') {
+                    body.classList.add('focus-mode');
+                } else {
+                    body.classList.remove('focus-mode');
+                }
+            }
+
+            // Aplicar el modo al cargar la página
+            applyFocusMode(focusModeState);
+
+            // Lógica del botón
+            if (focusBtn) {
+                focusBtn.addEventListener('click', function() {
+                    const isFocus = body.classList.contains('focus-mode');
+                    const newState = !isFocus;
+                    localStorage.setItem('focusMode', String(newState));
+                    applyFocusMode(String(newState));
+                });
+            }
+        })();
+    </script>
 
     {% endblock %}
   </body>
