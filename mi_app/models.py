@@ -1,7 +1,9 @@
 from flask_login import UserMixin
 from datetime import datetime
 from . import db, bcrypt
-from werkzeug.utils import cached_property # Opcional, para mejora de rendimiento
+from werkzeug.utils import cached_property
+from itsdangerous import URLSafeTimedSerializer as Serializer
+from flask import current_app
 
 class AccesoConvocatoria(db.Model):
     __tablename__ = 'accesos_usuario_convocatoria'
@@ -22,28 +24,25 @@ class Usuario(db.Model, UserMixin):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
+    # --- NUEVO CAMPO AÑADIDO ---
+    recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
     
-    # --- RELACIONES (SIN CAMBIOS) ---
+    # --- RELACIONES ---
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
     accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', cascade="all, delete-orphan")
 
-    # --- PROPIEDADES (SIN CAMBIOS, PERO MIRA LA NOTA SOBRE CACHED_PROPERTY) ---
     @property 
-    # Para optimizar a futuro, podrías cambiar @property por @cached_property
     def convocatorias_accesibles(self):
-        """Devuelve una query con las convocatorias a las que el usuario tiene acceso."""
         if self.es_admin:
             return Convocatoria.query.order_by(Convocatoria.nombre)
 
         return Convocatoria.query.join(AccesoConvocatoria).filter(
             AccesoConvocatoria.usuario_id == self.id,
-            Convocatoria.es_publica == True,
             (AccesoConvocatoria.fecha_expiracion == None) | (AccesoConvocatoria.fecha_expiracion > datetime.utcnow())
         ).order_by(Convocatoria.nombre)
 
-    # --- MÉTODOS DE FAVORITOS (SIN CAMBIOS) ---
     def es_favorita(self, pregunta):
         return self.preguntas_favoritas.filter(favoritos.c.pregunta_id == pregunta.id).count() > 0
 
@@ -55,7 +54,6 @@ class Usuario(db.Model, UserMixin):
         if self.es_favorita(pregunta):
             self.preguntas_favoritas.remove(pregunta)
 
-    # --- GESTIÓN DE CONTRASEÑA (CÓDIGO MEJORADO) ---
     @property
     def password(self):
         raise AttributeError('La contraseña no es un atributo legible.')
@@ -66,9 +64,21 @@ class Usuario(db.Model, UserMixin):
 
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
-    # --- FIN DE LA MEJORA ---
 
-# --- Resto de las clases (Convocatoria, Bloque, Tema, etc.) SIN NINGÚN CAMBIO ---
+    # --- MÉTODOS PARA RESET DE CONTRASEÑA ---
+    def get_reset_token(self):
+        s = Serializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):
+        s = Serializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except:
+            return None
+        return Usuario.query.get(user_id)
+
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
@@ -99,7 +109,6 @@ class Tema(db.Model):
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
     pdf_url = db.Column(db.String(300), nullable=True)
-
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True, cascade="all, delete-orphan")
