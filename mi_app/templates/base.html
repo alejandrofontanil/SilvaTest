@@ -124,11 +124,25 @@
       .focus-mode main.container {
           padding-top: 0;
           margin-top: 0;
-          max-width: 100%; /* Opcional: para que ocupe todo el ancho */
+          max-width: 100%;
+      }
+      #exit-focus-btn {
+          position: fixed;
+          top: 15px;
+          right: 20px;
+          z-index: 1100;
+          display: none;
+      }
+      .focus-mode #exit-focus-btn {
+          display: block;
       }
     </style>
   </head>
   <body class="d-flex flex-column min-vh-100">
+
+    <button id="exit-focus-btn" class="btn btn-light btn-lg" title="Salir del Modo Concentración">
+        <i class="bi bi-box-arrow-in-up-right"></i> Salir del Modo Concentración
+    </button>
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
@@ -307,8 +321,8 @@
     <script>
         (function() {
             const focusBtn = document.getElementById('focus-mode-btn');
+            const exitFocusBtn = document.getElementById('exit-focus-btn');
             const body = document.body;
-            const focusModeState = localStorage.getItem('focusMode');
 
             function applyFocusMode(state) {
                 if (state === 'true') {
@@ -317,17 +331,19 @@
                     body.classList.remove('focus-mode');
                 }
             }
+            const initialState = localStorage.getItem('focusMode');
+            applyFocusMode(initialState);
 
-            // Aplicar el modo al cargar la página
-            applyFocusMode(focusModeState);
-
-            // Lógica del botón
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
-                    const isFocus = body.classList.contains('focus-mode');
-                    const newState = !isFocus;
-                    localStorage.setItem('focusMode', String(newState));
-                    applyFocusMode(String(newState));
+                    localStorage.setItem('focusMode', 'true');
+                    applyFocusMode('true');
+                });
+            }
+            if (exitFocusBtn) {
+                exitFocusBtn.addEventListener('click', function() {
+                    localStorage.setItem('focusMode', 'false');
+                    applyFocusMode('false');
                 });
             }
         })();
