@@ -3,7 +3,7 @@
 // Tour para la página de inicio (home.html)
 function iniciarVisitaGuiada() {
     const tourHome = new Shepherd.Tour({
-        useModalOverlay: true, // CORREGIDO: Error de sintaxis
+        useModalOverlay: true,
         defaultStepOptions: {
             classes: 'shadow-md bg-purple-dark',
             scrollTo: true,
@@ -28,7 +28,6 @@ function iniciarVisitaGuiada() {
     tourHome.addStep({
         id: 'elige-examen',
         text: 'Todo empieza aquí. Selecciona la oposición o licencia que quieres preparar para ver su temario y empezar a practicar.',
-        // CORREGIDO: El selector ahora apunta al contenedor correcto en tu HTML
         attachTo: { element: '.row.g-4 > .col-lg-6:first-child', on: 'top' },
         buttons: [
             {
@@ -47,6 +46,42 @@ function iniciarVisitaGuiada() {
         id: 'mi-progreso',
         text: 'Una vez registrado, en "Mi Cuenta" podrás ver todas tus estadísticas, resultados y preguntas favoritas.',
         attachTo: { element: '#mi-cuenta-link', on: 'left' },
+        buttons: [
+            {
+                action() { return this.back(); },
+                classes: 'shepherd-button-secondary',
+                text: 'Anterior'
+            },
+            {
+                action() { return this.next(); },
+                text: 'Siguiente'
+            }
+        ]
+    });
+
+    // --- NUEVO PASO AÑADIDO: MODO CONCENTRACIÓN ---
+    tourHome.addStep({
+        id: 'modo-concentracion',
+        text: "Usa este botón para activar el 'Modo Concentración'. Oculta todo excepto el test para ayudarte a evitar distracciones. ¡Además, incluye un temporizador Pomodoro de 20 minutos!",
+        attachTo: { element: '#focus-mode-btn', on: 'left' },
+        buttons: [
+            {
+                action() { return this.back(); },
+                classes: 'shepherd-button-secondary',
+                text: 'Anterior'
+            },
+            {
+                action() { return this.next(); },
+                text: 'Siguiente'
+            }
+        ]
+    });
+
+    // --- NUEVO PASO AÑADIDO: TEMA OSCURO ---
+    tourHome.addStep({
+        id: 'modo-oscuro',
+        text: 'Adapta la interfaz a tu gusto. Haz clic aquí para cambiar entre el modo claro y el modo oscuro.',
+        attachTo: { element: '#theme-toggle', on: 'left' },
         buttons: [
             {
                 action() { return this.back(); },
@@ -83,7 +118,7 @@ function iniciarVisitaGuiada() {
 // Tour para la página "Mi Cuenta" (cuenta.html)
 function iniciarTourCuenta() {
     const tourCuenta = new Shepherd.Tour({
-        useModalOverlay: true, // CORREGIDO: Error de sintaxis
+        useModalOverlay: true,
         defaultStepOptions: {
             classes: 'shadow-md bg-purple-dark',
             scrollTo: true,
