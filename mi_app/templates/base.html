@@ -155,31 +155,21 @@
         display: block;
       }
 
-      /* --- NUEVO: ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
+      /* --- ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
       @media (max-width: 768px) {
           .shepherd-element {
-              max-width: 90vw !important;
-              left: 50% !important;
-              transform: translateX(-50%) !important;
-              margin: 0 auto;
-          }
-          .shepherd-text {
-              font-size: 0.95rem;
-              padding: 0.5em 1em;
-          }
-          .shepherd-title {
-              font-size: 1.1rem;
-          }
-          .shepherd-element[data-popper-placement^="left"],
-          .shepherd-element[data-popper-placement^="right"] {
+              position: fixed !important;
+              bottom: 20px !important;
               top: auto !important;
-              bottom: 60px !important;
-              left: 50% !important;
-              transform: translateX(-50%) !important;
+              left: 5vw !important;
+              right: 5vw !important;
+              width: 90vw !important;
+              max-width: 90vw !important;
+              transform: none !important; 
           }
-          .shepherd-element[data-popper-placement^="left"] .shepherd-arrow,
-          .shepherd-element[data-popper-placement^="right"] .shepherd-arrow {
-              display: none;
+
+          .shepherd-arrow {
+              display: none !important;
           }
       }
     </style>
