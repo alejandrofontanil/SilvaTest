@@ -2,11 +2,8 @@
 
 {% block content %}
 
- <div class="text-center my-5">
-    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid" style="max-width: 300px;">
- </div>
+{% if current_user.is_authenticated and not current_user.es_admin %}
 
-    {% if current_user.is_authenticated and not current_user.es_admin %}
     <div class="row g-4 mb-5">
         <div class="col-12">
             <h2 class="mb-4">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
@@ -31,7 +28,7 @@
                         <a href="{{ url_for('main.repaso_test', resultado_id=ultimo_resultado.id) }}" class="btn btn-outline-primary mt-2">Repasar este Test <i class="bi bi-arrow-right"></i></a>
                     {% else %}
                         <p class="text-muted">Aún no has completado ningún test.</p>
-                        <a href="{{ url_for('main.home') }}" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
+                        <a href="#convocatorias" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
                     {% endif %}
                 </div>
             </div>
@@ -57,54 +54,129 @@
             </div>
         </div>
     </div>
-    {% endif %}
+    
     <div class="text-center" data-aos="fade-up">
-        <h1 class="display-5 fw-bold">Elige tu oposición o licencia</h1>
-        <p class="fs-4 text-muted">Selecciona el examen que quieres preparar.</p>
+        <h2 class="display-6 fw-bold">Continúa tu preparación</h2>
+        <p class="fs-5 text-muted">Selecciona una de tus convocatorias para seguir practicando.</p>
     </div>
 
+
+{% else %}
+
+    <div class="text-center" style="padding: 4rem 0;">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid mb-4" style="max-width: 250px;" data-aos="zoom-in">
+        <h1 class="display-4 fw-bold" data-aos="fade-up">Aprueba a la Primera con la Preparación Inteligente.</h1>
+        <p class="lead text-muted mt-3 mx-auto" style="max-width: 800px;" data-aos="fade-up" data-aos-delay="100">
+            Practica con tests oficiales, descubre tus puntos débiles con nuestro Analizador Inteligente y repasa solo lo que necesitas para optimizar tu estudio.
+        </p>
+        <div class="mt-4" data-aos="fade-up" data-aos-delay="200">
+            <a href="{{ url_for('auth.registro') }}" class="btn btn-primary btn-lg px-4">Empezar a Practicar Gratis</a>
+            <a href="#convocatorias" class="btn btn-outline-secondary btn-lg px-4 ms-2">Ver Temarios</a>
+        </div>
+    </div>
+    
     <hr class="my-5">
 
-    <div class="row g-4">
-        {% if convocatorias %}
-            {% for convocatoria in convocatorias %}
-                <div class="col-lg-6" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
-                    <a href="{{ url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id) }}" class="text-decoration-none">
-                        <div class="card card-convocatoria h-100">
-                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
-                                <h3 class="card-title">{{ convocatoria.nombre }}</h3>
-                                <p class="mb-0 mt-2">Acceder al temario <i class="bi bi-arrow-right-circle"></i></p>
-                            </div>
-                        </div>
-                    </a>
+    <div class="row text-center g-4" style="padding: 2rem 0;">
+        <div class="col-md-6 col-lg-3" data-aos="fade-up">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                    </div>
+                    <h3 class="fs-5">Analiza tu Evolución</h3>
+                    <p class="text-muted small">Con nuestros gráficos de Evolución de Notas, visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p>
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                {% if current_user.is_authenticated %}
-                <p class="text-center text-muted">Parece que aún no tienes acceso a ninguna convocatoria. Ponte en contacto con el administrador.</p>
-                {% else %}
-                <p class="text-center text-muted">Aún no hay convocatorias disponibles.</p>
-                {% endif %}
             </div>
-        {% endif %}
+        </div>
+
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-search" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                    </div>
+                    <h3 class="fs-5">Descubre tus Puntos Débiles</h3>
+                    <p class="text-muted small">Nuestras Estadísticas detalladas te muestran en qué temas y bloques fallas más para que sepas dónde tienes que reforzar.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-recycle" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                    </div>
+                    <h3 class="fs-5">Repasa Fallos de Forma Inteligente</h3>
+                    <p class="text-muted small">Nuestra herramienta crea tests solo con las preguntas que has fallado, para un estudio 100% eficiente.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-tools" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                    </div>
+                    <h3 class="fs-5">Crea Exámenes a tu Medida</h3>
+                    <p class="text-muted small">Con el Generador de Tests, puedes crear simulacros personalizados, eligiendo los temas y el número de preguntas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <hr class="my-5">
+
+    <div class="text-center" data-aos="fade-up" id="convocatorias">
+        <h2 class="display-6 fw-bold">Comienza tu Preparación Ahora</h2>
+        <p class="fs-5 text-muted">Selecciona uno de nuestros temarios disponibles.</p>
     </div>
 
-    <style>
-        .card-convocatoria {
-            transition: all 0.3s ease;
-            border-width: 2px;
-        }
-        .card-convocatoria:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
-            border-color: var(--bs-primary);
-        }
-        .card-convocatoria h3 {
-            color: var(--bs-secondary-text-emphasis);
-        }
-        .card-convocatoria p {
-            color: var(--bs-primary);
-        }
-    </style>
+{% endif %}
+
+
+<div class="row g-4 mt-4">
+    {% if convocatorias %}
+        {% for convocatoria in convocatorias %}
+            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+                <a href="{{ url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id) }}" class="text-decoration-none">
+                    <div class="card card-convocatoria h-100">
+                        <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                            <h3 class="card-title">{{ convocatoria.nombre }}</h3>
+                            <p class="mb-0 mt-2">Acceder al temario <i class="bi bi-arrow-right-circle"></i></p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            {% if current_user.is_authenticated %}
+            <p class="text-center text-muted">Parece que aún no tienes acceso a ninguna convocatoria. Ponte en contacto con el administrador.</p>
+            {% else %}
+            <p class="text-center text-muted">Aún no hay convocatorias públicas disponibles.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .card-convocatoria {
+        transition: all 0.3s ease;
+        border-width: 2px;
+    }
+    .card-convocatoria:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
+        border-color: var(--bs-primary);
+    }
+    .card-convocatoria h3 {
+        color: var(--bs-secondary-text-emphasis);
+    }
+    .card-convocatoria p {
+        color: var(--bs-primary);
+    }
+</style>
 {% endblock %}
