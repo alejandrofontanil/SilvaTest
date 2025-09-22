@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
-from datetime import date
+from datetime import date, timedelta # <-- IMPORTACIÓN MODIFICADA
 import random
 from collections import defaultdict
 from itertools import groupby
@@ -32,7 +32,9 @@ def home():
         resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
         nota_media_global = 0
         if resultados_totales:
-            nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
+            # Evitar división por cero
+            if len(resultados_totales) > 0:
+                nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
@@ -52,12 +54,10 @@ def convocatoria_detalle(convocatoria_id):
     if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
-    # --- BREADCRUMBS ---
     breadcrumbs = [
         ('Inicio', url_for('main.home')),
         (convocatoria.nombre, None)
     ]
-    # --------------------
 
     return render_template('convocatoria_detalle.html', 
                            convocatoria=convocatoria,
@@ -71,14 +71,12 @@ def bloque_detalle(bloque_id):
         abort(403)
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
     
-    # --- BREADCRUMBS ---
     convocatoria = bloque.convocatoria
     breadcrumbs = [
         ('Inicio', url_for('main.home')),
         (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)),
         (bloque.nombre, None)
     ]
-    # --------------------
 
     return render_template('bloque_detalle.html', 
                            bloque=bloque, 
@@ -501,7 +499,6 @@ def corregir_simulacro_personalizado():
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
-# === CÓDIGO CORREGIDO ===
 @main_bp.route('/guardar_preferencias', methods=['POST'])
 @login_required
 def guardar_preferencias():
@@ -513,7 +510,6 @@ def guardar_preferencias():
     
     flash('Tus preferencias han sido guardadas.', 'success')
     return redirect(url_for('main.cuenta'))
-# === FIN DEL CÓDIGO ===
 
 @main_bp.route('/sw.js')
 def sw():
@@ -526,27 +522,16 @@ def sw():
 def offline():
     return render_template('offline.html')
 
-# === RUTA DE DEPURACIÓN TEMPORAL ===
 @main_bp.route('/debug-db')
 @login_required
 def debug_db():
-    # Solo permitimos que el admin acceda a esta ruta
     if not current_user.es_admin:
-        abort(403) # Prohibido para usuarios normales
-
-    from .models import Usuario # Importamos el modelo de Usuario
-    
-    # Consultamos a todos los usuarios y sus preferencias de resumen
+        abort(403)
+    from .models import Usuario
     usuarios = Usuario.query.all()
-    
-    # Creamos un texto HTML simple para mostrar los resultados
     output = "<h1>Estado de la Base de Datos</h1>"
     output += "<table border='1'><tr><th>ID</th><th>Email</th><th>Recibir Resumen?</th></tr>"
-    
     for usuario in usuarios:
         output += f"<tr><td>{usuario.id}</td><td>{usuario.email}</td><td><b>{usuario.recibir_resumen_semanal}</b></td></tr>"
-        
     output += "</table>"
-    
     return output
-# === FIN DE LA RUTA DE DEPURACIÓN ===
