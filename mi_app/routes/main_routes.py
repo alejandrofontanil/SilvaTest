@@ -49,8 +49,6 @@ def home():
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    if not convocatoria.es_publica and (not current_user.is_authenticated or not current_user.es_admin):
-        abort(404)
     if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
@@ -99,7 +97,8 @@ def cuenta():
 
     if form.validate_on_submit():
         id_seleccionado = form.convocatoria.data
-        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=active_tab))
+        tab_activa_al_enviar = request.form.get('tab', 'evolucion')
+        return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=tab_activa_al_enviar))
     
     form.convocatoria.data = convocatoria_id
 
@@ -150,10 +149,7 @@ def cuenta():
     stats_temas.sort(key=lambda x: x['porcentaje'])
     stats_bloques.sort(key=lambda x: x['porcentaje'])
 
-    # --- LÓGICA AÑADIDA PARA EL TOUR AUTOMÁTICO ---
-    # Revisa si la URL contiene el parámetro "?tour=true"
     iniciar_tour = request.args.get('tour', 'false').lower() == 'true'
-    # -----------------------------------------------
 
     return render_template(
         'cuenta.html', title='Mi Cuenta', form=form, 
@@ -164,7 +160,6 @@ def cuenta():
         stats_temas=stats_temas,
         stats_bloques=stats_bloques,
         active_tab=active_tab,
-        # Pasa la variable a la plantilla para que el script se ejecute
         iniciar_tour_automaticamente=iniciar_tour
     )
 
@@ -177,7 +172,6 @@ def resetear_estadisticas():
     flash('¡Tus estadísticas han sido reseteadas con éxito!', 'success')
     return redirect(url_for('main.cuenta'))
 
-# ... (El resto del archivo sigue igual)
 @main_bp.route('/cuenta/favoritas')
 @login_required
 def preguntas_favoritas():
@@ -192,7 +186,6 @@ def hacer_test(tema_id):
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
-    # --- BREADCRUMBS ---
     bloque = tema.bloque
     convocatoria = bloque.convocatoria
     breadcrumbs = [
@@ -201,7 +194,6 @@ def hacer_test(tema_id):
         (bloque.nombre, url_for('main.bloque_detalle', bloque_id=bloque.id)),
         (tema.nombre, None)
     ]
-    # --------------------
 
     preguntas_test = obtener_preguntas_recursivas(tema)
     if not preguntas_test:
@@ -476,6 +468,16 @@ def corregir_simulacro_personalizado():
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
+# === NUEVA RUTA AÑADIDA ===
+@main_bp.route('/guardar_preferencias', methods=['POST'])
+@login_required
+def guardar_preferencias():
+    recibir_resumen = request.form.get('resumen_semanal')
+    current_user.recibir_resumen_semanal = True if recibir_resumen else False
+    db.session.commit()
+    flash('Tus preferencias han sido guardadas.', 'success')
+    return redirect(url_for('main.cuenta'))
+# === FIN DE LA NUEVA RUTA ===
 
 @main_bp.route('/sw.js')
 def sw():
