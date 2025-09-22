@@ -59,7 +59,6 @@ function iniciarVisitaGuiada() {
         ]
     });
 
-    // --- NUEVO PASO AÑADIDO: MODO CONCENTRACIÓN ---
     tourHome.addStep({
         id: 'modo-concentracion',
         text: "Usa este botón para activar el 'Modo Concentración'. Oculta todo excepto el test para ayudarte a evitar distracciones. ¡Además, incluye un temporizador Pomodoro de 20 minutos!",
@@ -77,7 +76,6 @@ function iniciarVisitaGuiada() {
         ]
     });
 
-    // --- NUEVO PASO AÑADIDO: TEMA OSCURO ---
     tourHome.addStep({
         id: 'modo-oscuro',
         text: 'Adapta la interfaz a tu gusto. Haz clic aquí para cambiar entre el modo claro y el modo oscuro.',
@@ -179,6 +177,18 @@ function iniciarTourCuenta() {
             { action() { return this.next(); }, text: 'Siguiente' }
         ]
     });
+    
+    // === NUEVO PASO AÑADIDO AL TOUR ===
+    tourCuenta.addStep({
+        id: 'analizador-ia',
+        text: '¡Nuestra función estrella! Próximamente, este analizador usará IA para detectar tus puntos débiles y darte recomendaciones de estudio personalizadas.',
+        attachTo: { element: '#analizador-link', on: 'right' },
+        buttons: [
+            { action() { return this.back(); }, classes: 'shepherd-button-secondary', text: 'Anterior' },
+            { action() { return this.next(); }, text: 'Siguiente' }
+        ]
+    });
+    // === FIN DEL NUEVO PASO ===
 
     tourCuenta.addStep({
         id: 'repasar-fallos',
