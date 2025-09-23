@@ -8,13 +8,13 @@ from sqlalchemy import inspect
 import os
 import cloudinary
 from flask_wtf.csrf import CSRFProtect
-from flask_mail import Mail  # <--- 1. AÑADIR ESTA IMPORTACIÓN
+from flask_mail import Mail
 
 # Inicializamos las extensiones
 db = SQLAlchemy()
 bcrypt = Bcrypt()
 login_manager = LoginManager()
-mail = Mail()  # <--- 2. AÑADIR ESTA LÍNEA
+mail = Mail()
 migrate = Migrate()
 oauth = OAuth()
 csrf = CSRFProtect()
@@ -41,10 +41,10 @@ def create_app():
     app.config['RECAPTCHA_PUBLIC_KEY'] = os.environ.get('RECAPTCHA_PUBLIC_KEY')
     app.config['RECAPTCHA_PRIVATE_KEY'] = os.environ.get('RECAPTCHA_PRIVATE_KEY')
 
-    # <--- 3. AÑADIR LA CONFIGURACIÓN DEL CORREO ---
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+    app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
@@ -52,7 +52,7 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
-    mail.init_app(app)  # <--- 4. AÑADIR ESTA LÍNEA
+    mail.init_app(app)
     migrate.init_app(app, db)
     oauth.init_app(app)
     csrf.init_app(app)
@@ -85,33 +85,6 @@ def create_app():
         app.register_blueprint(main_bp)
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
-
-        # --- LÓGICA MEJORADA PARA CREAR/ACTUALIZAR USUARIO INVITADO ---
-        try:
-            db.create_all()
-            from .models import Usuario
-            invitado = Usuario.query.filter_by(nombre='Invitado').first()
-
-            if not invitado:
-                print("Creando usuario 'Invitado'...")
-                invitado = Usuario(nombre='Invitado', email='invitado@example.com')
-                invitado.password = '13579'
-                db.session.add(invitado)
-                db.session.commit()
-                print("¡Usuario 'Invitado' creado con éxito!")
-            else:
-                if not invitado.check_password('13579'):
-                    print("Actualizando contraseña del usuario 'Invitado'...")
-                    invitado.password = '13579'
-                    db.session.commit()
-                    print("¡Contraseña del invitado actualizada!")
-                else:
-                    print("El usuario 'Invitado' ya existe y tiene la contraseña correcta.")
-
-        except Exception as e:
-            print(f"AVISO: No se pudo verificar/crear el usuario invitado al arrancar: {e}")
-            db.session.rollback()
-        # --- FIN DE LA LÓGICA MEJORADA ---
 
     # Manejadores de Errores
     @app.errorhandler(404)
