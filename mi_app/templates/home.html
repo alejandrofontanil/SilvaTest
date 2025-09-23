@@ -12,9 +12,6 @@
 
     {% if current_user.es_admin %}
 
-        <!-- =============================================================== -->
-        <!-- ============= VISTA PARA EL ADMINISTRADOR ===================== -->
-        <!-- =============================================================== -->
         <div class="text-center my-5" data-aos="fade-up">
             <h1 class="display-5 fw-bold">Panel de Administrador</h1>
             <p class="fs-4 text-muted">Acceso a todas las convocatorias del sistema.</p>
@@ -25,17 +22,11 @@
 
     {% else %}
 
-        <!-- =============================================================== -->
-        <!-- ========= VISTA PARA EL USUARIO ESTÁNDAR (DASHBOARD) ========== -->
-        <!-- =============================================================== -->
         <div class="row g-4 mb-5">
             <div class="col-12">
                 <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
             </div>
             
-            <!-- =============================================================== -->
-            <!-- ===== INICIO: TARJETA DE GRÁFICO DE EVOLUCIÓN (NUEVA) ======== -->
-            <!-- =============================================================== -->
             <div class="col-lg-12" data-aos="fade-up">
                 <div class="card h-100">
                     <div class="card-body p-4">
@@ -46,10 +37,6 @@
                     </div>
                 </div>
             </div>
-            <!-- =============================================================== -->
-            <!-- ======= FIN: TARJETA DE GRÁFICO DE EVOLUCIÓN (NUEVA) ========= -->
-            <!-- =============================================================== -->
-
             <div class="col-md-6" data-aos="fade-up" data-aos-delay="100">
                 <div class="card h-100">
                     <div class="card-body">
@@ -97,11 +84,6 @@
 
 {% else %}
 
-    <!-- =============================================================== -->
-    <!-- ===== VISTA PARA NUEVOS VISITANTES (PÁGINA DE BIENVENIDA) ====== -->
-    <!-- =============================================================== -->
-
-    <!-- SECCIÓN HERO -->
     <div class="text-center" style="padding: 4rem 0;">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid mb-4" style="max-width: 250px;" data-aos="zoom-in">
         <h1 class="display-4 fw-bold" data-aos="fade-up">Aprueba a la Primera con la Preparación Inteligente.</h1>
@@ -116,7 +98,6 @@
     
     <hr class="my-5">
 
-    <!-- SECCIÓN DE CARACTERÍSTICAS -->
     <div class="row text-center g-4" style="padding: 2rem 0;">
         <div class="col-md-6 col-lg-3" data-aos="fade-up">
             <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Analiza tu Evolución</h3> <p class="text-muted small">Con nuestros gráficos de Evolución de Notas, visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p> </div> </div>
@@ -142,9 +123,6 @@
 {% endif %}
 
 
-<!-- =============================================================== -->
-<!-- ===== SECCIÓN DE CONVOCATORIAS (COMÚN PARA TODAS LAS VISTAS) ==== -->
-<!-- =============================================================== -->
 <div class="row g-4 mt-4">
     {% if convocatorias %}
         {% for convocatoria in convocatorias %}
@@ -190,9 +168,6 @@
 {% endblock %}
 
 
-<!-- =============================================================== -->
-<!-- ====== INICIO: SCRIPT PARA EL GRÁFICO DE EVOLUCIÓN (NUEVO) ====== -->
-<!-- =============================================================== -->
 {% block scripts %}
 {{ super() if super }}
 <script>
@@ -281,6 +256,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-<!-- =============================================================== -->
-<!-- ======== FIN: SCRIPT PARA EL GRÁFICO DE EVOLUCIÓN (NUEVO) ======= -->
-<!-- =============================================================== -->
