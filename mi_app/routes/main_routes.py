@@ -602,3 +602,36 @@ def api_radar_competencias():
     data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
 
     return jsonify({'labels': labels, 'data': data})
+
+# ... al final de mi_app/routes/main_routes.py ...
+
+# === NUEVA RUTA PARA DATOS DEL CALENDARIO DE ACTIVIDAD ===
+@main_bp.route('/api/calendario-actividad')
+@login_required
+def api_calendario_actividad():
+    """
+    Devuelve el número de tests realizados por día durante el último año.
+    """
+    from datetime import datetime
+
+    # Definimos el rango de fechas: desde hoy hasta hace 365 días
+    fecha_fin = datetime.utcnow().date()
+    fecha_inicio = fecha_fin - timedelta(days=365)
+
+    # Contamos los tests por día
+    resultados_por_dia = db.session.query(
+        func.date(ResultadoTest.fecha).label('dia'),
+        func.count(ResultadoTest.id).label('cantidad')
+    ).filter(
+        ResultadoTest.usuario_id == current_user.id,
+        func.date(ResultadoTest.fecha).between(fecha_inicio, fecha_fin)
+    ).group_by('dia').all()
+
+    # Formateamos los datos para la librería del calendario
+    # El formato es una lista de diccionarios: [{'date': 'YYYY-MM-DD', 'value': X}]
+    data_para_calendario = [
+        {'date': resultado.dia.strftime('%Y-%m-%d'), 'value': resultado.cantidad}
+        for resultado in resultados_por_dia
+    ]
+
+    return jsonify(data_para_calendario)
