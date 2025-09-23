@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
-from flask_login import login_user, logout_user, current_user
+from flask_login import login_user, logout_user, current_user, login_required
 from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm
@@ -29,11 +29,10 @@ def registro():
         return redirect(url_for('main.home'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        # ✅ CAMBIO APLICADO AQUÍ
         nuevo_usuario = Usuario(
             nombre=form.nombre.data, 
             email=form.email.data.lower(),
-            objetivo_principal=form.objetivo_principal.data # <-- LÍNEA AÑADIDA
+            objetivo_principal=form.objetivo_principal.data
         )
         nuevo_usuario.password = form.password.data
         db.session.add(nuevo_usuario)
@@ -58,7 +57,6 @@ def login():
         identifier = form.email.data.strip()
         password = form.password.data
 
-        # --- CASO ESPECIAL PARA EL USUARIO INVITADO ---
         if identifier.lower() == 'invitado' and password == '13579':
             usuario_invitado = Usuario.query.filter_by(nombre='Invitado').first()
             if usuario_invitado:
@@ -68,7 +66,6 @@ def login():
             else:
                 flash('La cuenta de invitado no está configurada. Contacta al administrador.', 'danger')
                 return redirect(url_for('auth.login'))
-        # --- FIN DEL CASO ESPECIAL ---
         
         usuario = Usuario.query.filter(or_(Usuario.nombre == identifier, Usuario.email == identifier.lower())).first()
 
@@ -121,8 +118,18 @@ def google_callback():
         usuario.password_hash = 'OAUTH_NO_PASSWORD'
         db.session.add(usuario)
         db.session.commit()
-        flash('¡Cuenta creada con éxito a través de Google! Aún puedes elegir un objetivo principal en "Mi Cuenta".', 'success')
+        flash('¡Bienvenido! Hemos creado tu cuenta con Google.', 'onboarding_trigger')
         
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))
+
+# --- NUEVA RUTA PARA MARCAR EL TOUR COMO VISTO ---
+@auth_bp.route('/marcar_tour_visto', methods=['POST'])
+@login_required
+def marcar_tour_visto():
+    """Endpoint para que el JS lo llame cuando el tour termine."""
+    current_user.ha_visto_tour = True
+    db.session.commit()
+    return '', 204 # Retorna una respuesta vacía exitosa
+# --- FIN DE LA NUEVA RUTA ---
