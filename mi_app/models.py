@@ -10,8 +10,10 @@ class AccesoConvocatoria(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), primary_key=True)
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), primary_key=True)
     fecha_expiracion = db.Column(db.DateTime, nullable=True)
-    usuario = db.relationship("Usuario", back_pop_ulates="accesos")
-    convocatoria = db.relationship("Convocatoria", back_pop_ulates="usuarios_con_acceso")
+    # ✅ CORREGIDO AQUÍ
+    usuario = db.relationship("Usuario", back_populates="accesos")
+    # ✅ CORREGIDO AQUÍ
+    convocatoria = db.relationship("Convocatoria", back_populates="usuarios_con_acceso")
 
 favoritos = db.Table('favoritos',
     db.Column('usuario_id', db.Integer, db.ForeignKey('usuario.id'), primary_key=True),
@@ -26,19 +28,17 @@ class Usuario(db.Model, UserMixin):
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
     recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
     
-    # --- CAMPOS NUEVOS ---
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
-    # ✅ CAMBIO APLICADO AQUÍ
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
     
-    # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')
-    accesos = db.relationship('AccesoConvocatoria', back_pop_ulates='usuario', cascade="all, delete-orphan")
+    # ✅ CORREGIDO AQUÍ
+    accesos = db.relationship('AccesoConvocatoria', back_populates='usuario', cascade="all, delete-orphan")
 
-    # ... (El resto de la clase Usuario y los demás modelos no cambian) ...
+    # ... (El resto del archivo no cambia) ...
     @property 
     def convocatorias_accesibles(self):
         if self.es_admin:
@@ -89,11 +89,13 @@ class Convocatoria(db.Model):
     nombre = db.Column(db.String(200), nullable=False, unique=True)
     es_publica = db.Column(db.Boolean, nullable=False, default=True)
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
-    usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_pop_ulates='convocatoria', cascade="all, delete-orphan")
+    # ✅ CORREGIDO AQUÍ
+    usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Convocatoria {self.nombre}>'
-
+    
+# ... (El resto de los modelos no necesitan cambios) ...
 class Bloque(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
@@ -101,7 +103,6 @@ class Bloque(db.Model):
     esta_oculto = db.Column(db.Boolean, nullable=False, default=False) 
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
-
     def __repr__(self):
         return f'<Bloque {self.nombre}>'
 
