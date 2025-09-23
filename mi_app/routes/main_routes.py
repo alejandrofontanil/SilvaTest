@@ -570,3 +570,35 @@ def api_evolucion_notas():
     datos_grafico = [round(notas_medias_por_dia[dia], 2) for dia in dias_ordenados]
 
     return jsonify({'labels': labels_grafico, 'data': datos_grafico})
+
+
+# === NUEVA RUTA PARA DATOS DEL GRÁFICO DE RADAR ===
+@main_bp.route('/api/radar-competencias')
+@login_required
+def api_radar_competencias():
+    """
+    Calcula la nota media del usuario por cada bloque principal y la devuelve en JSON.
+    """
+    # Consulta para obtener el rendimiento agrupado por bloque
+    stats_por_bloque = db.session.query(
+        Bloque.nombre,
+        func.avg(case((RespuestaUsuario.es_correcta, 10), else_=0)).label('nota_media')
+    ).select_from(RespuestaUsuario).join(
+        Pregunta, RespuestaUsuario.pregunta_id == Pregunta.id
+    ).join(
+        Tema, Pregunta.tema_id == Tema.id
+    ).join(
+        Bloque, Tema.bloque_id == Bloque.id
+    ).filter(
+        RespuestaUsuario.usuario_id == current_user.id
+    ).group_by(
+        Bloque.nombre
+    ).order_by(
+        Bloque.nombre
+    ).all()
+
+    # Preparamos los datos para Chart.js
+    labels = [resultado[0] for resultado in stats_por_bloque]
+    data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
+
+    return jsonify({'labels': labels, 'data': data})
