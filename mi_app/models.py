@@ -28,7 +28,8 @@ class Usuario(db.Model, UserMixin):
     
     # --- INICIO: CAMPOS NUEVOS AÑADIDOS ---
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
-    ha_visto_tour = db.Column(db.Boolean, nullable=False, default=False)
+    # ✅ CAMBIO APLICADO AQUÍ
+    ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
     # --- FIN: CAMPOS NUEVOS AÑADIDOS ---
     
     # --- RELACIONES ---
