@@ -635,3 +635,22 @@ def api_calendario_actividad():
     ]
 
     return jsonify(data_para_calendario)
+
+# === RUTA TEMPORAL PARA RESETEAR EL HISTORIAL DE MIGRACIÓN ===
+@main_bp.route('/reset-historial-migracion-secreto-12345')
+@login_required
+def reset_historial_migracion():
+    # Solo el admin puede ejecutar esto
+    if not current_user.es_admin:
+        abort(403)
+    try:
+        # Este comando vacía la tabla que guarda el historial
+        db.session.execute(db.text('TRUNCATE TABLE alembic_version;'))
+        db.session.commit()
+        flash('¡El historial de migración de la base de datos ha sido reseteado con éxito!', 'success')
+        return redirect(url_for('main.home'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al resetear el historial: {e}', 'danger')
+        return redirect(url_for('main.home'))
+# === FIN DE LA RUTA TEMPORAL ===
