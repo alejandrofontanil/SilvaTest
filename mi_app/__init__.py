@@ -4,14 +4,25 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from authlib.integrations.flask_client import OAuth
-from sqlalchemy import inspect
 import os
 import cloudinary
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
+from sqlalchemy import MetaData # <-- 1. AÑADE ESTA IMPORTACIÓN
+
+# --- 2. AÑADE ESTA CONFIGURACIÓN PARA LOS NOMBRES DE LA BBDD ---
+naming_convention = {
+    "ix": 'ix_%(column_0_label)s',
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
+metadata = MetaData(naming_convention=naming_convention)
+# --- FIN DE LA CONFIGURACIÓN ---
 
 # Inicializamos las extensiones
-db = SQLAlchemy()
+db = SQLAlchemy(metadata=metadata) # <-- 3. MODIFICA ESTA LÍNEA
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 mail = Mail()
@@ -30,6 +41,7 @@ def create_app():
     app = Flask(__name__, instance_relative_config=True)
 
     # --- CONFIGURACIÓN DE LA APP ---
+    # ... (El resto del archivo no cambia)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     basedir = os.path.abspath(os.path.dirname(__file__))
@@ -53,10 +65,12 @@ def create_app():
     bcrypt.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db) # <-- 4. MODIFICA ESTA LÍNEA
     oauth.init_app(app)
     csrf.init_app(app)
 
+    # ... (El resto del archivo sigue exactamente igual)
+    # ... (Registro de OAUTH, Cloudinary, Blueprints, Error Handlers, etc.)
     # --- REGISTRO DE GOOGLE OAUTH ---
     oauth.register(
         name='google',
@@ -65,35 +79,27 @@ def create_app():
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
         client_kwargs={'scope': 'openid email profile'}
     )
-
     # --- CONFIGURACIÓN DE CLOUDINARY ---
     cloudinary.config(
         cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
         api_key=os.environ.get('CLOUDINARY_API_KEY'),
         api_secret=os.environ.get('CLOUDINARY_API_SECRET')
     )
-
     login_manager.login_view = 'auth.login'
     login_manager.login_message_category = 'info'
     login_manager.login_message = "Por favor, inicia sesión para acceder a esta página."
-
     with app.app_context():
-        # Registramos los blueprints
         from .routes.auth_routes import auth_bp
         app.register_blueprint(auth_bp)
         from .routes.main_routes import main_bp
         app.register_blueprint(main_bp)
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
-
-    # Manejadores de Errores
     @app.errorhandler(404)
     def not_found_error(error):
         return render_template('errors/404.html'), 404
-
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
         return render_template('errors/500.html'), 500
-
     return app
