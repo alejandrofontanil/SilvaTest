@@ -7,23 +7,38 @@
                     <h2 class="card-title text-center mb-4">Crear una Cuenta</h2>
                     <form method="POST" action="">
                         {{ form.hidden_tag() }}
+                        
                         <div class="mb-3">
                             {{ form.nombre.label(class="form-label") }}
                             {{ form.nombre(class="form-control form-control-lg") }}
                         </div>
+                        
                         <div class="mb-3">
                             {{ form.email.label(class="form-label") }}
                             {{ form.email(class="form-control form-control-lg") }}
                         </div>
+                        
                         <div class="mb-3">
                             {{ form.password.label(class="form-label") }}
                             {{ form.password(class="form-control form-control-lg") }}
                         </div>
-                        <div class="mb-4">
+                        
+                        <div class="mb-3">
                             {{ form.confirm_password.label(class="form-label") }}
                             {{ form.confirm_password(class="form-control form-control-lg") }}
                         </div>
 
+                        <div class="mb-3">
+                            {{ form.objetivo_principal.label(class="form-label") }}
+                            {{ form.objetivo_principal(class="form-select form-select-lg") }}
+                            {% if form.objetivo_principal.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.objetivo_principal.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                         <div class="mb-3 d-flex justify-content-center">
                             {{ form.recaptcha }}
                             {% if form.recaptcha.errors %}
@@ -34,6 +49,7 @@
                                 </div>
                             {% endif %}
                         </div>
+                        
                         <div class="d-grid">
                             {{ form.submit(class="btn btn-primary btn-lg") }}
                         </div>
@@ -42,6 +58,7 @@
                     <div class="text-center my-3">
                         <small class="text-muted">O REGÍSTRATE CON</small>
                     </div>
+                    
                     <div class="d-grid">
                         <a href="{{ url_for('auth.google_login') }}" class="btn btn-light border w-100">
                             <img src="https://developers.google.com/identity/images/g-logo.png" width="20" height="20" alt="Google logo" style="vertical-align: middle; margin-right: 8px;">
