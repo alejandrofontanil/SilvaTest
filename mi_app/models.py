@@ -26,12 +26,13 @@ class Usuario(db.Model, UserMixin):
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
     recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
     
-    # --- LÍNEAS AÑADIDAS ---
+    # --- INICIO: CAMPOS NUEVOS AÑADIDOS ---
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
-    objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
-    # --- FIN DE LÍNEAS AÑADIDAS ---
+    ha_visto_tour = db.Column(db.Boolean, nullable=False, default=False)
+    # --- FIN: CAMPOS NUEVOS AÑADIDOS ---
     
     # --- RELACIONES ---
+    objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
     preguntas_favoritas = db.relationship('Pregunta', secondary=favoritos, backref='favorited_by_users', lazy='dynamic')

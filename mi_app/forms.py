@@ -4,7 +4,7 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Radi
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from wtforms_sqlalchemy.fields import QuerySelectField
-from .models import Bloque, Tema, Usuario, Convocatoria # <-- MODIFICADO
+from .models import Bloque, Tema, Usuario, Convocatoria
 
 def bloques_query():
     return Bloque.query
@@ -12,10 +12,8 @@ def bloques_query():
 def temas_query():
     return Tema.query
 
-# --- NUEVA FUNCIÓN AÑADIDA ---
 def convocatorias_publicas():
     return Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre)
-# --- FIN DE LA FUNCIÓN ---
 
 class ConvocatoriaForm(FlaskForm):
     nombre = StringField('Nombre de la Convocatoria', validators=[DataRequired(), Length(min=5, max=200)])
@@ -66,7 +64,7 @@ class PermisosForm(FlaskForm):
 class RegistrationForm(FlaskForm):
     nombre = StringField('Nombre',
                        validators=[DataRequired(),
-                                   Length(min=2, max=50)]) # Modificado max a 50 para nombres más largos
+                                   Length(min=2, max=50)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     
     password = PasswordField('Contraseña', validators=[DataRequired(), Length(min=8, message='La contraseña debe tener al menos 8 caracteres.')])
@@ -78,7 +76,6 @@ class RegistrationForm(FlaskForm):
             EqualTo('password', message='Las contraseñas deben coincidir.')
         ])
 
-    # --- NUEVO CAMPO AÑADIDO ---
     objetivo_principal = QuerySelectField(
         '¿Cuál es tu objetivo principal?',
         query_factory=convocatorias_publicas,
@@ -87,7 +84,6 @@ class RegistrationForm(FlaskForm):
         blank_text='-- Elige una opción --',
         validators=[DataRequired(message="Por favor, selecciona tu objetivo.")]
     )
-    # --- FIN DEL CAMPO AÑADIDO ---
 
     recaptcha = RecaptchaField()
     submit = SubmitField('Crear Cuenta')
