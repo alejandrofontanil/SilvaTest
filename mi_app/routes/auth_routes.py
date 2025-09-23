@@ -5,13 +5,12 @@ from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm
 import secrets
 from urllib.parse import urlparse, urljoin
-from sqlalchemy import or_  # <-- 1. IMPORTACIÓN AÑADIDA
+from sqlalchemy import or_
 
 auth_bp = Blueprint('auth', __name__,
                     template_folder='../templates/auth',
                     url_prefix='/auth')
 
-# --- FUNCIÓN DE SEGURIDAD AÑADIDA ---
 def is_safe_url(target):
     """
     Comprueba si una URL es segura para redirigir, evitando vulnerabilidades
@@ -23,7 +22,6 @@ def is_safe_url(target):
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and \
            ref_url.netloc == test_url.netloc
-# --- FIN DE LA FUNCIÓN ---
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 def registro():
@@ -31,12 +29,24 @@ def registro():
         return redirect(url_for('main.home'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        nuevo_usuario = Usuario(nombre=form.nombre.data, email=form.email.data.lower())
+        # ✅ CAMBIO APLICADO AQUÍ
+        nuevo_usuario = Usuario(
+            nombre=form.nombre.data, 
+            email=form.email.data.lower(),
+            objetivo_principal=form.objetivo_principal.data # <-- LÍNEA AÑADIDA
+        )
         nuevo_usuario.password = form.password.data
         db.session.add(nuevo_usuario)
         db.session.commit()
-        flash('¡Tu cuenta ha sido creada! Ya puedes iniciar sesión.', 'success')
-        return redirect(url_for('auth.login'))
+        
+        # --- LÓGICA DE ONBOARDING ---
+        # Hacemos login al usuario para que su primera experiencia sea fluida
+        login_user(nuevo_usuario)
+        # Enviamos un "flash" especial para que el frontend active el tour
+        flash('¡Bienvenido! Hemos creado tu cuenta.', 'onboarding_trigger') 
+        return redirect(url_for('main.home'))
+        # --- FIN DE LA LÓGICA DE ONBOARDING ---
+        
     return render_template('registro.html', title='Registro', form=form)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -45,12 +55,10 @@ def login():
         return redirect(url_for('main.home'))
     form = LoginForm()
     if form.validate_on_submit():
-        # <-- 2. LÓGICA DE LOGIN MODIFICADA ---
-        identifier = form.email.data.strip()  # Mantenemos mayúsculas/minúsculas para el nombre de usuario
+        identifier = form.email.data.strip()
         password = form.password.data
 
         # --- CASO ESPECIAL PARA EL USUARIO INVITADO ---
-        # Se comprueba antes de la búsqueda en la base de datos
         if identifier.lower() == 'invitado' and password == '13579':
             usuario_invitado = Usuario.query.filter_by(nombre='Invitado').first()
             if usuario_invitado:
@@ -62,7 +70,6 @@ def login():
                 return redirect(url_for('auth.login'))
         # --- FIN DEL CASO ESPECIAL ---
         
-        # Se busca un usuario cuyo nombre de usuario (sensible a mayúsculas) O email (insensible) coincidan
         usuario = Usuario.query.filter(or_(Usuario.nombre == identifier, Usuario.email == identifier.lower())).first()
 
         if usuario and usuario.password_hash == 'OAUTH_NO_PASSWORD':
@@ -73,15 +80,12 @@ def login():
             login_user(usuario, remember=form.remember.data)
             next_page = request.args.get('next')
             
-            # --- MEJORA DE SEGURIDAD AÑADIDA ---
             if not is_safe_url(next_page):
                 return abort(400, "URL de redirección no segura.")
-            # --- FIN DE LA MEJORA ---
 
             flash('¡Has iniciado sesión con éxito!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('main.home'))
         else:
-            # <-- 3. MENSAJE DE ERROR ACTUALIZADO ---
             flash('Inicio de sesión fallido. Por favor, comprueba tu email/usuario y contraseña.', 'danger')
             
     return render_template('login.html', title='Iniciar Sesión', form=form)
@@ -117,9 +121,8 @@ def google_callback():
         usuario.password_hash = 'OAUTH_NO_PASSWORD'
         db.session.add(usuario)
         db.session.commit()
-        flash('¡Cuenta creada con éxito a través de Google!', 'success')
+        flash('¡Cuenta creada con éxito a través de Google! Aún puedes elegir un objetivo principal en "Mi Cuenta".', 'success')
         
     login_user(usuario)
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
-    # Aquí también podrías añadir la lógica de 'next_page' segura si quisieras
     return redirect(url_for('main.home'))

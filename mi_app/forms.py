@@ -4,13 +4,18 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Radi
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from wtforms_sqlalchemy.fields import QuerySelectField
-from .models import Bloque, Tema, Usuario
+from .models import Bloque, Tema, Usuario, Convocatoria # <-- MODIFICADO
 
 def bloques_query():
     return Bloque.query
 
 def temas_query():
     return Tema.query
+
+# --- NUEVA FUNCIÓN AÑADIDA ---
+def convocatorias_publicas():
+    return Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre)
+# --- FIN DE LA FUNCIÓN ---
 
 class ConvocatoriaForm(FlaskForm):
     nombre = StringField('Nombre de la Convocatoria', validators=[DataRequired(), Length(min=5, max=200)])
@@ -61,7 +66,7 @@ class PermisosForm(FlaskForm):
 class RegistrationForm(FlaskForm):
     nombre = StringField('Nombre',
                        validators=[DataRequired(),
-                                   Length(min=2, max=20)])
+                                   Length(min=2, max=50)]) # Modificado max a 50 para nombres más largos
     email = StringField('Email', validators=[DataRequired(), Email()])
     
     password = PasswordField('Contraseña', validators=[DataRequired(), Length(min=8, message='La contraseña debe tener al menos 8 caracteres.')])
@@ -72,6 +77,18 @@ class RegistrationForm(FlaskForm):
             DataRequired(),
             EqualTo('password', message='Las contraseñas deben coincidir.')
         ])
+
+    # --- NUEVO CAMPO AÑADIDO ---
+    objetivo_principal = QuerySelectField(
+        '¿Cuál es tu objetivo principal?',
+        query_factory=convocatorias_publicas,
+        get_label='nombre',
+        allow_blank=True,
+        blank_text='-- Elige una opción --',
+        validators=[DataRequired(message="Por favor, selecciona tu objetivo.")]
+    )
+    # --- FIN DEL CAMPO AÑADIDO ---
+
     recaptcha = RecaptchaField()
     submit = SubmitField('Crear Cuenta')
 
@@ -84,15 +101,11 @@ class RegistrationForm(FlaskForm):
             raise ValidationError('Ya existe una cuenta con ese correo electrónico. Por favor, inicia sesión o utiliza otro email.')
 
 
-# --- LoginForm MODIFICADO ---
 class LoginForm(FlaskForm):
-    # 1. Etiqueta del campo actualizada para mayor claridad
-    # 2. Se ha eliminado el validador de Email() para permitir nombres de usuario
     email = StringField('Email o Nombre de Usuario', validators=[DataRequired()])
     password = PasswordField('Contraseña', validators=[DataRequired()])
     remember = BooleanField('Recuérdame')
     submit = SubmitField('Iniciar Sesión')
-# --- FIN DE LA MODIFICACIÓN ---
 
 class PreguntaForm(FlaskForm):
     texto = TextAreaField('Enunciado de la Pregunta',
@@ -113,21 +126,21 @@ class PreguntaForm(FlaskForm):
     respuesta_correcta_texto = StringField(
         'Respuesta Correcta de Texto (si aplica)', validators=[Optional()])
     respuesta1_texto = StringField('Opción A',
-                                 validators=[Optional(),
-                                             Length(max=500)])
+                                   validators=[Optional(),
+                                               Length(max=500)])
     respuesta2_texto = StringField('Opción B',
-                                 validators=[Optional(),
-                                             Length(max=500)])
+                                   validators=[Optional(),
+                                               Length(max=500)])
     respuesta3_texto = StringField('Opción C',
-                                 validators=[Optional(),
-                                             Length(max=500)])
+                                   validators=[Optional(),
+                                               Length(max=500)])
     respuesta4_texto = StringField('Opción D',
-                                 validators=[Optional(),
-                                             Length(max=500)])
+                                   validators=[Optional(),
+                                               Length(max=500)])
     respuesta_correcta = RadioField('Marca la Opción Correcta',
-                                  choices=[('1', 'A'), ('2', 'B'),
-                                           ('3', 'C'), ('4', 'D')],
-                                  validators=[Optional()])
+                                    choices=[('1', 'A'), ('2', 'B'),
+                                             ('3', 'C'), ('4', 'D')],
+                                    validators=[Optional()])
     retroalimentacion = TextAreaField('Pista para el usuario (opcional)')
     submit = SubmitField('Guardar Pregunta')
 

@@ -24,8 +24,12 @@ class Usuario(db.Model, UserMixin):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
-    # --- NUEVO CAMPO AÑADIDO ---
     recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
+    
+    # --- LÍNEAS AÑADIDAS ---
+    objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
+    objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
+    # --- FIN DE LÍNEAS AÑADIDAS ---
     
     # --- RELACIONES ---
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
@@ -65,7 +69,6 @@ class Usuario(db.Model, UserMixin):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
 
-    # --- MÉTODOS PARA RESET DE CONTRASEÑA ---
     def get_reset_token(self):
         s = Serializer(current_app.config['SECRET_KEY'])
         return s.dumps({'user_id': self.id})
