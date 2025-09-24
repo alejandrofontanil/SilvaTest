@@ -1,3 +1,8 @@
+# --- INICIO: IMPORTACIONES PARA IA GENERATIVA ---
+import os
+import google.generativeai as genai
+# --- FIN: IMPORTACIONES PARA IA GENERATIVA ---
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
@@ -13,6 +18,14 @@ from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, Resul
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm
 
 main_bp = Blueprint('main', __name__)
+
+# --- INICIO: CONFIGURACIÓN DE LA API DE GEMINI ---
+# Carga la clave API desde las variables de entorno de Render
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+# --- FIN: CONFIGURACIÓN DE LA API DE GEMINI ---
+
 
 def obtener_preguntas_recursivas(tema):
     preguntas = []
@@ -37,10 +50,10 @@ def home():
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
-                                  convocatorias=convocatorias,
-                                  nota_media_global=nota_media_global,
-                                  ultimo_resultado=ultimo_resultado,
-                                  ultimas_favoritas=ultimas_favoritas)
+                               convocatorias=convocatorias,
+                               nota_media_global=nota_media_global,
+                               ultimo_resultado=ultimo_resultado,
+                               ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -593,3 +606,72 @@ def api_calendario_actividad():
         for resultado in resultados_por_dia
     ]
     return jsonify(data_para_calendario)
+
+# --- INICIO: NUEVA RUTA PARA LA IA GENERATIVA ---
+@main_bp.route('/explicar-respuesta', methods=['POST'])
+@login_required
+def explicar_respuesta_ia():
+    """
+    Recibe el ID de una pregunta, construye un prompt y pide a Gemini
+    que genere una explicación detallada.
+    """
+    if not GEMINI_API_KEY:
+        return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
+
+    data = request.get_json()
+    pregunta_id = data.get('preguntaId')
+    respuesta_usuario_id = data.get('respuestaUsuarioId')
+
+    if not pregunta_id:
+        return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
+
+    pregunta = Pregunta.query.get_or_404(pregunta_id)
+    
+    # Construimos el prompt para la IA
+    prompt_parts = [
+        "Actúa como un tutor experto y preparador de oposiciones para Agentes Medioambientales en España. Tu tono debe ser claro, encouraging y didáctico.",
+        "Un alumno está repasando un test y ha pedido una explicación para la siguiente pregunta:",
+        f"\n**Pregunta:**\n{pregunta.texto}\n",
+        "**Opciones:**"
+    ]
+
+    respuesta_correcta_texto = ""
+    respuesta_usuario_texto = ""
+
+    for opcion in pregunta.respuestas:
+        prompt_parts.append(f"- {opcion.texto}")
+        if opcion.es_correcta:
+            respuesta_correcta_texto = opcion.texto
+        if str(opcion.id) == str(respuesta_usuario_id):
+            respuesta_usuario_texto = opcion.texto
+
+    prompt_parts.append(f"\n**Respuesta Correcta:**\n{respuesta_correcta_texto}")
+
+    if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
+        prompt_parts.append(f"\n**El alumno respondió:**\n{respuesta_usuario_texto}")
+        prompt_parts.append("\n**Tu Tarea:**")
+        prompt_parts.append("1. Primero, valida y reafirma por qué la respuesta correcta lo es, citando la lógica o normativa si aplica.")
+        prompt_parts.append("2. Después, explica de forma constructiva por qué la opción que eligió el alumno es incorrecta.")
+        prompt_parts.append("3. Finaliza con una frase motivadora o un consejo de estudio relacionado.")
+    else: # Si el usuario acertó o no seleccionó respuesta
+        prompt_parts.append("\n**Tu Tarea:**")
+        prompt_parts.append("1. Explica detalladamente por qué la respuesta correcta es la correcta, como si estuvieras dando una mini-clase sobre el tema.")
+        prompt_parts.append("2. Si la pregunta se basa en alguna ley o artículo, menciónalo.")
+        prompt_parts.append("3. Ofrece un consejo práctico o un truco para recordar este concepto.")
+        
+    prompt_parts.append("\nUsa formato Markdown para organizar la respuesta (negritas, listas, etc.).")
+    
+    prompt = "\n".join(prompt_parts)
+
+    try:
+        # Inicializa el modelo de Gemini (gemini-1.5-flash es rápido y eficiente)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        
+        # Devolvemos la explicación generada
+        return jsonify({'explicacion': response.text})
+
+    except Exception as e:
+        print(f"Error al llamar a la API de Gemini: {e}")
+        return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
+# --- FIN: NUEVA RUTA PARA LA IA GENERATIVA ---
