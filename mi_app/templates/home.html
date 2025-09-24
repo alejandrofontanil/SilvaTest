@@ -24,7 +24,14 @@
 
         <div class="row g-4 mb-5">
             <div class="col-12">
-                <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
+                {# --- INICIO: SALUDO PERSONALIZADO MODIFICADO --- #}
+                {% if not current_user.ha_visto_tour and current_user.objetivo_principal %}
+                    <h2 class="mb-1" data-aos="fade-right">¡A por tu objetivo, {{ current_user.nombre.split()[0] }}!</h2>
+                    <p class="fs-4 text-muted" data-aos="fade-right" data-aos-delay="100">Empecemos con tu preparación para: <strong>{{ current_user.objetivo_principal.nombre }}</strong></p>
+                {% else %}
+                    <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
+                {% endif %}
+                {# --- FIN: SALUDO PERSONALIZADO MODIFICADO --- #}
             </div>
             
             <div class="col-lg-8" data-aos="fade-up">
@@ -185,9 +192,7 @@
 {{ super() if super }}
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
-<script type="module">
-    import CalHeatmap from 'https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm';
-</script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
 
 <script type="module">
@@ -195,7 +200,6 @@
 
     document.addEventListener('DOMContentLoaded', function() {
 
-        // --- LÓGICA PARA EL GRÁFICO DE LÍNEAS (EVOLUCIÓN) ---
         const chartEvolucionCanvas = document.getElementById('evolucionNotasChart');
         if (chartEvolucionCanvas) {
             fetch("{{ url_for('main.api_evolucion_notas') }}")
@@ -222,7 +226,6 @@
                 .catch(error => console.error("Error al cargar datos del gráfico de evolución:", error));
         }
 
-        // --- LÓGICA PARA EL GRÁFICO RADAR (COMPETENCIAS) ---
         const chartRadarCanvas = document.getElementById('radarCompetenciasChart');
         if (chartRadarCanvas) {
             fetch("{{ url_for('main.api_radar_competencias') }}")
@@ -250,39 +253,36 @@
                 .catch(error => console.error("Error al cargar datos del gráfico radar:", error));
         }
 
-        // --- LÓGICA PARA EL CALENDARIO DE ACTIVIDAD ---
         const calHeatmapDiv = document.getElementById('cal-heatmap');
         if (calHeatmapDiv) {
             const cal = new CalHeatmap();
             const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
             const theme = esModoOscuro ? 'dark' : 'light';
-
             cal.paint({
-                data: {
-                    source: "{{ url_for('main.api_calendario_actividad') }}",
-                    type: 'json',
-                    x: 'date',
-                    y: 'value'
-                },
+                data: { source: "{{ url_for('main.api_calendario_actividad') }}", type: 'json', x: 'date', y: 'value' },
                 date: { start: new Date(new Date().setFullYear(new Date().getFullYear() - 1)) },
                 range: 12,
-                scale: {
-                    color: {
-                        type: 'threshold',
-                        range: ['#d6e685', '#8cc665', '#44a340', '#1e6823'],
-                        domain: [1, 3, 5, 10],
-                        scheme: theme
-                    }
-                },
-                domain: {
-                    type: 'month',
-                    gutter: 5,
-                    label: { text: 'MMM', textAlign: 'start', position: 'top' }
-                },
+                scale: { color: { type: 'threshold', range: ['#a2d2a2', '#69b069', '#448d44', '#1e6823'], domain: [1, 3, 5, 10], scheme: theme } },
+                domain: { type: 'month', gutter: 5, label: { text: 'MMM', textAlign: 'start', position: 'top' } },
                 subDomain: { type: 'ghDay', radius: 2, width: 13, height: 13, gutter: 4 },
                 itemSelector: '#cal-heatmap'
             });
         }
     });
+
+    {% if current_user.is_authenticated and not current_user.ha_visto_tour %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category == 'onboarding_trigger' %}
+                        // Esperamos a que todo cargue antes de llamar al tour
+                        window.addEventListener('load', function() {
+                           iniciarTourBienvenida();
+                        });
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    {% endif %}
 </script>
 {% endblock %}
