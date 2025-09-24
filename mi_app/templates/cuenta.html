@@ -193,11 +193,40 @@
         </div>
 
         <div class="card shadow-sm mt-4">
+            <div class="card-header"><h5 class="mb-0">Mi Objetivo Principal</h5></div>
+            <div class="card-body">
+                <p>Tu objetivo actual es:</p>
+                <h4 class="text-primary">
+                    {% if current_user.objetivo_principal %}
+                        {{ current_user.objetivo_principal.nombre }}
+                    {% else %}
+                        Aún no has definido un objetivo.
+                    {% endif %}
+                </h4>
+                <button class="btn btn-secondary btn-sm mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseObjetivo" aria-expanded="false" aria-controls="collapseObjetivo">
+                    Cambiar Objetivo
+                </button>
+                <div class="collapse mt-3" id="collapseObjetivo">
+                    <hr>
+                    <form method="POST" action="{{ url_for('main.cambiar_objetivo') }}">
+                        {{ objetivo_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ objetivo_form.objetivo_principal.label(class="form-label fw-bold") }}
+                            {{ objetivo_form.objetivo_principal(class="form-select") }}
+                        </div>
+                        <div class="d-grid">
+                            {{ objetivo_form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mt-4">
             <div class="card-header"><h5 class="mb-0">Preferencias de Notificaciones</h5></div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('main.guardar_preferencias') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="resumenSemanal" name="resumen_semanal" {% if current_user.recibir_resumen_semanal %}checked{% endif %}>
                         <label class="form-check-label" for="resumenSemanal">Recibir un resumen semanal de mi progreso por email.</label>
@@ -208,16 +237,12 @@
         </div>
 
         <div class="card shadow-sm mt-4 border-danger zona-peligro">
-            <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">Zona de Peligro</h5>
-            </div>
+            <div class="card-header bg-danger text-white"><h5 class="mb-0">Zona de Peligro</h5></div>
             <div class="card-body">
                 <p>Esta acción es irreversible. Se borrará todo tu historial de tests, tus notas y tus estadísticas de aciertos y fallos.</p>
                 <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Estás a punto de borrar todo tu progreso. Esta acción no se puede deshacer. ¿Estás seguro?');">
                     {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash3-fill"></i> Resetear mis estadísticas
-                    </button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Resetear mis estadísticas</button>
                 </form>
             </div>
         </div>
