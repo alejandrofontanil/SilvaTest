@@ -26,10 +26,8 @@ class Usuario(db.Model, UserMixin):
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
     recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
     
-    # --- INICIO: CAMPOS PARA ONBOARDING Y PERSONALIZACIÓN ---
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
-    # --- FIN: CAMPOS PARA ONBOARDING Y PERSONALIZACIÓN ---
     
     # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
@@ -86,6 +84,10 @@ class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
     es_publica = db.Column(db.Boolean, nullable=False, default=True)
+    
+    # --- CAMPO AÑADIDO PARA FREEMIUM ---
+    es_premium = db.Column(db.Boolean, nullable=False, server_default='false')
+    
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
     usuarios_con_acceso = db.relationship('AccesoConvocatoria', back_populates='convocatoria', cascade="all, delete-orphan")
 
