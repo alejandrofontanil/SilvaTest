@@ -17,7 +17,12 @@ def convocatorias_publicas():
 
 class ConvocatoriaForm(FlaskForm):
     nombre = StringField('Nombre de la Convocatoria', validators=[DataRequired(), Length(min=5, max=200)])
-    es_publica = BooleanField('¿Es una convocatoria pública? (Si no se marca, solo será visible para administradores)', default=True)
+    es_publica = BooleanField('¿Es una convocatoria pública?')
+    
+    # --- CAMPO AÑADIDO PARA FREEMIUM ---
+    es_premium = BooleanField('¿Es contenido de pago (Premium)?')
+    # --- FIN DEL CAMPO AÑADIDO ---
+    
     submit = SubmitField('Guardar Convocatoria')
 
 class BloqueForm(FlaskForm):
@@ -101,7 +106,6 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Iniciar Sesión')
 
 class PreguntaForm(FlaskForm):
-    # ... (sin cambios)
     texto = TextAreaField('Enunciado de la Pregunta', validators=[DataRequired()])
     imagen = FileField('Subir Imagen (Opcional)', validators=[FileAllowed(['jpg', 'png', 'jpeg'], '¡Solo imágenes!')])
     dificultad = SelectField('Dificultad', choices=[('Fácil', 'Fácil'), ('Media', 'Media'), ('Difícil', 'Difícil')], validators=[DataRequired()])
@@ -127,7 +131,6 @@ class FiltroCuentaForm(FlaskForm):
     convocatoria = SelectField('Filtrar por Convocatoria', coerce=int)
     submit = SubmitField('Filtrar')
 
-# --- NUEVO FORMULARIO AÑADIDO ---
 class ObjetivoForm(FlaskForm):
     """Formulario simple para que usuarios de Google elijan su objetivo."""
     objetivo_principal = QuerySelectField(
@@ -138,4 +141,3 @@ class ObjetivoForm(FlaskForm):
         validators=[DataRequired(message="Por favor, selecciona tu objetivo.")]
     )
     submit = SubmitField('Guardar y Continuar')
-# --- FIN DEL NUEVO FORMULARIO ---

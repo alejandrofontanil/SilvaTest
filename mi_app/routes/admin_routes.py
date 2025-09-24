@@ -9,7 +9,7 @@ import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import selectinload
 from flask_wtf import FlaskForm
-import traceback  # <-- 1. CAMBIO AÑADIDO AQUÍ
+import traceback
 
 from mi_app import db
 from mi_app.models import (
@@ -100,7 +100,11 @@ def admin_convocatorias():
 def crear_convocatoria():
     form = ConvocatoriaForm()
     if form.validate_on_submit():
-        nueva_convocatoria = Convocatoria(nombre=form.nombre.data, es_publica=form.es_publica.data)
+        nueva_convocatoria = Convocatoria(
+            nombre=form.nombre.data, 
+            es_publica=form.es_publica.data,
+            es_premium=form.es_premium.data # <-- LÍNEA AÑADIDA
+        )
         db.session.add(nueva_convocatoria)
         db.session.commit()
         flash('¡Convocatoria creada con éxito!', 'success')
@@ -115,6 +119,7 @@ def editar_convocatoria(convocatoria_id):
     if form.validate_on_submit():
         convocatoria.nombre = form.nombre.data
         convocatoria.es_publica = form.es_publica.data
+        convocatoria.es_premium = form.es_premium.data # <-- LÍNEA AÑADIDA
         db.session.commit()
         flash('¡Convocatoria actualizada con éxito!', 'success')
         return redirect(url_for('admin.admin_convocatorias'))
@@ -320,7 +325,6 @@ def editar_tema(tema_id):
 def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     try:
-        # Lógica de borrado...
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -469,7 +473,6 @@ def subir_sheets():
 
         except Exception as e:
             db.session.rollback()
-            # <-- 2. CAMBIO MODIFICADO AQUÍ
             print(f"ERROR DURANTE LA IMPORTACIÓN:\n{traceback.format_exc()}") 
             flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
         
@@ -530,20 +533,15 @@ def hacerme_admin_temporalmente():
 def eliminar_usuario(usuario_id):
     usuario_a_eliminar = Usuario.query.get_or_404(usuario_id)
 
-    # Prevenir que un admin se borre a sí mismo o a otro admin
     if usuario_a_eliminar.es_admin:
         flash('No se pueden eliminar cuentas de administrador.', 'danger')
         return redirect(url_for('admin.admin_usuarios'))
     
-    # Prevenir que se borre el usuario Invitado
     if usuario_a_eliminar.nombre == 'Invitado':
         flash('La cuenta de invitado no puede ser eliminada.', 'warning')
         return redirect(url_for('admin.admin_usuarios'))
 
     try:
-        # Gracias a la configuración 'cascade' en tus modelos, 
-        # al borrar un usuario, se borrarán automáticamente sus resultados,
-        # respuestas, favoritos, etc.
         db.session.delete(usuario_a_eliminar)
         db.session.commit()
         flash(f'El usuario "{usuario_a_eliminar.nombre}" ha sido eliminado con éxito.', 'success')
