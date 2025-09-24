@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
-from datetime import date, timedelta # <-- IMPORTACIÓN MODIFICADA
+from datetime import date, timedelta, datetime
 import random
 from collections import defaultdict
 from itertools import groupby
@@ -10,7 +10,7 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-from mi_app.forms import FiltroCuentaForm
+from mi_app.forms import FiltroCuentaForm, ObjetivoForm
 
 main_bp = Blueprint('main', __name__)
 
@@ -32,7 +32,6 @@ def home():
         resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
         nota_media_global = 0
         if resultados_totales:
-            # Evitar división por cero
             if len(resultados_totales) > 0:
                 nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
@@ -87,6 +86,8 @@ def bloque_detalle(bloque_id):
 @login_required
 def cuenta():
     form = FiltroCuentaForm()
+    objetivo_form = ObjetivoForm()
+
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
     
@@ -151,7 +152,9 @@ def cuenta():
     iniciar_tour = request.args.get('tour', 'false').lower() == 'true'
 
     return render_template(
-        'cuenta.html', title='Mi Cuenta', form=form, 
+        'cuenta.html', title='Mi Cuenta', 
+        form=form,
+        objetivo_form=objetivo_form, 
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
         total_preguntas_hechas=total_preguntas_hechas, 
@@ -161,7 +164,6 @@ def cuenta():
         active_tab=active_tab,
         iniciar_tour_automaticamente=iniciar_tour
     )
-
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
@@ -502,13 +504,22 @@ def corregir_simulacro_personalizado():
 @main_bp.route('/guardar_preferencias', methods=['POST'])
 @login_required
 def guardar_preferencias():
-    # La forma correcta de comprobar un checkbox es ver si existe en el form
     recibir_resumen = 'resumen_semanal' in request.form
-    
     current_user.recibir_resumen_semanal = recibir_resumen
-    db.session.commit() # ¡Esta es la línea clave que guarda en la BBDD!
-    
+    db.session.commit()
     flash('Tus preferencias han sido guardadas.', 'success')
+    return redirect(url_for('main.cuenta'))
+
+@main_bp.route('/cuenta/cambiar-objetivo', methods=['POST'])
+@login_required
+def cambiar_objetivo():
+    form = ObjetivoForm()
+    if form.validate_on_submit():
+        current_user.objetivo_principal = form.objetivo_principal.data
+        db.session.commit()
+        flash('¡Tu objetivo principal ha sido actualizado!', 'success')
+    else:
+        flash('Hubo un error al cambiar tu objetivo.', 'danger')
     return redirect(url_for('main.cuenta'))
 
 @main_bp.route('/sw.js')
@@ -522,64 +533,29 @@ def sw():
 def offline():
     return render_template('offline.html')
 
-@main_bp.route('/debug-db')
-@login_required
-def debug_db():
-    if not current_user.es_admin:
-        abort(403)
-    from .models import Usuario
-    usuarios = Usuario.query.all()
-    output = "<h1>Estado de la Base de Datos</h1>"
-    output += "<table border='1'><tr><th>ID</th><th>Email</th><th>Recibir Resumen?</th></tr>"
-    for usuario in usuarios:
-        output += f"<tr><td>{usuario.id}</td><td>{usuario.email}</td><td><b>{usuario.recibir_resumen_semanal}</b></td></tr>"
-    output += "</table>"
-    return output
-
-# === NUEVA RUTA PARA DATOS DEL GRÁFICO ===
+# --- RUTAS DE API PARA GRÁFICOS ---
 @main_bp.route('/api/evolucion-notas')
 @login_required
 def api_evolucion_notas():
-    """
-    Esta ruta devuelve los datos de la evolución de notas del usuario
-    en formato JSON para que Chart.js los pueda usar.
-    """
-    from datetime import datetime, timedelta
-
-    # Filtramos los resultados de los últimos 30 días
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
-
     resultados_periodo = ResultadoTest.query.filter(
         ResultadoTest.autor == current_user,
         ResultadoTest.fecha >= fecha_inicio
     ).order_by(ResultadoTest.fecha.asc()).all()
-
-    # Agrupamos los resultados por día y calculamos la nota media
     resultados_agrupados = defaultdict(list)
     for resultado in resultados_periodo:
         resultados_agrupados[resultado.fecha.date()].append(resultado.nota)
-
     notas_medias_por_dia = {
-        fecha: sum(notas) / len(notas)
-        for fecha, notas in resultados_agrupados.items()
+        fecha: sum(notas) / len(notas) for fecha, notas in resultados_agrupados.items()
     }
-
-    # Preparamos los datos para el gráfico
     dias_ordenados = sorted(notas_medias_por_dia.keys())
     labels_grafico = [dia.strftime('%d/%m') for dia in dias_ordenados]
     datos_grafico = [round(notas_medias_por_dia[dia], 2) for dia in dias_ordenados]
-
     return jsonify({'labels': labels_grafico, 'data': datos_grafico})
 
-
-# === NUEVA RUTA PARA DATOS DEL GRÁFICO DE RADAR ===
 @main_bp.route('/api/radar-competencias')
 @login_required
 def api_radar_competencias():
-    """
-    Calcula la nota media del usuario por cada bloque principal y la devuelve en JSON.
-    """
-    # Consulta para obtener el rendimiento agrupado por bloque
     stats_por_bloque = db.session.query(
         Bloque.nombre,
         func.avg(case((RespuestaUsuario.es_correcta, 10), else_=0)).label('nota_media')
@@ -596,29 +572,15 @@ def api_radar_competencias():
     ).order_by(
         Bloque.nombre
     ).all()
-
-    # Preparamos los datos para Chart.js
     labels = [resultado[0] for resultado in stats_por_bloque]
     data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
-
     return jsonify({'labels': labels, 'data': data})
 
-# ... al final de mi_app/routes/main_routes.py ...
-
-# === NUEVA RUTA PARA DATOS DEL CALENDARIO DE ACTIVIDAD ===
 @main_bp.route('/api/calendario-actividad')
 @login_required
 def api_calendario_actividad():
-    """
-    Devuelve el número de tests realizados por día durante el último año.
-    """
-    from datetime import datetime
-
-    # Definimos el rango de fechas: desde hoy hasta hace 365 días
     fecha_fin = datetime.utcnow().date()
     fecha_inicio = fecha_fin - timedelta(days=365)
-
-    # Contamos los tests por día
     resultados_por_dia = db.session.query(
         func.date(ResultadoTest.fecha).label('dia'),
         func.count(ResultadoTest.id).label('cantidad')
@@ -626,12 +588,8 @@ def api_calendario_actividad():
         ResultadoTest.usuario_id == current_user.id,
         func.date(ResultadoTest.fecha).between(fecha_inicio, fecha_fin)
     ).group_by('dia').all()
-
-    # Formateamos los datos para la librería del calendario
-    # El formato es una lista de diccionarios: [{'date': 'YYYY-MM-DD', 'value': X}]
     data_para_calendario = [
         {'date': resultado.dia.strftime('%Y-%m-%d'), 'value': resultado.cantidad}
         for resultado in resultados_por_dia
     ]
-
     return jsonify(data_para_calendario)
