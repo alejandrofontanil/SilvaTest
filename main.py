@@ -1,4 +1,5 @@
 from mi_app import create_app
+import click # <-- IMPORTACIÓN AÑADIDA
 
 # --- IMPORTACIONES PARA LOS COMANDOS CLI ---
 from mi_app.models import Usuario
@@ -24,7 +25,6 @@ def enviar_resumenes_semanales():
         for user in users:
             stats = get_stats_semanales(user)
             
-            # Pasamos la función now() a la plantilla para que pueda mostrar el año
             html = render_template('emails/resumen_semanal.html', user=user, stats=stats, now=datetime.utcnow)
             
             msg = Message('Tu Resumen Semanal en SilvaTest',
@@ -40,7 +40,7 @@ def enviar_resumenes_semanales():
         
         print("-> Proceso de envío de resúmenes finalizado.")
 
-# === NUEVO COMANDO PARA INICIALIZAR LA BBDD Y EL USUARIO INVITADO ===
+# === COMANDO PARA INICIALIZAR LA BBDD Y EL USUARIO INVITADO ===
 @app.cli.command("init-db")
 def init_db_command():
     """Crea las tablas si no existen y asegura que el usuario Invitado esté configurado."""
@@ -66,6 +66,20 @@ def init_db_command():
                 print("El usuario 'Invitado' ya existe y tiene la contraseña correcta.")
         
         print("Base de datos inicializada y usuario Invitado verificado.")
+
+# === NUEVO COMANDO PARA NOMBRAR ADMINISTRADORES ===
+@app.cli.command("make-admin")
+@click.argument("email")
+def make_admin(email):
+    """Asigna el rol de administrador a un usuario existente por su email."""
+    with app.app_context():
+        user = Usuario.query.filter_by(email=email).first()
+        if user:
+            user.es_admin = True
+            db.session.commit()
+            print(f"-> ¡Éxito! El usuario {email} ahora es administrador.")
+        else:
+            print(f"!! Error: No se encontró ningún usuario con el email {email}.")
 # === FIN DEL NUEVO COMANDO ===
 
 
