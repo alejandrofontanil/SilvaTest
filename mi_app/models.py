@@ -26,9 +26,10 @@ class Usuario(db.Model, UserMixin):
     es_admin = db.Column(db.Boolean, nullable=False, default=False)
     recibir_resumen_semanal = db.Column(db.Boolean, nullable=False, default=False)
     
+    # --- INICIO: CAMPOS PARA ONBOARDING Y PERSONALIZACIÓN ---
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
-    # ✅ CORRECCIÓN DEFINITIVA APLICADA AQUÍ
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
+    # --- FIN: CAMPOS PARA ONBOARDING Y PERSONALIZACIÓN ---
     
     # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
