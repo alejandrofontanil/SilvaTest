@@ -12,9 +12,14 @@
                 {{ form.nombre.label(class="form-label") }}
                 {{ form.nombre(class="form-control form-control-lg") }}
             </div>
-            <div class="form-check mb-4">
+            <div class="form-check mb-3">
                 {{ form.es_publica(class="form-check-input") }}
                 {{ form.es_publica.label(class="form-check-label") }}
+            </div>
+
+            <div class="form-check mb-4">
+                {{ form.es_premium(class="form-check-input") }}
+                {{ form.es_premium.label(class="form-check-label") }}
             </div>
             <div class="d-grid">
                 {{ form.submit(class="btn btn-primary btn-lg") }}
