@@ -4,9 +4,11 @@
 {{ super() }}
 <style>
     /* Esta regla se aplica solo cuando el tema oscuro está activo.
-      Le dice al contenedor de la IA que su color de texto debe ser oscuro para que contraste.
+      Le dice a cualquier elemento con fondo claro (bg-light) o grisáceo (bg-body-secondary)
+      que su color de texto debe ser oscuro para garantizar el contraste.
     */
-    [data-bs-theme="dark"] .explicacion-ia-container {
+    [data-bs-theme="dark"] .bg-light,
+    [data-bs-theme="dark"] .bg-body-secondary {
         color: #212529 !important; 
     }
 </style>
@@ -82,9 +84,6 @@
         const csrfToken = '{{ csrf_token() }}';
 
         // Tu código existente para favoritos y reportar iría aquí...
-        // Por ejemplo:
-        // document.querySelectorAll('.btn-favorito').forEach(boton => { ... });
-        // document.querySelectorAll('.btn-reportar').forEach(boton => { ... });
 
         const botonesExplicar = document.querySelectorAll('.btn-explicar-ia');
 
