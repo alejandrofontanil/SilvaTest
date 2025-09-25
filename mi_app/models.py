@@ -28,9 +28,10 @@ class Usuario(db.Model, UserMixin):
     
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
-
-    # --- CAMPO AÑADIDO PARA CONTROLAR ACCESO A IA ---
     tiene_acceso_ia = db.Column(db.Boolean, nullable=False, server_default='false')
+
+    # --- CAMPO AÑADIDO PARA EL DASHBOARD PERSONALIZABLE ---
+    preferencias_dashboard = db.Column(db.JSON, nullable=True)
     
     # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
