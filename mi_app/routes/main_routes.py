@@ -42,16 +42,10 @@ def home():
         return render_template('home.html', convocatorias=convocatorias)
     elif current_user.is_authenticated:
         convocatorias = current_user.convocatorias_accesibles.all()
-        resultados_totales = ResultadoTest.query.filter_by(autor=current_user).all()
-        nota_media_global = 0
-        if resultados_totales:
-            if len(resultados_totales) > 0:
-                nota_media_global = sum([r.nota for r in resultados_totales]) / len(resultados_totales)
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
                                convocatorias=convocatorias,
-                               nota_media_global=nota_media_global,
                                ultimo_resultado=ultimo_resultado,
                                ultimas_favoritas=ultimas_favoritas)
     else:
@@ -612,6 +606,9 @@ def api_calendario_actividad():
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
+    if not current_user.tiene_acceso_ia:
+        abort(403) # Error de Acceso Prohibido
+
     if not GEMINI_API_KEY:
         return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
 

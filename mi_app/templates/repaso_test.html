@@ -13,6 +13,7 @@
     }
 </style>
 {% endblock %}
+
 {% block content %}
 <div class="card shadow-sm">
     <div class="card-body p-4">
@@ -58,6 +59,7 @@
                         </div>
                     {% endif %}
                     
+                    {% if current_user.tiene_acceso_ia %}
                     <div class="mt-3">
                         <button class="btn btn-outline-primary btn-sm btn-explicar-ia" 
                                 data-pregunta-id="{{ respuesta_usuario.pregunta.id }}"
@@ -65,6 +67,7 @@
                             <i class="bi bi-robot"></i> Explicar con IA
                         </button>
                     </div>
+                    {% endif %}
                     <div class="explicacion-ia-container mt-3 p-3 rounded bg-body-secondary border-secondary-subtle" style="display: none;">
                         </div>
                 </div>

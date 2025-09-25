@@ -550,3 +550,22 @@ def eliminar_usuario(usuario_id):
         flash(f'Ocurrió un error al eliminar al usuario: {e}', 'danger')
 
     return redirect(url_for('admin.admin_usuarios'))
+
+@admin_bp.route('/usuario/<int:usuario_id>/toggle-ia', methods=['POST'])
+@admin_required
+def toggle_acceso_ia(usuario_id):
+    """
+    Activa o desactiva el acceso a la funcionalidad de IA para un usuario.
+    """
+    usuario = Usuario.query.get_or_404(usuario_id)
+    if usuario.es_admin:
+        flash('No se puede modificar el acceso a la IA para un administrador.', 'warning')
+        return redirect(url_for('admin.admin_usuarios'))
+
+    # Cambiamos el valor booleano al contrario del que tenga
+    usuario.tiene_acceso_ia = not usuario.tiene_acceso_ia
+    db.session.commit()
+    
+    estado = "activado" if usuario.tiene_acceso_ia else "desactivado"
+    flash(f'El acceso a la IA para {usuario.nombre} ha sido {estado}.', 'success')
+    return redirect(url_for('admin.admin_usuarios'))
