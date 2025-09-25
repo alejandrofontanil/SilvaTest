@@ -63,7 +63,7 @@ def home():
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    if not current_user.is_admin and convocatoria not in current_user.convocatorias_accesibles.all():
+    if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
     breadcrumbs = [
