@@ -3,17 +3,21 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Esta regla se aplica solo cuando el tema oscuro está activo.
-      Le dice a cualquier elemento con fondo claro (bg-light) o grisáceo (bg-body-secondary)
-      que su color de texto debe ser oscuro para garantizar el contraste.
+    /* Esta regla se aplica solo en modo oscuro ([data-bs-theme="dark"]).
+      Fuerza a que el texto dentro de elementos con fondo claro (.bg-light)
+      o grisáceo (.bg-body-secondary) sea oscuro para garantizar el contraste.
     */
     [data-bs-theme="dark"] .bg-light,
     [data-bs-theme="dark"] .bg-body-secondary {
         color: #212529 !important; 
     }
+
+    /* Regla adicional para asegurar que las etiquetas dentro de esos divs también hereden el color */
+    [data-bs-theme="dark"] .bg-light label {
+        color: inherit !important;
+    }
 </style>
 {% endblock %}
-
 {% block content %}
 <div class="card shadow-sm">
     <div class="card-body p-4">
@@ -68,6 +72,7 @@
                         </button>
                     </div>
                     {% endif %}
+
                     <div class="explicacion-ia-container mt-3 p-3 rounded bg-body-secondary border-secondary-subtle" style="display: none;">
                         </div>
                 </div>
