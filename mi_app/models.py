@@ -28,6 +28,9 @@ class Usuario(db.Model, UserMixin):
     
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
+
+    # --- CAMPO AÑADIDO PARA CONTROLAR ACCESO A IA ---
+    tiene_acceso_ia = db.Column(db.Boolean, nullable=False, server_default='false')
     
     # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
@@ -98,8 +101,6 @@ class Bloque(db.Model):
     posicion = db.Column(db.Integer, default=0, nullable=False)
     esta_oculto = db.Column(db.Boolean, nullable=False, default=False) 
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
-    
-    # --- CAMPO AÑADIDO PARA EL PROMPT DINÁMICO ---
     contexto_ia = db.Column(db.String(250), nullable=True)
     
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
