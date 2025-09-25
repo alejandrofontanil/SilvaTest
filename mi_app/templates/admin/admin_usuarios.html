@@ -15,14 +15,11 @@
                         <tr>
                             <th scope="col">Nombre</th>
                             <th scope="col">Email</th>
-                            <!-- ============================================== -->
-                            <!-- ===== INICIO: COLUMNA NUEVA AÑADIDA ============ -->
-                            <!-- ============================================== -->
                             <th scope="col">Objetivo Principal</th>
-                            <!-- ============================================== -->
-                            <!-- ======= FIN: COLUMNA NUEVA AÑADIDA ============= -->
-                            <!-- ============================================== -->
                             <th scope="col">Permisos Activos</th>
+                            <!-- ===== INICIO: COLUMNA NUEVA AÑADIDA ===== -->
+                            <th scope="col">Acceso IA</th>
+                            <!-- ===== FIN: COLUMNA NUEVA AÑADIDA ===== -->
                             <th scope="col" class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -31,9 +28,6 @@
                             <tr>
                                 <td class="fw-bold">{{ usuario.nombre }}</td>
                                 <td>{{ usuario.email }}</td>
-                                <!-- ============================================== -->
-                                <!-- ===== INICIO: CELDA NUEVA AÑADIDA ============ -->
-                                <!-- ============================================== -->
                                 <td>
                                     {% if usuario.objetivo_principal %}
                                         <span class="badge bg-info text-dark">{{ usuario.objetivo_principal.nombre }}</span>
@@ -41,9 +35,6 @@
                                         <span class="text-muted fst-italic">No definido</span>
                                     {% endif %}
                                 </td>
-                                <!-- ============================================== -->
-                                <!-- ======= FIN: CELDA NUEVA AÑADIDA ============= -->
-                                <!-- ============================================== -->
                                 <td>
                                     {% for acceso in usuario.accesos %}
                                         <span class="badge bg-secondary me-1">
@@ -58,9 +49,25 @@
                                         <span class="text-muted fst-italic">Sin permisos asignados</span>
                                     {% endfor %}
                                 </td>
+                                <!-- ===== INICIO: CELDA NUEVA AÑADIDA ===== -->
+                                <td>
+                                    <form action="{{ url_for('admin.toggle_acceso_ia', usuario_id=usuario.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        {% if usuario.tiene_acceso_ia %}
+                                            <button type="submit" class="btn btn-success btn-sm" title="Haz clic para desactivar el acceso a la IA">
+                                                <i class="bi bi-robot"></i> Activado
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm" title="Haz clic para activar el acceso a la IA">
+                                                <i class="bi bi-robot"></i> Desactivado
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                                <!-- ===== FIN: CELDA NUEVA AÑADIDA ===== -->
                                 <td class="text-end">
-                                    <a href="{{ url_for('admin.editar_permisos_usuario', usuario_id=usuario.id) }}" class="btn btn-primary btn-sm me-1">
-                                        <i class="bi bi-pencil-square"></i> Gestionar Permisos
+                                    <a href="{{ url_for('admin.editar_permisos_usuario', usuario_id=usuario.id) }}" class="btn btn-primary btn-sm me-1" title="Gestionar Permisos de Convocatoria">
+                                        <i class="bi bi-pencil-square"></i>
                                     </a>
                                     
                                     <form action="{{ url_for('admin.eliminar_usuario', usuario_id=usuario.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar a este usuario de forma permanente? Se borrarán todos sus datos.');">
@@ -73,7 +80,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted p-4">No hay estudiantes registrados.</td>
+                                <td colspan="6" class="text-center text-muted p-4">No hay estudiantes registrados.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
