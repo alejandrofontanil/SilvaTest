@@ -15,9 +15,6 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-# ======================================================================
-# ===== CAMBIO 1: IMPORTAR EL NUEVO FORMULARIO AQUÍ ====================
-# ======================================================================
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm
 
 main_bp = Blueprint('main', __name__)
@@ -36,23 +33,26 @@ def obtener_preguntas_recursivas(tema):
         preguntas.extend(obtener_preguntas_recursivas(subtema))
     return preguntas
 
+# ======================================================================
+# ===== INICIO: FUNCIÓN DE ANÁLISIS CORREGIDA Y ROBUSTA ================
+# ======================================================================
 def analizar_rendimiento_usuario(usuario):
     """
     Analiza los datos de un usuario y devuelve un resumen de su rendimiento.
     """
-    # 1. Encontrar los 3 temas más débiles
+    # 1. Encontrar los 3 temas más débiles (requiere al menos 10 respuestas en un tema para ser considerado)
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).join(Pregunta).join(RespuestaUsuario).filter(
+    ).select_from(RespuestaUsuario).join(Pregunta).join(Tema).filter(
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) >= 10).order_by('porcentaje').limit(3).all()
 
-    # 2. Encontrar el bloque más débil
+    # 2. Encontrar el bloque más débil (requiere al menos 15 respuestas en un bloque para ser considerado)
     stats_bloque = db.session.query(
         Bloque.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).join(Tema).join(Pregunta).join(RespuestaUsuario).filter(
+    ).select_from(RespuestaUsuario).join(Pregunta).join(Tema).join(Bloque).filter(
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Bloque.id).having(func.count(RespuestaUsuario.id) >= 15).order_by('porcentaje').first()
 
@@ -61,11 +61,15 @@ def analizar_rendimiento_usuario(usuario):
         "bloque_debil": f"{stats_bloque.nombre} ({int(stats_bloque.porcentaje)}% aciertos)" if stats_bloque else None
     }
     
-    # Si no hay suficientes datos, devuelve un informe vacío
+    # Si después del análisis no hemos encontrado ni temas ni bloques débiles, no hay datos suficientes.
     if not informe["temas_debiles"] and not informe["bloque_debil"]:
         return None
 
     return informe
+# ======================================================================
+# ===== FIN: FUNCIÓN DE ANÁLISIS CORREGIDA =============================
+# ======================================================================
+
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -127,12 +131,8 @@ def bloque_detalle(bloque_id):
 def cuenta():
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
-    # ======================================================================
-    # ===== CAMBIO 2: CREA UNA INSTANCIA DEL FORMULARIO ====================
-    # ======================================================================
     dashboard_form = DashboardPreferencesForm()
 
-    # Rellena el formulario con las preferencias guardadas del usuario
     if request.method == 'GET' and current_user.preferencias_dashboard:
         dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
         dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
@@ -205,7 +205,6 @@ def cuenta():
         'cuenta.html', title='Mi Cuenta', 
         form=form,
         objetivo_form=objetivo_form,
-        # ===== CAMBIO 3: PASA EL FORMULARIO A LA PLANTILLA =====
         dashboard_form=dashboard_form,
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
@@ -216,6 +215,7 @@ def cuenta():
         active_tab=active_tab,
         iniciar_tour_automaticamente=iniciar_tour
     )
+
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
@@ -560,7 +560,7 @@ def guardar_preferencias():
     current_user.recibir_resumen_semanal = recibir_resumen
     db.session.commit()
     flash('Tus preferencias han sido guardadas.', 'success')
-    return redirect(url_for('main.cuenta'))
+    return redirect(url_for('main.cuenta', tab='personalizar'))
 
 @main_bp.route('/cuenta/cambiar-objetivo', methods=['POST'])
 @login_required
@@ -572,7 +572,7 @@ def cambiar_objetivo():
         flash('¡Tu objetivo principal ha sido actualizado!', 'success')
     else:
         flash('Hubo un error al cambiar tu objetivo.', 'danger')
-    return redirect(url_for('main.cuenta'))
+    return redirect(url_for('main.cuenta', tab='personalizar'))
 
 @main_bp.route('/sw.js')
 def sw():
@@ -628,20 +628,13 @@ def api_radar_competencias():
     data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
     return jsonify({'labels': labels, 'data': data})
 
-# --- INICIO: RUTA DE API DEL CALENDARIO ACTUALIZADA ---
 @main_bp.route('/api/calendario-actividad')
 @login_required
 def api_calendario_actividad():
-    # Lee el parámetro 'meses' que envía el JavaScript. Si no existe, usa 3 por defecto.
     meses_a_mostrar = request.args.get('meses', 3, type=int)
-    
-    # Aseguramos que el valor esté entre los permitidos (3, 6, 12)
     if meses_a_mostrar not in [3, 6, 12]:
         meses_a_mostrar = 3
-
-    # Calcula la fecha de inicio basándose en los meses seleccionados
     fecha_fin = datetime.utcnow().date()
-    # Usamos una aproximación segura para restar meses
     dias_a_restar = meses_a_mostrar * 31 
     fecha_inicio = fecha_fin - timedelta(days=dias_a_restar)
 
@@ -658,16 +651,13 @@ def api_calendario_actividad():
         for resultado in resultados_por_dia
     ]
     return jsonify(data_para_calendario)
-# --- FIN: RUTA DE API DEL CALENDARIO ACTUALIZADA ---
 
 
-# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT DIDÁCTICO Y NEUTRAL ---
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia:
-        abort(403) # Error de Acceso Prohibido
-
+        abort(403) 
     if not GEMINI_API_KEY:
         return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
 
@@ -705,11 +695,9 @@ def explicar_respuesta_ia():
     prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
     
     if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-        # El usuario falló
         prompt_parts.append(f"La respuesta marcada fue: **{respuesta_usuario_texto}**.")
         prompt_parts.append("La tarea es explicar el razonamiento detrás de la respuesta correcta y por qué la opción marcada es incorrecta, centrándose en el detalle técnico o legal que las diferencia.")
     else:
-        # El usuario acertó o no respondió
         prompt_parts.append("La tarea es explicar por qué esta es la respuesta correcta, aportando algún dato extra o un consejo para afianzar el conocimiento.")
 
     prompt = "\n".join(prompt_parts)
@@ -718,50 +706,40 @@ def explicar_respuesta_ia():
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         return jsonify({'explicacion': response.text})
-
     except Exception as e:
         print(f"Error al llamar a la API de Gemini: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
-# --- FIN: RUTA DE IA ACTUALIZADA ---
 
 @main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
 @login_required
 def guardar_preferencias_dashboard():
-    # Importamos el nuevo formulario
-    from mi_app.forms import DashboardPreferencesForm
     form = DashboardPreferencesForm()
     
     if form.validate_on_submit():
-        # Creamos un diccionario con las preferencias
         preferencias = {
             'mostrar_grafico_evolucion': form.mostrar_grafico_evolucion.data,
             'mostrar_rendimiento_bloque': form.mostrar_rendimiento_bloque.data,
             'mostrar_calendario_actividad': form.mostrar_calendario_actividad.data,
         }
-        # Guardamos el diccionario como JSON en el usuario
         current_user.preferencias_dashboard = preferencias
         db.session.commit()
         flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
     else:
         flash('Hubo un error al guardar tus preferencias.', 'danger')
         
-    return redirect(url_for('main.cuenta', tab='personalizar')) # Redirigimos a la nueva pestaña
+    return redirect(url_for('main.cuenta', tab='personalizar'))
 
 @main_bp.route('/api/generar-plan-ia', methods=['POST'])
 @login_required
 def generar_plan_ia():
-    # 1. Seguridad: Verificar si el usuario tiene acceso a la IA
     if not current_user.tiene_acceso_ia:
         abort(403)
 
-    # 2. Llamar al motor de análisis
     informe = analizar_rendimiento_usuario(current_user)
 
-    # 3. Comprobar si hay suficientes datos para el análisis
     if not informe:
         return jsonify({'error': '¡Necesitas completar más tests! Aún no tengo suficientes datos para generar un plan fiable.'}), 400
     
-    # 4. Construir el prompt para Gemini
     resumen_rendimiento = f"Temas a reforzar: {', '.join(informe['temas_debiles'])}. "
     if informe['bloque_debil']:
         resumen_rendimiento += f"Bloque más débil: {informe['bloque_debil']}."
@@ -775,7 +753,6 @@ def generar_plan_ia():
     ]
     prompt = "\n".join(prompt_parts)
 
-    # 5. Llamar a la IA y devolver el resultado
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
@@ -783,3 +760,4 @@ def generar_plan_ia():
     except Exception as e:
         print(f"Error al llamar a la API de Gemini para el plan de estudio: {e}")
         return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA. Inténtalo de nuevo más tarde.'}), 500
+
