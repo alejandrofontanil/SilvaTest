@@ -15,7 +15,8 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-from mi_app.forms import FiltroCuentaForm, ObjetivoForm
+# ===== CAMBIO 1: IMPORTA EL NUEVO FORMULARIO AQUÍ =====
+from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm
 
 main_bp = Blueprint('main', __name__)
 
@@ -44,9 +45,9 @@ def home():
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
         return render_template('home.html', 
-                               convocatorias=convocatorias,
-                               ultimo_resultado=ultimo_resultado,
-                               ultimas_favoritas=ultimas_favoritas)
+                                convocatorias=convocatorias,
+                                ultimo_resultado=ultimo_resultado,
+                                ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -65,8 +66,8 @@ def convocatoria_detalle(convocatoria_id):
     ]
 
     return render_template('convocatoria_detalle.html', 
-                           convocatoria=convocatoria,
-                           breadcrumbs=breadcrumbs)
+                            convocatoria=convocatoria,
+                            breadcrumbs=breadcrumbs)
 
 @main_bp.route('/bloque/<int:bloque_id>')
 @login_required
@@ -84,15 +85,24 @@ def bloque_detalle(bloque_id):
     ]
 
     return render_template('bloque_detalle.html', 
-                           bloque=bloque, 
-                           temas=temas,
-                           breadcrumbs=breadcrumbs)
+                            bloque=bloque, 
+                            temas=temas,
+                            breadcrumbs=breadcrumbs)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
+    # ===== CAMBIO 2: CREA UNA INSTANCIA DEL FORMULARIO =====
+    dashboard_form = DashboardPreferencesForm()
+
+    # Rellena el formulario con las preferencias guardadas del usuario
+    if request.method == 'GET' and current_user.preferencias_dashboard:
+        dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
+        dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
+        dashboard_form.mostrar_calendario_actividad.data = current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True)
+
 
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
@@ -160,7 +170,9 @@ def cuenta():
     return render_template(
         'cuenta.html', title='Mi Cuenta', 
         form=form,
-        objetivo_form=objetivo_form, 
+        objetivo_form=objetivo_form,
+        # ===== CAMBIO 3: PASA EL FORMULARIO A LA PLANTILLA ===== 
+        dashboard_form=dashboard_form,
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
         total_preguntas_hechas=total_preguntas_hechas, 
@@ -215,11 +227,11 @@ def hacer_test(tema_id):
             pregunta.respuestas_barajadas = lista_respuestas
     
     return render_template('hacer_test.html', 
-                           title=f"Test de {tema.nombre}", 
-                           tema=tema, 
-                           preguntas=preguntas_test, 
-                           form=form,
-                           breadcrumbs=breadcrumbs)
+                            title=f"Test de {tema.nombre}", 
+                            tema=tema, 
+                            preguntas=preguntas_test, 
+                            form=form,
+                            breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -439,11 +451,11 @@ def simulacro_personalizado_test():
     form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
     return render_template('hacer_test.html', 
-                           title="Simulacro Personalizado", 
-                           tema=tema_dummy, 
-                           preguntas=preguntas_test, 
-                           is_personalizado=True,
-                           form=form)
+                            title="Simulacro Personalizado", 
+                            tema=tema_dummy, 
+                            preguntas=preguntas_test, 
+                            is_personalizado=True,
+                            form=form)
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
