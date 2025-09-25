@@ -63,7 +63,7 @@ def home():
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
+    if not current_user.is_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
     breadcrumbs = [
@@ -607,7 +607,7 @@ def api_calendario_actividad():
     ]
     return jsonify(data_para_calendario)
 
-# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT DINÁMICO ---
+# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT PERSONALIZADO ---
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
@@ -624,19 +624,17 @@ def explicar_respuesta_ia():
     pregunta = Pregunta.query.get_or_404(pregunta_id)
     bloque = pregunta.tema.bloque
     
-    # 1. Definimos la personalidad base de la IA
     personalidad_ia = "un profesor experto"
-    # 2. Si el bloque tiene un contexto específico en la BBDD, lo usamos para refinar la personalidad
-    # Nota: Asegúrate de añadir el campo 'contexto_ia' al modelo Bloque para que esto funcione.
     if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
         personalidad_ia += f" en {bloque.contexto_ia}"
 
-    # 3. Construimos el prompt dinámicamente
     prompt_parts = [
-        f"Actúa como {personalidad_ia}. Tu tono es el de un experto: claro, directo y muy conciso.",
+        f"Actúa como un profesor particular experto en {personalidad_ia}. Tu objetivo es ayudarme a entender mis errores de forma clara, directa y concisa.",
         "Limita la explicación total a un máximo de 3 o 4 frases cortas.",
         "Usa negritas solo para las palabras clave más importantes.",
-        f"\n**Pregunta:**\n{pregunta.texto}\n"
+        "Háblame siempre directamente a mí, usando 'tú'.",
+        f"\nEstoy repasando un test y tengo dudas con esta pregunta:",
+        f"**Pregunta:** {pregunta.texto}",
     ]
 
     respuesta_correcta_texto = ""
@@ -649,14 +647,12 @@ def explicar_respuesta_ia():
             respuesta_usuario_texto = opcion.texto
 
     if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-        # El usuario falló, la explicación se centra en el error
         prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
-        prompt_parts.append(f"El alumno respondió incorrectamente: **{respuesta_usuario_texto}**.")
-        prompt_parts.append("Tu tarea es explicar el error. Enfócate en el 'detalle clave' o la 'palabra' que diferencia la respuesta correcta de la incorrecta. Sé breve y directo.")
+        prompt_parts.append(f"Yo he respondido incorrectamente: **{respuesta_usuario_texto}**.")
+        prompt_parts.append("Tu tarea es explicarme por qué mi respuesta es incorrecta y por qué la otra es la correcta. Enfócate en el detalle clave que he pasado por alto.")
     else:
-        # El usuario acertó o no respondió
         prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
-        prompt_parts.append("Tu tarea es validar por qué es correcta en una o dos frases, mencionando el concepto fundamental sin extenderte.")
+        prompt_parts.append("Tu tarea es explicarme por qué esta es la respuesta correcta, dándome algún truco para recordarlo.")
 
     prompt = "\n".join(prompt_parts)
 
