@@ -20,7 +20,6 @@ from mi_app.forms import FiltroCuentaForm, ObjetivoForm
 main_bp = Blueprint('main', __name__)
 
 # --- INICIO: CONFIGURACIÓN DE LA API DE GEMINI ---
-# Carga la clave API desde las variables de entorno de Render
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -583,13 +582,21 @@ def api_radar_competencias():
     data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
     return jsonify({'labels': labels, 'data': data})
 
+# --- INICIO: RUTA DE API DEL CALENDARIO ACTUALIZADA ---
 @main_bp.route('/api/calendario-actividad')
 @login_required
 def api_calendario_actividad():
+    # Lee el parámetro 'meses' que envía el JavaScript. Si no existe, usa 3 por defecto.
+    meses_a_mostrar = request.args.get('meses', 3, type=int)
+    
+    # Aseguramos que el valor esté entre los permitidos (3, 6, 12)
+    if meses_a_mostrar not in [3, 6, 12]:
+        meses_a_mostrar = 3
+
+    # Calcula la fecha de inicio basándose en los meses seleccionados
     fecha_fin = datetime.utcnow().date()
-    # --- CAMBIO AQUÍ: Se lee el parámetro 'meses' ---
-    meses_a_mostrar = request.args.get('meses', 12, type=int)
-    dias_a_restar = meses_a_mostrar * 31 # Una aproximación segura
+    # Usamos una aproximación segura para restar meses
+    dias_a_restar = meses_a_mostrar * 31 
     fecha_inicio = fecha_fin - timedelta(days=dias_a_restar)
 
     resultados_por_dia = db.session.query(
@@ -599,11 +606,13 @@ def api_calendario_actividad():
         ResultadoTest.usuario_id == current_user.id,
         func.date(ResultadoTest.fecha).between(fecha_inicio, fecha_fin)
     ).group_by('dia').all()
+    
     data_para_calendario = [
         {'date': resultado.dia.strftime('%Y-%m-%d'), 'value': resultado.cantidad}
         for resultado in resultados_por_dia
     ]
     return jsonify(data_para_calendario)
+# --- FIN: RUTA DE API DEL CALENDARIO ACTUALIZADA ---
 
 
 # --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT DIDÁCTICO Y NEUTRAL ---
