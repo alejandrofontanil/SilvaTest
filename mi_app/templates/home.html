@@ -226,20 +226,23 @@
     import CalHeatmap from 'https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm';
 
     document.addEventListener('DOMContentLoaded', function() {
+
         // ... (Tu código para los gráficos de líneas y radar va aquí)
 
-        // --- INICIO: LÓGICA ACTUALIZADA PARA EL CALENDARIO DE ACTIVIDAD ---
+        // --- INICIO: LÓGICA CORREGIDA Y MÁS ROBUSTA PARA EL CALENDARIO ---
         const calHeatmapDiv = document.getElementById('cal-heatmap');
         if (calHeatmapDiv) {
-            const cal = new CalHeatmap();
+            let cal = new CalHeatmap(); // Creamos la instancia fuera
             const selectorRango = document.getElementById('calendario-rango');
 
             function renderizarCalendario(meses) {
-                cal.destroy().then(() => {
-                    const mesesInt = parseInt(meses);
-                    const fechaInicio = new Date();
-                    fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt);
+                const mesesInt = parseInt(meses);
+                const fechaInicio = new Date();
+                fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt);
 
+                // Destruimos la instancia anterior si ya existe
+                cal.destroy().then(() => {
+                    // Volvemos a pintar
                     cal.paint({
                         data: {
                             source: `{{ url_for('main.api_calendario_actividad') }}?meses=${mesesInt}`,
@@ -262,16 +265,17 @@
                 });
             }
 
-            // Renderizamos la vista inicial (3 meses)
             if (selectorRango) {
+                // Renderizamos la vista inicial por defecto
                 renderizarCalendario(selectorRango.value);
 
+                // Añadimos el "escuchador" para cuando cambie la selección
                 selectorRango.addEventListener('change', function() {
                     renderizarCalendario(this.value);
                 });
             }
         }
-        // --- FIN: LÓGICA ACTUALIZADA PARA EL CALENDARIO ---
+        // --- FIN: LÓGICA CORREGIDA ---
     });
 
 </script>
