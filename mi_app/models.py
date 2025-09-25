@@ -84,8 +84,6 @@ class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
     es_publica = db.Column(db.Boolean, nullable=False, default=True)
-    
-    # --- CAMPO AÑADIDO PARA FREEMIUM ---
     es_premium = db.Column(db.Boolean, nullable=False, server_default='false')
     
     bloques = db.relationship('Bloque', backref='convocatoria', lazy=True, cascade="all, delete-orphan", order_by='Bloque.posicion')
@@ -100,6 +98,10 @@ class Bloque(db.Model):
     posicion = db.Column(db.Integer, default=0, nullable=False)
     esta_oculto = db.Column(db.Boolean, nullable=False, default=False) 
     convocatoria_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=False)
+    
+    # --- CAMPO AÑADIDO PARA EL PROMPT DINÁMICO ---
+    contexto_ia = db.Column(db.String(250), nullable=True)
+    
     temas = db.relationship('Tema', backref='bloque', lazy='dynamic', foreign_keys='Tema.bloque_id', cascade="all, delete-orphan", order_by='Tema.posicion')
 
     def __repr__(self):
