@@ -607,14 +607,10 @@ def api_calendario_actividad():
     ]
     return jsonify(data_para_calendario)
 
-# --- INICIO: NUEVA RUTA PARA LA IA GENERATIVA ---
+# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT DINÁMICO ---
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
-    """
-    Recibe el ID de una pregunta, construye un prompt y pide a Gemini
-    que genere una explicación detallada.
-    """
     if not GEMINI_API_KEY:
         return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
 
@@ -626,52 +622,50 @@ def explicar_respuesta_ia():
         return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
 
     pregunta = Pregunta.query.get_or_404(pregunta_id)
+    bloque = pregunta.tema.bloque
     
-    # Construimos el prompt para la IA
+    # 1. Definimos la personalidad base de la IA
+    personalidad_ia = "un profesor experto"
+    # 2. Si el bloque tiene un contexto específico en la BBDD, lo usamos para refinar la personalidad
+    # Nota: Asegúrate de añadir el campo 'contexto_ia' al modelo Bloque para que esto funcione.
+    if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
+        personalidad_ia += f" en {bloque.contexto_ia}"
+
+    # 3. Construimos el prompt dinámicamente
     prompt_parts = [
-        "Actúa como un tutor experto y preparador de oposiciones para Agentes Medioambientales en España. Tu tono debe ser claro, encouraging y didáctico.",
-        "Un alumno está repasando un test y ha pedido una explicación para la siguiente pregunta:",
-        f"\n**Pregunta:**\n{pregunta.texto}\n",
-        "**Opciones:**"
+        f"Actúa como {personalidad_ia}. Tu tono es el de un experto: claro, directo y muy conciso.",
+        "Limita la explicación total a un máximo de 3 o 4 frases cortas.",
+        "Usa negritas solo para las palabras clave más importantes.",
+        f"\n**Pregunta:**\n{pregunta.texto}\n"
     ]
 
     respuesta_correcta_texto = ""
     respuesta_usuario_texto = ""
 
     for opcion in pregunta.respuestas:
-        prompt_parts.append(f"- {opcion.texto}")
         if opcion.es_correcta:
             respuesta_correcta_texto = opcion.texto
         if str(opcion.id) == str(respuesta_usuario_id):
             respuesta_usuario_texto = opcion.texto
 
-    prompt_parts.append(f"\n**Respuesta Correcta:**\n{respuesta_correcta_texto}")
-
     if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-        prompt_parts.append(f"\n**El alumno respondió:**\n{respuesta_usuario_texto}")
-        prompt_parts.append("\n**Tu Tarea:**")
-        prompt_parts.append("1. Primero, valida y reafirma por qué la respuesta correcta lo es, citando la lógica o normativa si aplica.")
-        prompt_parts.append("2. Después, explica de forma constructiva por qué la opción que eligió el alumno es incorrecta.")
-        prompt_parts.append("3. Finaliza con una frase motivadora o un consejo de estudio relacionado.")
-    else: # Si el usuario acertó o no seleccionó respuesta
-        prompt_parts.append("\n**Tu Tarea:**")
-        prompt_parts.append("1. Explica detalladamente por qué la respuesta correcta es la correcta, como si estuvieras dando una mini-clase sobre el tema.")
-        prompt_parts.append("2. Si la pregunta se basa en alguna ley o artículo, menciónalo.")
-        prompt_parts.append("3. Ofrece un consejo práctico o un truco para recordar este concepto.")
-        
-    prompt_parts.append("\nUsa formato Markdown para organizar la respuesta (negritas, listas, etc.).")
-    
+        # El usuario falló, la explicación se centra en el error
+        prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
+        prompt_parts.append(f"El alumno respondió incorrectamente: **{respuesta_usuario_texto}**.")
+        prompt_parts.append("Tu tarea es explicar el error. Enfócate en el 'detalle clave' o la 'palabra' que diferencia la respuesta correcta de la incorrecta. Sé breve y directo.")
+    else:
+        # El usuario acertó o no respondió
+        prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
+        prompt_parts.append("Tu tarea es validar por qué es correcta en una o dos frases, mencionando el concepto fundamental sin extenderte.")
+
     prompt = "\n".join(prompt_parts)
 
     try:
-        # Inicializa el modelo de Gemini (gemini-1.5-flash es rápido y eficiente)
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
-        
-        # Devolvemos la explicación generada
         return jsonify({'explicacion': response.text})
 
     except Exception as e:
         print(f"Error al llamar a la API de Gemini: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
-# --- FIN: NUEVA RUTA PARA LA IA GENERATIVA ---
+# --- FIN: RUTA DE IA ACTUALIZADA ---
