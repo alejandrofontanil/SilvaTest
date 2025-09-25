@@ -16,7 +16,7 @@ from flask_wtf import FlaskForm
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
 # ======================================================================
-# ===== CAMBIO 1: ASEGÚRATE DE QUE ESTA LÍNEA INCLUYE DashboardPreferencesForm =====
+# ===== CAMBIO 1: IMPORTAR EL NUEVO FORMULARIO AQUÍ ====================
 # ======================================================================
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm
 
@@ -96,7 +96,9 @@ def bloque_detalle(bloque_id):
 def cuenta():
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
-    # ===== CAMBIO 2: CREA UNA INSTANCIA DEL FORMULARIO =====
+    # ======================================================================
+    # ===== CAMBIO 2: CREA UNA INSTANCIA DEL FORMULARIO ====================
+    # ======================================================================
     dashboard_form = DashboardPreferencesForm()
 
     # Rellena el formulario con las preferencias guardadas del usuario
@@ -707,4 +709,9 @@ def guardar_preferencias_dashboard():
         }
         # Guardamos el diccionario como JSON en el usuario
         current_user.preferencias_dashboard = preferencias
-        db.session.commit
+        db.session.commit()
+        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
+    else:
+        flash('Hubo un error al guardar tus preferencias.', 'danger')
+        
+    return redirect(url_for('main.cuenta', tab='personalizar')) # Redirigimos a la nueva pestaña
