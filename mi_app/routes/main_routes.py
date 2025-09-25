@@ -677,3 +677,26 @@ def explicar_respuesta_ia():
         print(f"Error al llamar a la API de Gemini: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
 # --- FIN: RUTA DE IA ACTUALIZADA ---
+
+@main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
+@login_required
+def guardar_preferencias_dashboard():
+    # Importamos el nuevo formulario
+    from mi_app.forms import DashboardPreferencesForm
+    form = DashboardPreferencesForm()
+    
+    if form.validate_on_submit():
+        # Creamos un diccionario con las preferencias
+        preferencias = {
+            'mostrar_grafico_evolucion': form.mostrar_grafico_evolucion.data,
+            'mostrar_rendimiento_bloque': form.mostrar_rendimiento_bloque.data,
+            'mostrar_calendario_actividad': form.mostrar_calendario_actividad.data,
+        }
+        # Guardamos el diccionario como JSON en el usuario
+        current_user.preferencias_dashboard = preferencias
+        db.session.commit()
+        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
+    else:
+        flash('Hubo un error al guardar tus preferencias.', 'danger')
+        
+    return redirect(url_for('main.cuenta', tab='personalizar')) # Redirigimos a la nueva pestaña
