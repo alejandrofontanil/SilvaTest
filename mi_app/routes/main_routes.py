@@ -607,7 +607,8 @@ def api_calendario_actividad():
     ]
     return jsonify(data_para_calendario)
 
-# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT PERSONALIZADO ---
+
+# --- INICIO: RUTA DE IA ACTUALIZADA CON PROMPT DIDÁCTICO Y NEUTRAL ---
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
@@ -624,17 +625,16 @@ def explicar_respuesta_ia():
     pregunta = Pregunta.query.get_or_404(pregunta_id)
     bloque = pregunta.tema.bloque
     
-    personalidad_ia = "un profesor experto"
+    personalidad_ia = "un preparador de oposiciones experto"
     if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
         personalidad_ia += f" en {bloque.contexto_ia}"
 
     prompt_parts = [
-        f"Actúa como un profesor particular experto en {personalidad_ia}. Tu objetivo es ayudarme a entender mis errores de forma clara, directa y concisa.",
-        "Limita la explicación total a un máximo de 3 o 4 frases cortas.",
-        "Usa negritas solo para las palabras clave más importantes.",
-        "Háblame siempre directamente a mí, usando 'tú'.",
-        f"\nEstoy repasando un test y tengo dudas con esta pregunta:",
-        f"**Pregunta:** {pregunta.texto}",
+        f"Actúa como {personalidad_ia}. Tu tono es didáctico, neutral y explicativo.",
+        "El objetivo es aportar valor añadido y clarificar conceptos clave para un opositor.",
+        "La explicación debe ser concisa (2-3 frases) y centrarse en el 'porqué' de la respuesta correcta.",
+        "Usa negritas para remarcar los conceptos o palabras clave en los que el opositor debe fijarse.",
+        f"\n**Pregunta:**\n{pregunta.texto}\n",
     ]
 
     respuesta_correcta_texto = ""
@@ -646,13 +646,15 @@ def explicar_respuesta_ia():
         if str(opcion.id) == str(respuesta_usuario_id):
             respuesta_usuario_texto = opcion.texto
 
+    prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
+    
     if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-        prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
-        prompt_parts.append(f"Yo he respondido incorrectamente: **{respuesta_usuario_texto}**.")
-        prompt_parts.append("Tu tarea es explicarme por qué mi respuesta es incorrecta y por qué la otra es la correcta. Enfócate en el detalle clave que he pasado por alto.")
+        # El usuario falló
+        prompt_parts.append(f"La respuesta marcada fue: **{respuesta_usuario_texto}**.")
+        prompt_parts.append("La tarea es explicar el razonamiento detrás de la respuesta correcta y por qué la opción marcada es incorrecta, centrándose en el detalle técnico o legal que las diferencia.")
     else:
-        prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
-        prompt_parts.append("Tu tarea es explicarme por qué esta es la respuesta correcta, dándome algún truco para recordarlo.")
+        # El usuario acertó o no respondió
+        prompt_parts.append("La tarea es explicar por qué esta es la respuesta correcta, aportando algún dato extra o un consejo para afianzar el conocimiento.")
 
     prompt = "\n".join(prompt_parts)
 
