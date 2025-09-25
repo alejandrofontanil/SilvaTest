@@ -587,7 +587,11 @@ def api_radar_competencias():
 @login_required
 def api_calendario_actividad():
     fecha_fin = datetime.utcnow().date()
-    fecha_inicio = fecha_fin - timedelta(days=365)
+    # --- CAMBIO AQUÍ: Se lee el parámetro 'meses' ---
+    meses_a_mostrar = request.args.get('meses', 12, type=int)
+    dias_a_restar = meses_a_mostrar * 31 # Una aproximación segura
+    fecha_inicio = fecha_fin - timedelta(days=dias_a_restar)
+
     resultados_por_dia = db.session.query(
         func.date(ResultadoTest.fecha).label('dia'),
         func.count(ResultadoTest.id).label('cantidad')
