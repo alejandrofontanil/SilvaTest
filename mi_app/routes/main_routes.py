@@ -36,6 +36,37 @@ def obtener_preguntas_recursivas(tema):
         preguntas.extend(obtener_preguntas_recursivas(subtema))
     return preguntas
 
+def analizar_rendimiento_usuario(usuario):
+    """
+    Analiza los datos de un usuario y devuelve un resumen de su rendimiento.
+    """
+    # 1. Encontrar los 3 temas más débiles
+    stats_temas = db.session.query(
+        Tema.nombre,
+        (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
+    ).join(Pregunta).join(RespuestaUsuario).filter(
+        RespuestaUsuario.usuario_id == usuario.id
+    ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) >= 10).order_by('porcentaje').limit(3).all()
+
+    # 2. Encontrar el bloque más débil
+    stats_bloque = db.session.query(
+        Bloque.nombre,
+        (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
+    ).join(Tema).join(Pregunta).join(RespuestaUsuario).filter(
+        RespuestaUsuario.usuario_id == usuario.id
+    ).group_by(Bloque.id).having(func.count(RespuestaUsuario.id) >= 15).order_by('porcentaje').first()
+
+    informe = {
+        "temas_debiles": [f"{nombre} ({int(porcentaje)}% aciertos)" for nombre, porcentaje in stats_temas],
+        "bloque_debil": f"{stats_bloque.nombre} ({int(stats_bloque.porcentaje)}% aciertos)" if stats_bloque else None
+    }
+    
+    # Si no hay suficientes datos, devuelve un informe vacío
+    if not informe["temas_debiles"] and not informe["bloque_debil"]:
+        return None
+
+    return informe
+
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
@@ -715,3 +746,40 @@ def guardar_preferencias_dashboard():
         flash('Hubo un error al guardar tus preferencias.', 'danger')
         
     return redirect(url_for('main.cuenta', tab='personalizar')) # Redirigimos a la nueva pestaña
+
+@main_bp.route('/api/generar-plan-ia', methods=['POST'])
+@login_required
+def generar_plan_ia():
+    # 1. Seguridad: Verificar si el usuario tiene acceso a la IA
+    if not current_user.tiene_acceso_ia:
+        abort(403)
+
+    # 2. Llamar al motor de análisis
+    informe = analizar_rendimiento_usuario(current_user)
+
+    # 3. Comprobar si hay suficientes datos para el análisis
+    if not informe:
+        return jsonify({'error': '¡Necesitas completar más tests! Aún no tengo suficientes datos para generar un plan fiable.'}), 400
+    
+    # 4. Construir el prompt para Gemini
+    resumen_rendimiento = f"Temas a reforzar: {', '.join(informe['temas_debiles'])}. "
+    if informe['bloque_debil']:
+        resumen_rendimiento += f"Bloque más débil: {informe['bloque_debil']}."
+
+    prompt_parts = [
+        "Actúa como un preparador de oposiciones de élite para Agentes Medioambientales de Castilla y León y Asturias. Tu nombre es Silva, el Entrenador IA. Eres motivador, directo y estratégico.",
+        f"Un opositor llamado {current_user.nombre} te pide un plan de choque. Su informe de rendimiento es: {resumen_rendimiento}",
+        "Basado en estos datos, crea un plan de estudio concreto y accionable para los próximos 3 días.",
+        "El plan debe estar formateado en Markdown, ser fácil de leer y tener 3 puntos clave.",
+        "Empieza con una frase de ánimo personalizada y termina sugiriendo un objetivo claro y numérico (ej: 'Tu objetivo esta semana es subir la media en el bloque X por encima del 6.0')."
+    ]
+    prompt = "\n".join(prompt_parts)
+
+    # 5. Llamar a la IA y devolver el resultado
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return jsonify({'plan': response.text})
+    except Exception as e:
+        print(f"Error al llamar a la API de Gemini para el plan de estudio: {e}")
+        return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA. Inténtalo de nuevo más tarde.'}), 500
