@@ -8,6 +8,7 @@
                 <h5 class="mb-0">Panel de Estudiante</h5>
             </div>
             <div class="list-group list-group-flush" id="panel-menu" role="tablist">
+                
                 <a id="evolucion-link" class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
                     <i class="bi bi-graph-up-arrow me-2"></i>Evolución
                 </a>
@@ -17,16 +18,19 @@
                 <a id="historial-link" class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
                     <i class="bi bi-list-task me-2"></i>Historial Detallado
                 </a>
-                <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
-                    <i class="bi bi-robot me-2"></i>Analizador Inteligente <span class="badge bg-primary ms-1">Nuevo</span>
-                </a>
-                <a id="personalizar-link" class="list-group-item list-group-item-action {% if active_tab == 'personalizar' %}active{% endif %}" data-bs-toggle="list" href="#personalizar" role="tab">
-                    <i class="bi bi-sliders me-2"></i>Ajustes y Preferencias
-                </a>
+                
                 <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
                 <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
                 <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
-            </div>
+
+                <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
+                    <i class="bi bi-robot me-2"></i>Analizador Inteligente <span class="badge bg-primary ms-1">Nuevo</span>
+                </a>
+
+                <a id="personalizar-link" class="list-group-item list-group-item-action {% if active_tab == 'personalizar' %}active{% endif %}" data-bs-toggle="list" href="#personalizar" role="tab">
+                    <i class="bi bi-sliders me-2"></i>Ajustes y Preferencias
+                </a>
+                </div>
         </div>
     </div>
 
@@ -192,7 +196,6 @@
                 </div>
             </div>
 
-            <!-- ===== INICIO: CONTENIDO DE LA NUEVA PESTAÑA DE AJUSTES ===== -->
             <div class="tab-pane fade {% if active_tab == 'personalizar' %}show active{% endif %}" id="personalizar" role="tabpanel">
                 
                 <div class="card shadow-sm mb-4">
@@ -256,7 +259,6 @@
                     </div>
                 </div>
             </div>
-            <!-- ===== FIN: CONTENIDO DE LA NUEVA PESTAÑA ===== -->
         </div>
     </div>
 </div>

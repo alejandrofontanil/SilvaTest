@@ -92,14 +92,14 @@ function iniciarTourBienvenida() {
 
 /**
  * Este es el tour que se puede activar manualmente desde la página "Mi Cuenta".
- * Es más detallado sobre las herramientas específicas de esa sección.
+ * Ha sido actualizado para reflejar el nuevo orden del menú y las nuevas funciones.
  */
 function iniciarTourCuenta() {
     const tourCuenta = new Shepherd.Tour({
         useModalOverlay: true,
         defaultStepOptions: {
             classes: 'shadow-md',
-            scrollTo: true,
+            scrollTo: { behavior: 'smooth', block: 'center' },
             cancelIcon: {
                 enabled: true
             }
@@ -107,25 +107,17 @@ function iniciarTourCuenta() {
     });
 
     tourCuenta.addStep({
-        id: 'panel-personal',
-        text: '¡Bienvenido a tu Panel Personal! Este es tu centro de control para gestionar tu progreso y herramientas de estudio. ¡Vamos a ver rápidamente qué puedes hacer aquí!',
+        id: 'step-intro',
+        title: 'Tu Centro de Control',
+        text: '¡Bienvenido a tu Panel Personal! Desde este menú lateral puedes acceder a todas tus estadísticas y herramientas de estudio.',
         attachTo: { element: '#panel-menu', on: 'right' },
         buttons: [{ action: tourCuenta.next, text: 'Empezar' }]
     });
 
     tourCuenta.addStep({
-        id: 'filtro-convocatoria',
-        text: 'Usa este menú para ver tus estadísticas de una convocatoria específica o de todas a la vez.',
-        attachTo: { element: '.filtro-convocatoria', on: 'bottom' },
-        buttons: [
-            { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
-            { action: tourCuenta.next, text: 'Siguiente' }
-        ]
-    });
-
-    tourCuenta.addStep({
-        id: 'evolucion',
-        text: 'Aquí verás un gráfico con la media de tus notas a lo largo del tiempo. ¡Ideal para ver tu progreso!',
+        id: 'step-analiticas',
+        title: 'Tus Analíticas',
+        text: 'Estas tres primeras secciones (Evolución, Estadísticas e Historial) te dan una visión completa de tu rendimiento para que sepas exactamente cómo vas.',
         attachTo: { element: '#evolucion-link', on: 'right' },
         buttons: [
             { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
@@ -134,38 +126,9 @@ function iniciarTourCuenta() {
     });
 
     tourCuenta.addStep({
-        id: 'estadisticas-detalladas',
-        text: 'En esta sección podrás ver tu porcentaje de aciertos por bloque y por tema para saber dónde tienes que mejorar.',
-        attachTo: { element: '#estadisticas-link', on: 'right' },
-        buttons: [
-            { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
-            { action: tourCuenta.next, text: 'Siguiente' }
-        ]
-    });
-
-    tourCuenta.addStep({
-        id: 'historial-detallado',
-        text: 'Consulta aquí el detalle de todos los tests que has realizado, tus notas y la opción de repasarlos.',
-        attachTo: { element: '#historial-link', on: 'right' },
-        buttons: [
-            { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
-            { action: tourCuenta.next, text: 'Siguiente' }
-        ]
-    });
-
-    tourCuenta.addStep({
-        id: 'analizador-ia',
-        text: '¡Nuestra función estrella! Próximamente, este analizador usará IA para detectar tus puntos débiles y darte recomendaciones de estudio personalizadas.',
-        attachTo: { element: '#analizador-link', on: 'right' },
-        buttons: [
-            { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
-            { action: tourCuenta.next, text: 'Siguiente' }
-        ]
-    });
-
-    tourCuenta.addStep({
-        id: 'repasar-fallos',
-        text: '¡Esta es una de las herramientas más potentes! Al hacer clic aquí, generarás un test solo con las preguntas que has fallado.',
+        id: 'step-herramientas',
+        title: 'Herramientas de Estudio',
+        text: 'Aquí tienes tus mejores aliados: "Repasar Fallos" para reforzar, "Favoritas" para guardar preguntas clave y "Generador" para crear simulacros a tu medida.',
         attachTo: { element: '#repasar-fallos-link', on: 'right' },
         buttons: [
             { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
@@ -174,9 +137,10 @@ function iniciarTourCuenta() {
     });
 
     tourCuenta.addStep({
-        id: 'preguntas-favoritas',
-        text: 'Las preguntas que marques con la estrella ⭐ en los tests aparecerán aquí para que puedas repasarlas cuando quieras.',
-        attachTo: { element: '#preguntas-favoritas-link', on: 'right' },
+        id: 'step-ajustes',
+        title: 'Configura tu Experiencia',
+        text: '¡Importante! En "Ajustes y Preferencias" puedes cambiar tu objetivo y, lo más nuevo, ¡personalizar qué módulos ves en la página de inicio!',
+        attachTo: { element: '#personalizar-link', on: 'right' },
         buttons: [
             { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
             { action: tourCuenta.next, text: 'Siguiente' }
@@ -184,19 +148,10 @@ function iniciarTourCuenta() {
     });
 
     tourCuenta.addStep({
-        id: 'generador-tests',
-        text: 'Crea tests personalizados seleccionando los bloques y temas que te interesen. ¡Ideal para enfocar tu estudio!',
-        attachTo: { element: '#generador-tests-link', on: 'right' },
-        buttons: [
-            { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
-            { action: tourCuenta.next, text: 'Siguiente' }
-        ]
-    });
-
-    tourCuenta.addStep({
-        id: 'zona-peligro',
-        text: 'Ten cuidado aquí. Este botón borrará TODO tu historial de tests y estadísticas de forma permanente.',
-        attachTo: { element: '.zona-peligro', on: 'top' },
+        id: 'step-filtro',
+        title: 'Filtra tus Datos',
+        text: 'Por último, recuerda que puedes usar este filtro para ver todas estas estadísticas aplicadas a una convocatoria específica o a todas a la vez.',
+        attachTo: { element: '.filtro-convocatoria', on: 'bottom' },
         buttons: [
             { action: tourCuenta.back, classes: 'shepherd-button-secondary', text: 'Anterior' },
             { action: tourCuenta.complete, text: 'Finalizar' }
