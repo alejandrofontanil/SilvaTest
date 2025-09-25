@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="row g-4">
-    <div class="col-md-3">
+    <div class="col-lg-3">
         <div class="card shadow-sm">
             <div class="card-header">
                 <h5 class="mb-0">Panel de Estudiante</h5>
@@ -17,11 +17,12 @@
                 <a id="historial-link" class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
                     <i class="bi bi-list-task me-2"></i>Historial Detallado
                 </a>
-                
                 <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
                     <i class="bi bi-robot me-2"></i>Analizador Inteligente <span class="badge bg-primary ms-1">Nuevo</span>
                 </a>
-                
+                <a id="personalizar-link" class="list-group-item list-group-item-action {% if active_tab == 'personalizar' %}active{% endif %}" data-bs-toggle="list" href="#personalizar" role="tab">
+                    <i class="bi bi-sliders me-2"></i>Ajustes y Preferencias
+                </a>
                 <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
                 <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
                 <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
@@ -29,7 +30,7 @@
         </div>
     </div>
 
-    <div class="col-md-9">
+    <div class="col-lg-9">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 mb-0">Mi Progreso</h1>
             <button id="iniciar-tour-cuenta" class="btn btn-sm btn-info text-white">
@@ -54,7 +55,7 @@
 
         <div class="tab-content">
             <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
-                 <div class="card shadow-sm">
+                <div class="card shadow-sm">
                     <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
                     <div class="card-body">
                         {% if datos_grafico and labels_grafico %}
@@ -190,61 +191,72 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="card shadow-sm mt-4">
-            <div class="card-header"><h5 class="mb-0">Mi Objetivo Principal</h5></div>
-            <div class="card-body">
-                <p>Tu objetivo actual es:</p>
-                <h4 class="text-primary">
-                    {% if current_user.objetivo_principal %}
-                        {{ current_user.objetivo_principal.nombre }}
-                    {% else %}
-                        Aún no has definido un objetivo.
-                    {% endif %}
-                </h4>
-                <button class="btn btn-secondary btn-sm mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseObjetivo" aria-expanded="false" aria-controls="collapseObjetivo">
-                    Cambiar Objetivo
-                </button>
-                <div class="collapse mt-3" id="collapseObjetivo">
-                    <hr>
-                    <form method="POST" action="{{ url_for('main.cambiar_objetivo') }}">
-                        {{ objetivo_form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ objetivo_form.objetivo_principal.label(class="form-label fw-bold") }}
-                            {{ objetivo_form.objetivo_principal(class="form-select") }}
+            <!-- ===== INICIO: CONTENIDO DE LA NUEVA PESTAÑA DE AJUSTES ===== -->
+            <div class="tab-pane fade {% if active_tab == 'personalizar' %}show active{% endif %}" id="personalizar" role="tabpanel">
+                
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h3 class="h5 mb-0">Personalizar Panel de Inicio</h3></div>
+                    <div class="card-body">
+                        <p class="card-subtitle mb-4 text-muted">Selecciona los módulos que quieres ver en tu página de inicio.</p>
+                        <form method="POST" action="{{ url_for('main.guardar_preferencias_dashboard') }}">
+                            {{ dashboard_form.hidden_tag() }}
+                            <div class="form-check form-switch mb-2">
+                                {{ dashboard_form.mostrar_grafico_evolucion(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_grafico_evolucion.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ dashboard_form.mostrar_rendimiento_bloque(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_rendimiento_bloque.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                {{ dashboard_form.mostrar_calendario_actividad(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_calendario_actividad.label(class="form-check-label") }}
+                            </div>
+                            {{ dashboard_form.submit(class="btn btn-primary") }}
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h5 class="mb-0">Otras Preferencias</h5></div>
+                    <div class="card-body">
+                        <p class="fw-bold">Mi Objetivo Principal</p>
+                        <p>Tu objetivo actual es: <strong class="text-primary">{{ current_user.objetivo_principal.nombre if current_user.objetivo_principal else 'No definido' }}</strong></p>
+                        <button class="btn btn-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseObjetivo">Cambiar Objetivo</button>
+                        <div class="collapse mt-3" id="collapseObjetivo">
+                            <hr>
+                            <form method="POST" action="{{ url_for('main.cambiar_objetivo') }}">
+                                {{ objetivo_form.hidden_tag() }}
+                                <div class="mb-3">{{ objetivo_form.objetivo_principal(class="form-select") }}</div>
+                                <div class="d-grid">{{ objetivo_form.submit(class="btn btn-primary") }}</div>
+                            </form>
                         </div>
-                        <div class="d-grid">
-                            {{ objetivo_form.submit(class="btn btn-primary") }}
-                        </div>
-                    </form>
+                        <hr class="my-4">
+                        <p class="fw-bold">Preferencias de Notificaciones</p>
+                        <form method="POST" action="{{ url_for('main.guardar_preferencias') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="resumenSemanal" name="resumen_semanal" {% if current_user.recibir_resumen_semanal %}checked{% endif %}>
+                                <label class="form-check-label" for="resumenSemanal">Recibir un resumen semanal de mi progreso por email.</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm mt-3">Guardar</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card shadow-sm mt-4 border-danger zona-peligro">
+                    <div class="card-header bg-danger text-white"><h5 class="mb-0">Zona de Peligro</h5></div>
+                    <div class="card-body">
+                        <p>Esta acción es irreversible. Se borrará todo tu historial de tests y estadísticas.</p>
+                        <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Vas a borrar todo tu progreso de forma permanente. ¿Estás seguro?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Resetear mis estadísticas</button>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="card shadow-sm mt-4">
-            <div class="card-header"><h5 class="mb-0">Preferencias de Notificaciones</h5></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('main.guardar_preferencias') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="resumenSemanal" name="resumen_semanal" {% if current_user.recibir_resumen_semanal %}checked{% endif %}>
-                        <label class="form-check-label" for="resumenSemanal">Recibir un resumen semanal de mi progreso por email.</label>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm mt-3">Guardar Preferencias</button>
-                </form>
-            </div>
-        </div>
-
-        <div class="card shadow-sm mt-4 border-danger zona-peligro">
-            <div class="card-header bg-danger text-white"><h5 class="mb-0">Zona de Peligro</h5></div>
-            <div class="card-body">
-                <p>Esta acción es irreversible. Se borrará todo tu historial de tests, tus notas y tus estadísticas de aciertos y fallos.</p>
-                <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Estás a punto de borrar todo tu progreso. Esta acción no se puede deshacer. ¿Estás seguro?');">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Resetear mis estadísticas</button>
-                </form>
-            </div>
+            <!-- ===== FIN: CONTENIDO DE LA NUEVA PESTAÑA ===== -->
         </div>
     </div>
 </div>
@@ -279,6 +291,8 @@
                         urlTab = 'historial';
                     } else if(tabId.includes('analizador')){
                         urlTab = 'analizador';
+                    } else if(tabId.includes('personalizar')){
+                        urlTab = 'personalizar';
                     }
     
                     let tabInput = form.querySelector('input[name="tab"]');

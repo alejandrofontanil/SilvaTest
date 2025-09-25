@@ -141,3 +141,13 @@ class ObjetivoForm(FlaskForm):
         validators=[DataRequired(message="Por favor, selecciona tu objetivo.")]
     )
     submit = SubmitField('Guardar y Continuar')
+
+
+class DashboardPreferencesForm(FlaskForm):
+    """
+    Formulario para que el usuario elija qué módulos ver en su panel de inicio.
+    """
+    mostrar_grafico_evolucion = BooleanField('Mostrar gráfico de evolución de notas', default=True)
+    mostrar_rendimiento_bloque = BooleanField('Mostrar gráfico de rendimiento por bloque', default=True)
+    mostrar_calendario_actividad = BooleanField('Mostrar calendario de actividad', default=True)
+    submit = SubmitField('Guardar Preferencias del Panel')

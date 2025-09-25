@@ -226,13 +226,11 @@
     import CalHeatmap from 'https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm';
 
     document.addEventListener('DOMContentLoaded', function() {
-
         // ... (Tu código para los gráficos de líneas y radar va aquí)
 
-        // --- INICIO: LÓGICA CORREGIDA Y MÁS ROBUSTA PARA EL CALENDARIO ---
         const calHeatmapDiv = document.getElementById('cal-heatmap');
         if (calHeatmapDiv) {
-            let cal = new CalHeatmap(); // Creamos la instancia fuera
+            let cal = new CalHeatmap(); 
             const selectorRango = document.getElementById('calendario-rango');
 
             function renderizarCalendario(meses) {
@@ -240,9 +238,7 @@
                 const fechaInicio = new Date();
                 fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt);
 
-                // Destruimos la instancia anterior si ya existe
                 cal.destroy().then(() => {
-                    // Volvemos a pintar
                     cal.paint({
                         data: {
                             source: `{{ url_for('main.api_calendario_actividad') }}?meses=${mesesInt}`,
@@ -266,17 +262,28 @@
             }
 
             if (selectorRango) {
-                // Renderizamos la vista inicial por defecto
                 renderizarCalendario(selectorRango.value);
-
-                // Añadimos el "escuchador" para cuando cambie la selección
                 selectorRango.addEventListener('change', function() {
                     renderizarCalendario(this.value);
                 });
             }
         }
-        // --- FIN: LÓGICA CORREGIDA ---
     });
-
 </script>
+
+{% if current_user.is_authenticated and not current_user.ha_visto_tour %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'onboarding_trigger' %}
+                    <script>
+                        window.addEventListener('load', function() {
+                           iniciarTourBienvenida();
+                        });
+                    </script>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+{% endif %}
 {% endblock %}
