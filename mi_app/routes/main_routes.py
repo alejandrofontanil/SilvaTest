@@ -15,7 +15,9 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-# ===== CAMBIO 1: IMPORTA EL NUEVO FORMULARIO AQUÍ =====
+# ======================================================================
+# ===== CAMBIO 1: ASEGÚRATE DE QUE ESTA LÍNEA INCLUYE DashboardPreferencesForm =====
+# ======================================================================
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm
 
 main_bp = Blueprint('main', __name__)
@@ -103,7 +105,6 @@ def cuenta():
         dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
         dashboard_form.mostrar_calendario_actividad.data = current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True)
 
-
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
     
@@ -171,7 +172,7 @@ def cuenta():
         'cuenta.html', title='Mi Cuenta', 
         form=form,
         objetivo_form=objetivo_form,
-        # ===== CAMBIO 3: PASA EL FORMULARIO A LA PLANTILLA ===== 
+        # ===== CAMBIO 3: PASA EL FORMULARIO A LA PLANTILLA =====
         dashboard_form=dashboard_form,
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
@@ -706,9 +707,4 @@ def guardar_preferencias_dashboard():
         }
         # Guardamos el diccionario como JSON en el usuario
         current_user.preferencias_dashboard = preferencias
-        db.session.commit()
-        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
-    else:
-        flash('Hubo un error al guardar tus preferencias.', 'danger')
-        
-    return redirect(url_for('main.cuenta', tab='personalizar')) # Redirigimos a la nueva pestaña
+        db.session.commit
