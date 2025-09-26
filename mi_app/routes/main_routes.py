@@ -61,6 +61,7 @@ def analizar_rendimiento_usuario(usuario):
 
     return informe
 
+
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
@@ -743,8 +744,7 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        # ===== CAMBIO CLAVE AQUÍ =====
-        model = genai.GenerativeModel('gemini-1.5-flash') # Usar el nombre de modelo estable
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
