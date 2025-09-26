@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends 'admin/admin_layout.html' %} {# O 'base.html' si usas uno general #}
 
 {% macro render_tema_admin(tema, level=0) %}
     <div class="list-group-item" data-id="{{ tema.id }}">
@@ -21,6 +21,10 @@
             
             <div class="btn-group" role="group">
                 <a href="{{ url_for('admin.detalle_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-primary">Preguntas ({{ tema.total_preguntas }})</a>
+                
+                <a href="{{ url_for('admin.gestionar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-info" title="Gestionar Contexto para IA">
+                    <i class="bi bi-robot"></i> Gestionar IA
+                </a>
                 <a href="{{ url_for('admin.editar_tema', tema_id=tema.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
                 
                 <form method="POST" action="{{ url_for('admin.eliminar_tema', tema_id=tema.id) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este tema?');" style="display: inline-block;">
@@ -42,7 +46,7 @@
 {% endmacro %}
 
 
-{% block content %}
+{% block content %} {# O block admin_content, dependiendo de tu layout #}
 <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h1 class="h4 mb-0"><i class="bi bi-list-nested"></i> Vista General del Temario</h1>
