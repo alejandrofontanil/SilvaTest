@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm, RecaptchaField
-from flask_wtf.file import FileField, FileAllowed
+from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SubmitField, TextAreaField, RadioField, SelectField, BooleanField, IntegerField, SelectMultipleField, DateField
 from wtforms.widgets import ListWidget, CheckboxInput
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
@@ -18,11 +18,7 @@ def convocatorias_publicas():
 class ConvocatoriaForm(FlaskForm):
     nombre = StringField('Nombre de la Convocatoria', validators=[DataRequired(), Length(min=5, max=200)])
     es_publica = BooleanField('¿Es una convocatoria pública?')
-    
-    # --- CAMPO AÑADIDO PARA FREEMIUM ---
     es_premium = BooleanField('¿Es contenido de pago (Premium)?')
-    # --- FIN DEL CAMPO AÑADIDO ---
-    
     submit = SubmitField('Guardar Convocatoria')
 
 class BloqueForm(FlaskForm):
@@ -132,7 +128,6 @@ class FiltroCuentaForm(FlaskForm):
     submit = SubmitField('Filtrar')
 
 class ObjetivoForm(FlaskForm):
-    """Formulario simple para que usuarios de Google elijan su objetivo."""
     objetivo_principal = QuerySelectField(
         'Para personalizar tu experiencia, por favor, elige tu objetivo principal:',
         query_factory=convocatorias_publicas,
@@ -144,10 +139,16 @@ class ObjetivoForm(FlaskForm):
 
 
 class DashboardPreferencesForm(FlaskForm):
-    """
-    Formulario para que el usuario elija qué módulos ver en su panel de inicio.
-    """
     mostrar_grafico_evolucion = BooleanField('Mostrar gráfico de evolución de notas', default=True)
     mostrar_rendimiento_bloque = BooleanField('Mostrar gráfico de rendimiento por bloque', default=True)
     mostrar_calendario_actividad = BooleanField('Mostrar calendario de actividad', default=True)
     submit = SubmitField('Guardar Preferencias del Panel')
+
+# --- INICIO: NUEVO FORMULARIO PARA SUBIR DOCUMENTOS DE CONTEXTO ---
+class UploadContextoForm(FlaskForm):
+    documento = FileField('Documento de Contexto (PDF o TXT)', validators=[
+        FileRequired(),
+        FileAllowed(['pdf', 'txt'], '¡Solo se permiten archivos PDF y TXT!')
+    ])
+    submit = SubmitField('Subir y Guardar Documento')
+# --- FIN: NUEVO FORMULARIO ---

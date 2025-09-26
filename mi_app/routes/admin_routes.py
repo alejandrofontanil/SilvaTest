@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 import json
@@ -10,6 +10,10 @@ import cloudinary.uploader
 from sqlalchemy.orm import selectinload
 from flask_wtf import FlaskForm
 import traceback
+# --- INICIO: NUEVAS IMPORTACIONES ---
+from werkzeug.utils import secure_filename
+from mi_app.forms import UploadContextoForm 
+# --- FIN: NUEVAS IMPORTACIONES ---
 
 from mi_app import db
 from mi_app.models import (
@@ -103,7 +107,7 @@ def crear_convocatoria():
         nueva_convocatoria = Convocatoria(
             nombre=form.nombre.data, 
             es_publica=form.es_publica.data,
-            es_premium=form.es_premium.data # <-- LÍNEA AÑADIDA
+            es_premium=form.es_premium.data
         )
         db.session.add(nueva_convocatoria)
         db.session.commit()
@@ -119,7 +123,7 @@ def editar_convocatoria(convocatoria_id):
     if form.validate_on_submit():
         convocatoria.nombre = form.nombre.data
         convocatoria.es_publica = form.es_publica.data
-        convocatoria.es_premium = form.es_premium.data # <-- LÍNEA AÑADIDA
+        convocatoria.es_premium = form.es_premium.data
         db.session.commit()
         flash('¡Convocatoria actualizada con éxito!', 'success')
         return redirect(url_for('admin.admin_convocatorias'))
@@ -319,12 +323,49 @@ def editar_tema(tema_id):
         form.pdf_url.data = tema_a_editar.pdf_url
 
     return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
+    
+# --- INICIO: NUEVA RUTA PARA GESTIONAR TEMA Y SUBIR DOCUMENTO ---
+@admin_bp.route('/tema/<int:tema_id>/gestionar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def gestionar_tema(tema_id):
+    tema = Tema.query.get_or_404(tema_id)
+    form = UploadContextoForm()
+
+    if form.validate_on_submit():
+        f = form.documento.data
+        # Generamos un nombre de archivo seguro para evitar problemas
+        filename = secure_filename(f.filename)
+        
+        # Creamos una carpeta para guardar los documentos si no existe
+        upload_path = os.path.join(current_app.root_path, 'static/contexto_uploads')
+        if not os.path.exists(upload_path):
+            os.makedirs(upload_path)
+        
+        # Guardamos el archivo en el servidor
+        f.save(os.path.join(upload_path, filename))
+
+        # Guardamos ÚNICAMENTE el nombre del archivo en la base de datos
+        tema.ruta_documento_contexto = filename
+        db.session.commit()
+        
+        flash('¡Documento de contexto subido y asociado con éxito!', 'success')
+        return redirect(url_for('admin.gestionar_tema', tema_id=tema.id))
+
+    return render_template('admin/gestionar_tema.html', title=f"Gestionar {tema.nombre}", tema=tema, form=form)
+# --- FIN: NUEVA RUTA ---
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     try:
+        # Si existe un archivo físico asociado, lo borramos
+        if tema_a_eliminar.ruta_documento_contexto:
+            file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema_a_eliminar.ruta_documento_contexto)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -569,3 +610,27 @@ def toggle_acceso_ia(usuario_id):
     estado = "activado" if usuario.tiene_acceso_ia else "desactivado"
     flash(f'El acceso a la IA para {usuario.nombre} ha sido {estado}.', 'success')
     return redirect(url_for('admin.admin_usuarios'))
+
+@admin_bp.route('/tema/<int:tema_id>/eliminar-contexto', methods=['POST'])
+@login_required
+@admin_required
+def eliminar_contexto_tema(tema_id):
+    tema = Tema.query.get_or_404(tema_id)
+    if tema.ruta_documento_contexto:
+        try:
+            # Construir la ruta al archivo y eliminarlo
+            file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema.ruta_documento_contexto)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            # Limpiar la referencia en la base de datos
+            tema.ruta_documento_contexto = None
+            db.session.commit()
+            flash('El documento de contexto ha sido eliminado con éxito.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al eliminar el archivo: {e}', 'danger')
+    else:
+        flash('Este tema no tenía ningún documento de contexto para eliminar.', 'warning')
+    
+    return redirect(url_for('admin.gestionar_tema', tema_id=tema.id))
