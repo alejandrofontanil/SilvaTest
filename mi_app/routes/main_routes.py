@@ -44,7 +44,7 @@ def analizar_rendimiento_usuario(usuario):
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).select_from(RespuestaUsuario).join(Pregunta).join(Tema).filter(
+    ).select_from(RespuestaUsuario).join(Pregunta, RespuestaUsuario.pregunta_id == Pregunta.id).join(Tema, Pregunta.tema_id == Tema.id).filter(
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) >= 10).order_by('porcentaje').limit(3).all()
 
@@ -52,7 +52,7 @@ def analizar_rendimiento_usuario(usuario):
     stats_bloque = db.session.query(
         Bloque.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).select_from(RespuestaUsuario).join(Pregunta).join(Tema).join(Bloque).filter(
+    ).select_from(RespuestaUsuario).join(Pregunta, RespuestaUsuario.pregunta_id == Pregunta.id).join(Tema, Pregunta.tema_id == Tema.id).join(Bloque, Tema.bloque_id == Bloque.id).filter(
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Bloque.id).having(func.count(RespuestaUsuario.id) >= 15).order_by('porcentaje').first()
 
@@ -215,7 +215,6 @@ def cuenta():
         active_tab=active_tab,
         iniciar_tour_automaticamente=iniciar_tour
     )
-
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
