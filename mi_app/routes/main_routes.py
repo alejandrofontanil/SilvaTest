@@ -1,7 +1,8 @@
-# --- INICIO: IMPORTACIONES PARA IA GENERATIVA ---
+# --- INICIO: IMPORTACIONES PARA IA Y VERTEX AI ---
 import os
-import google.generativeai as genai
-# --- FIN: IMPORTACIONES PARA IA GENERATIVA ---
+import vertexai
+from vertexai.generative_models import GenerativeModel
+# --- FIN: IMPORTACIONES ---
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
 from flask_login import login_required, current_user
@@ -19,11 +20,18 @@ from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesFor
 
 main_bp = Blueprint('main', __name__)
 
-# --- INICIO: CONFIGURACIÓN DE LA API DE GEMINI ---
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-# --- FIN: CONFIGURACIÓN DE LA API DE GEMINI ---
+# --- INICIO: CONFIGURACIÓN DE VERTEX AI ---
+try:
+    GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
+    GCP_REGION = os.getenv('GCP_REGION')
+    # La autenticación con el JSON se hace automáticamente si la variable de entorno está configurada
+    if GCP_PROJECT_ID and GCP_REGION:
+        vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION)
+    else:
+        print("ADVERTENCIA: Faltan las variables de entorno GCP_PROJECT_ID o GCP_REGION para inicializar Vertex AI.")
+except Exception as e:
+    print(f"Error al inicializar Vertex AI: {e}")
+# --- FIN: CONFIGURACIÓN DE VERTEX AI ---
 
 
 def obtener_preguntas_recursivas(tema):
@@ -34,9 +42,6 @@ def obtener_preguntas_recursivas(tema):
     return preguntas
 
 def analizar_rendimiento_usuario(usuario):
-    """
-    Analiza los datos de un usuario y devuelve un resumen de su rendimiento.
-    """
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -647,9 +652,9 @@ def api_calendario_actividad():
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia:
         abort(403)
-    if not GEMINI_API_KEY:
-        return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
-
+    
+    # Se eliminó la comprobación de GEMINI_API_KEY porque ahora usamos autenticación de servicio
+    
     data = request.get_json()
     pregunta_id = data.get('preguntaId')
     respuesta_usuario_id = data.get('respuestaUsuarioId')
@@ -692,12 +697,12 @@ def explicar_respuesta_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        # <-- ¡CAMBIO CLAVE 1 AQUÍ!
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        # --- NUEVA FORMA DE LLAMAR A LA API ---
+        model = GenerativeModel("gemini-1.5-flash-001")
         response = model.generate_content(prompt)
         return jsonify({'explicacion': response.text})
     except Exception as e:
-        print(f"Error al llamar a la API de Gemini: {e}")
+        print(f"Error al llamar a la API de Vertex AI: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
 
 @main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
@@ -744,10 +749,10 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        # <-- ¡CAMBIO CLAVE 2 AQUÍ!
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        # --- NUEVA FORMA DE LLAMAR A LA API ---
+        model = GenerativeModel("gemini-1.5-flash-001")
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
-        print(f"Error al llamar a la API de Gemini para el plan de estudio: {e}")
+        print(f"Error al llamar a la API de Vertex AI para el plan de estudio: {e}")
         return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA. Inténtalo de nuevo más tarde.'}), 500
