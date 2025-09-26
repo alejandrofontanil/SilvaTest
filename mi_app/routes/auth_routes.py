@@ -1,17 +1,19 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_user, logout_user, current_user, login_required
+# --- INICIO: NUEVA IMPORTACIÓN ---
+import os
+# --- FIN: NUEVA IMPORTACIÓN ---
 from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
-from mi_app.forms import RegistrationForm, LoginForm, ObjetivoForm # Asumiendo que crearás este formulario
+from mi_app.forms import RegistrationForm, LoginForm, ObjetivoForm
 from urllib.parse import urlparse, urljoin
 from sqlalchemy import or_
 
 auth_bp = Blueprint('auth', __name__,
-                    template_folder='../templates/auth',
-                    url_prefix='/auth')
+                     template_folder='../templates/auth',
+                     url_prefix='/auth')
 
 def is_safe_url(target):
-    # ... (sin cambios)
     if not target:
         return True
     ref_url = urlparse(request.host_url)
@@ -20,7 +22,6 @@ def is_safe_url(target):
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 def registro():
-    # ... (sin cambios)
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
     form = RegistrationForm()
@@ -33,6 +34,15 @@ def registro():
         nuevo_usuario.password = form.password.data
         db.session.add(nuevo_usuario)
         db.session.commit()
+
+        # --- INICIO: LÓGICA PARA AUTO-ASIGNAR ADMIN ---
+        admin_email = os.getenv('ADMIN_EMAIL')
+        if admin_email and nuevo_usuario.email == admin_email:
+            nuevo_usuario.es_admin = True
+            db.session.commit()
+            print(f"ADMINISTRADOR AUTO-ASIGNADO a {nuevo_usuario.email}")
+        # --- FIN DE LA LÓGICA ---
+
         login_user(nuevo_usuario)
         flash('¡Bienvenido! Hemos creado tu cuenta.', 'onboarding_trigger') 
         return redirect(url_for('main.home'))
@@ -40,7 +50,6 @@ def registro():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # ... (sin cambios)
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
     form = LoginForm()
@@ -74,14 +83,12 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
-    # ... (sin cambios)
     logout_user()
     flash('Has cerrado la sesión con éxito.', 'success')
     return redirect(url_for('main.home'))
 
 @auth_bp.route('/login/google')
 def google_login():
-    # ... (sin cambios)
     redirect_uri = url_for('auth.google_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
@@ -98,9 +105,7 @@ def google_callback():
         
     usuario = Usuario.query.filter_by(email=user_info['email']).first()
     
-    # --- LÓGICA MODIFICADA PARA USUARIOS DE GOOGLE ---
     if not usuario:
-        # Si el usuario NO existe, lo creamos
         usuario = Usuario(
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google'),
@@ -108,28 +113,31 @@ def google_callback():
         )
         db.session.add(usuario)
         db.session.commit()
+
+        # --- INICIO: LÓGICA PARA AUTO-ASIGNAR ADMIN ---
+        admin_email = os.getenv('ADMIN_EMAIL')
+        if admin_email and usuario.email == admin_email:
+            usuario.es_admin = True
+            db.session.commit()
+            print(f"ADMINISTRADOR (vía Google) AUTO-ASIGNADO a {usuario.email}")
+        # --- FIN DE LA LÓGICA ---
+
         login_user(usuario)
-        # Lo redirigimos para que elija su objetivo
         return redirect(url_for('auth.elegir_objetivo'))
 
-    # Si el usuario ya existe, comprobamos si tiene un objetivo
     login_user(usuario)
     if not usuario.objetivo_principal:
-        # Si no tiene objetivo, también lo mandamos a elegirlo
         return redirect(url_for('auth.elegir_objetivo'))
     
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))
 
-# --- NUEVA RUTA PARA QUE USUARIOS DE GOOGLE ELIJAN SU OBJETIVO ---
 @auth_bp.route('/elegir-objetivo', methods=['GET', 'POST'])
 @login_required
 def elegir_objetivo():
-    # Si el usuario ya tiene un objetivo, no debería estar aquí
     if current_user.objetivo_principal:
         return redirect(url_for('main.home'))
 
-    from mi_app.forms import ObjetivoForm # Necesitaremos crear este formulario
     form = ObjetivoForm()
     if form.validate_on_submit():
         current_user.objetivo_principal = form.objetivo_principal.data
@@ -142,7 +150,6 @@ def elegir_objetivo():
 @auth_bp.route('/marcar_tour_visto', methods=['POST'])
 @login_required
 def marcar_tour_visto():
-    # ... (sin cambios)
     current_user.ha_visto_tour = True
     db.session.commit()
     return '', 204
