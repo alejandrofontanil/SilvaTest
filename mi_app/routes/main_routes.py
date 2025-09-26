@@ -37,7 +37,6 @@ def analizar_rendimiento_usuario(usuario):
     """
     Analiza los datos de un usuario y devuelve un resumen de su rendimiento.
     """
-    # 1. Encontrar los 3 temas más débiles
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -45,7 +44,6 @@ def analizar_rendimiento_usuario(usuario):
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) >= 10).order_by('porcentaje').limit(3).all()
 
-    # 2. Encontrar el bloque más débil
     stats_bloque = db.session.query(
         Bloque.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -62,7 +60,6 @@ def analizar_rendimiento_usuario(usuario):
         return None
 
     return informe
-
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -208,7 +205,6 @@ def cuenta():
         active_tab=active_tab,
         iniciar_tour_automaticamente=iniciar_tour
     )
-# ... (El resto de tus rutas no necesitan cambios, las incluyo para que sea completo)
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
@@ -747,7 +743,8 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # ===== CAMBIO CLAVE AQUÍ =====
+        model = genai.GenerativeModel('gemini-1.5-flash') # Usar el nombre de modelo estable
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
