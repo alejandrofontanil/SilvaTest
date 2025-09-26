@@ -71,10 +71,10 @@ def home():
         convocatorias = current_user.convocatorias_accesibles.all()
         ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
         ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
-        return render_template('home.html', 
-                                convocatorias=convocatorias,
-                                ultimo_resultado=ultimo_resultado,
-                                ultimas_favoritas=ultimas_favoritas)
+        return render_template('home.html',
+                                 convocatorias=convocatorias,
+                                 ultimo_resultado=ultimo_resultado,
+                                 ultimas_favoritas=ultimas_favoritas)
     else:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias)
@@ -92,9 +92,9 @@ def convocatoria_detalle(convocatoria_id):
         (convocatoria.nombre, None)
     ]
 
-    return render_template('convocatoria_detalle.html', 
-                            convocatoria=convocatoria,
-                            breadcrumbs=breadcrumbs)
+    return render_template('convocatoria_detalle.html',
+                           convocatoria=convocatoria,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/bloque/<int:bloque_id>')
 @login_required
@@ -111,10 +111,10 @@ def bloque_detalle(bloque_id):
         (bloque.nombre, None)
     ]
 
-    return render_template('bloque_detalle.html', 
-                            bloque=bloque, 
-                            temas=temas,
-                            breadcrumbs=breadcrumbs)
+    return render_template('bloque_detalle.html',
+                           bloque=bloque,
+                           temas=temas,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
@@ -192,13 +192,13 @@ def cuenta():
     iniciar_tour = request.args.get('tour', 'false').lower() == 'true'
 
     return render_template(
-        'cuenta.html', title='Mi Cuenta', 
+        'cuenta.html', title='Mi Cuenta',
         form=form,
         objetivo_form=objetivo_form,
         dashboard_form=dashboard_form,
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
-        total_preguntas_hechas=total_preguntas_hechas, 
+        total_preguntas_hechas=total_preguntas_hechas,
         nota_media_global=nota_media_global,
         stats_temas=stats_temas,
         stats_bloques=stats_bloques,
@@ -249,12 +249,12 @@ def hacer_test(tema_id):
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
     
-    return render_template('hacer_test.html', 
-                            title=f"Test de {tema.nombre}", 
-                            tema=tema, 
-                            preguntas=preguntas_test, 
-                            form=form,
-                            breadcrumbs=breadcrumbs)
+    return render_template('hacer_test.html',
+                           title=f"Test de {tema.nombre}",
+                           tema=tema,
+                           preguntas=preguntas_test,
+                           form=form,
+                           breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -473,12 +473,12 @@ def simulacro_personalizado_test():
             
     form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-    return render_template('hacer_test.html', 
-                            title="Simulacro Personalizado", 
-                            tema=tema_dummy, 
-                            preguntas=preguntas_test, 
-                            is_personalizado=True,
-                            form=form)
+    return render_template('hacer_test.html',
+                           title="Simulacro Personalizado",
+                           tema=tema_dummy,
+                           preguntas=preguntas_test,
+                           is_personalizado=True,
+                           form=form)
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
@@ -624,7 +624,7 @@ def api_calendario_actividad():
     if meses_a_mostrar not in [3, 6, 12]:
         meses_a_mostrar = 3
     fecha_fin = datetime.utcnow().date()
-    dias_a_restar = meses_a_mostrar * 31 
+    dias_a_restar = meses_a_mostrar * 31
     fecha_inicio = fecha_fin - timedelta(days=dias_a_restar)
 
     resultados_por_dia = db.session.query(
@@ -646,7 +646,7 @@ def api_calendario_actividad():
 @login_required
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia:
-        abort(403) 
+        abort(403)
     if not GEMINI_API_KEY:
         return jsonify({'error': 'La funcionalidad de IA no está configurada en el servidor.'}), 500
 
@@ -692,7 +692,8 @@ def explicar_respuesta_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # <-- ¡CAMBIO CLAVE 1 AQUÍ!
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = model.generate_content(prompt)
         return jsonify({'explicacion': response.text})
     except Exception as e:
@@ -743,11 +744,10 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        # ===== CAMBIO CLAVE AQUÍ =====
-        model = genai.GenerativeModel('gemini-1.5-flash') # Usar el nombre de modelo estable
+        # <-- ¡CAMBIO CLAVE 2 AQUÍ!
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Gemini para el plan de estudio: {e}")
         return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA. Inténtalo de nuevo más tarde.'}), 500
-
