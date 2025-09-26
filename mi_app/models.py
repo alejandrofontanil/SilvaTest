@@ -29,11 +29,8 @@ class Usuario(db.Model, UserMixin):
     objetivo_principal_id = db.Column(db.Integer, db.ForeignKey('convocatoria.id'), nullable=True)
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
     tiene_acceso_ia = db.Column(db.Boolean, nullable=False, server_default='false')
-
-    # --- CAMPO AÑADIDO PARA EL DASHBOARD PERSONALIZABLE ---
     preferencias_dashboard = db.Column(db.JSON, nullable=True)
     
-    # --- RELACIONES ---
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
     respuestas_dadas = db.relationship('RespuestaUsuario', backref='autor', lazy=True, cascade="all, delete-orphan")
@@ -118,6 +115,11 @@ class Tema(db.Model):
     es_simulacro = db.Column(db.Boolean, nullable=False, default=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True)
     pdf_url = db.Column(db.String(300), nullable=True)
+    
+    # --- NUEVA COLUMNA ---
+    ruta_documento_contexto = db.Column(db.String(300), nullable=True)
+    # --- FIN DE NUEVA COLUMNA ---
+
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True, cascade="all, delete-orphan")
