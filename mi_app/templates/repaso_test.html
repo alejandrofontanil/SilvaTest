@@ -4,165 +4,150 @@
 {{ super() }}
 <style>
     /* Esta regla se aplica solo cuando el tema oscuro está activo.
-     Le dice a cualquier elemento con fondo claro (.bg-light) o grisáceo (.bg-body-secondary)
-     que su color de texto debe ser oscuro para garantizar el contraste.
+      Le dice a cualquier elemento con fondo claro (.bg-light) o grisáceo (.bg-body-secondary)
+      que su color de texto debe ser oscuro para garantizar el contraste.
     */
     [data-bs-theme="dark"] .bg-light,
     [data-bs-theme="dark"] .bg-body-secondary {
-        color: #212529 !important;
+        color: #212529 !important; 
     }
 
     /* Regla adicional para asegurar que las etiquetas dentro de esos divs también hereden el color */
     [data-bs-theme="dark"] .bg-light label {
         color: inherit !important;
     }
-    
-    /* --- ESTILOS DE REPASO PARA MEJORAR EL CONTRASTE --- */
-
-    /* Estilo para la respuesta seleccionada por el usuario (cuando es INCORRECTA) */
-    .bg-danger-subtle {
-        background-color: #ffcccc !important; /* Rojo pastel más claro */
-        color: #8c0000 !important; /* Rojo oscuro para el texto */
-    }
-
-    /* Estilo para la respuesta CORRECTA */
-    .bg-success-subtle {
-        background-color: #ccffcc !important; /* Verde pastel más claro */
-        color: #006400 !important; /* Verde oscuro para el texto */
-    }
-
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="card shadow-sm">
-    <div class="card-body p-4">
-        <a href="{{ url_for('main.cuenta', tab='historial') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Mi Historial</a>
-        <h1 class="mb-2">Repaso del Test: {{ resultado.tema.nombre }}</h1>
-        <p class="text-muted mb-4">Fecha: {{ resultado.fecha.strftime('%d/%m/%Y') }} - Nota: {{ "%.2f"|format(resultado.nota) }}</p>
-        <hr>
+    <div class="card-body p-4">
+        <a href="{{ url_for('main.cuenta', tab='historial') }}" class="text-muted text-decoration-none mb-3 d-inline-block"><i class="bi bi-arrow-left"></i> Volver a Mi Historial</a>
+        <h1 class="mb-2">Repaso del Test: {{ resultado.tema.nombre }}</h1>
+        <p class="text-muted mb-4">Fecha: {{ resultado.fecha.strftime('%d/%m/%Y') }} - Nota: {{ "%.2f"|format(resultado.nota) }}</p>
+        <hr>
 
-        {% for respuesta_usuario in resultado.desglose_respuestas %}
-            <div class="card my-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-secondary btn-reportar" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Reportar error en la pregunta">
-                            <i class="bi bi-flag-fill"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Marcar como favorita">
-                            <i class="bi {% if current_user.es_favorita(respuesta_usuario.pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <p class="fw-bold">{{ respuesta_usuario.pregunta.texto | safe }}</p>
+        {% for respuesta_usuario in resultado.desglose_respuestas %}
+            <div class="card my-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-reportar" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Reportar error en la pregunta">
+                            <i class="bi bi-flag-fill"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Marcar como favorita">
+                            <i class="bi {% if current_user.es_favorita(respuesta_usuario.pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="fw-bold">{{ respuesta_usuario.pregunta.texto | safe }}</p>
 
-                    {% if respuesta_usuario.pregunta.imagen_url %}
-                        <div class="mb-3">
-                            <img src="{{ respuesta_usuario.pregunta.imagen_url }}" class="img-fluid rounded" alt="Imagen de la pregunta" style="max-height: 300px;">
-                        </div>
-                    {% endif %}
+                    {% if respuesta_usuario.pregunta.imagen_url %}
+                        <div class="mb-3">
+                            <img src="{{ respuesta_usuario.pregunta.imagen_url }}" class="img-fluid rounded" alt="Imagen de la pregunta" style="max-height: 300px;">
+                        </div>
+                    {% endif %}
 
-                    {% for respuesta in respuesta_usuario.pregunta.respuestas %}
-                        <div class="p-2 my-1 rounded {% if respuesta.es_correcta %}bg-success-subtle border border-success-subtle{% elif respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}bg-danger-subtle border border-danger-subtle{% else %}bg-light border border-light-subtle{% endif %}">
-                            <input class="form-check-input" type="radio" name="pregunta-{{ respuesta_usuario.pregunta.id }}" disabled {% if respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}checked{% endif %}>
-                            <label class="form-check-label">{{ respuesta.texto }}</label>
-                            {% if respuesta.es_correcta %} <i class="bi bi-check-circle-fill text-success"></i> (Correcta) {% endif %}
-                            {% if not respuesta.es_correcta and respuesta.id == respuesta_usuario.respuesta_seleccionada_id %} <i class="bi bi-x-circle-fill text-danger"></i> (Tu respuesta) {% endif %}
-                        </div>
-                    {% endfor %}
+                    {% for respuesta in respuesta_usuario.pregunta.respuestas %}
+                        <div class="p-2 my-1 rounded {% if respuesta.es_correcta %}bg-success-subtle border border-success-subtle{% elif respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}bg-danger-subtle border border-danger-subtle{% else %}bg-light border border-light-subtle{% endif %}">
+                            <input class="form-check-input" type="radio" name="pregunta-{{ respuesta_usuario.pregunta.id }}" disabled {% if respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}checked{% endif %}>
+                            <label class="form-check-label">{{ respuesta.texto }}</label>
+                            {% if respuesta.es_correcta %} <i class="bi bi-check-circle-fill text-success"></i> (Correcta) {% endif %}
+                            {% if not respuesta.es_correcta and respuesta.id == respuesta_usuario.respuesta_seleccionada_id %} <i class="bi bi-x-circle-fill text-danger"></i> (Tu respuesta) {% endif %}
+                        </div>
+                    {% endfor %}
 
-                    {% if respuesta_usuario.pregunta.retroalimentacion %}
-                        <div class="alert alert-info mt-3">
-                            <strong>Pista:</strong> {{ respuesta_usuario.pregunta.retroalimentacion }}
-                        </div>
-                    {% endif %}
-                    
-                    {% if current_user.tiene_acceso_ia %}
-                    <div class="mt-3">
-                        <button class="btn btn-outline-primary btn-sm btn-explicar-ia" 
-                                data-pregunta-id="{{ respuesta_usuario.pregunta.id }}"
-                                data-respuesta-usuario-id="{{ respuesta_usuario.respuesta_seleccionada_id or '' }}">
-                            <i class="bi bi-robot"></i> Explicar con IA
-                        </button>
-                    </div>
-                    {% endif %}
+                    {% if respuesta_usuario.pregunta.retroalimentacion %}
+                        <div class="alert alert-info mt-3">
+                            <strong>Pista:</strong> {{ respuesta_usuario.pregunta.retroalimentacion }}
+                        </div>
+                    {% endif %}
+                    
+                    {% if current_user.tiene_acceso_ia %}
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm btn-explicar-ia" 
+                                data-pregunta-id="{{ respuesta_usuario.pregunta.id }}"
+                                data-respuesta-usuario-id="{{ respuesta_usuario.respuesta_seleccionada_id or '' }}">
+                            <i class="bi bi-robot"></i> Explicar con IA
+                        </button>
+                    </div>
+                    {% endif %}
 
-                    <div class="explicacion-ia-container mt-3 p-3 rounded bg-body-secondary border-secondary-subtle" style="display: none;">
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
+                    <div class="explicacion-ia-container mt-3 p-3 rounded bg-body-secondary border-secondary-subtle" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    {{ super() }}
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const csrfToken = '{{ csrf_token() }}';
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = '{{ csrf_token() }}';
 
-        // Tu código existente para favoritos y reportar iría aquí...
+        // Tu código existente para favoritos y reportar iría aquí...
 
-        const botonesExplicar = document.querySelectorAll('.btn-explicar-ia');
+        const botonesExplicar = document.querySelectorAll('.btn-explicar-ia');
 
-        botonesExplicar.forEach(boton => {
-            boton.addEventListener('click', function(e) {
-                e.preventDefault();
+        botonesExplicar.forEach(boton => {
+            boton.addEventListener('click', function(e) {
+                e.preventDefault();
 
-                const preguntaId = this.dataset.preguntaId;
-                const respuestaUsuarioId = this.dataset.respuestaUsuarioId;
-                const container = this.closest('.card-body').querySelector('.explicacion-ia-container');
-                
-                container.style.display = 'block';
-                container.innerHTML = `
-                    <div class="d-flex align-items-center text-muted">
-                        <div class="spinner-border spinner-border-sm me-2" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <strong>Analizando con IA, por favor espera...</strong>
-                    </div>
-                `;
-                this.disabled = true;
+                const preguntaId = this.dataset.preguntaId;
+                const respuestaUsuarioId = this.dataset.respuestaUsuarioId;
+                const container = this.closest('.card-body').querySelector('.explicacion-ia-container');
+                
+                container.style.display = 'block';
+                container.innerHTML = `
+                    <div class="d-flex align-items-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <strong>Analizando con IA, por favor espera...</strong>
+                    </div>
+                `;
+                this.disabled = true;
 
-                fetch("{{ url_for('main.explicar_respuesta_ia') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({
-                        preguntaId: preguntaId,
-                        respuestaUsuarioId: respuestaUsuarioId
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Error del servidor: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.explicacion) {
-                        container.innerHTML = marked.parse(data.explicacion);
-                    } else {
-                        container.innerHTML = `<div class="alert alert-warning mb-0">${data.error || 'Ocurrió un error desconocido.'}</div>`;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error en la llamada fetch:', error);
-                    container.innerHTML = `<div class="alert alert-danger mb-0">Error de conexión. Por favor, revisa tu conexión a internet e inténtalo de nuevo.</div>`;
-                })
-                .finally(() => {
-                    this.disabled = false;
-                });
-            });
-        });
-    });
-    </script>
+                fetch("{{ url_for('main.explicar_respuesta_ia') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        preguntaId: preguntaId,
+                        respuestaUsuarioId: respuestaUsuarioId
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error del servidor: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.explicacion) {
+                        container.innerHTML = marked.parse(data.explicacion);
+                    } else {
+                        container.innerHTML = `<div class="alert alert-warning mb-0">${data.error || 'Ocurrió un error desconocido.'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error en la llamada fetch:', error);
+                    container.innerHTML = `<div class="alert alert-danger mb-0">Error de conexión. Por favor, revisa tu conexión a internet e inténtalo de nuevo.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                });
+            });
+        });
+    });
+    </script>
 {% endblock %}
