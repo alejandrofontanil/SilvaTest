@@ -86,3 +86,4 @@ websockets==15.0.1
 Werkzeug==3.0.0
 WTForms==3.2.1
 WTForms-SQLAlchemy==0.4.2
+PyPDF2
