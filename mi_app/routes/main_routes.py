@@ -33,14 +33,10 @@ def obtener_preguntas_recursivas(tema):
         preguntas.extend(obtener_preguntas_recursivas(subtema))
     return preguntas
 
-# ======================================================================
-# ===== INICIO: FUNCIÓN DE ANÁLISIS CORREGIDA Y ROBUSTA ================
-# ======================================================================
 def analizar_rendimiento_usuario(usuario):
     """
     Analiza los datos de un usuario y devuelve un resumen de su rendimiento.
     """
-    # 1. Encontrar los 3 temas más débiles (requiere al menos 10 respuestas en un tema para ser considerado)
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -48,7 +44,6 @@ def analizar_rendimiento_usuario(usuario):
         RespuestaUsuario.usuario_id == usuario.id
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) >= 10).order_by('porcentaje').limit(3).all()
 
-    # 2. Encontrar el bloque más débil (requiere al menos 15 respuestas en un bloque para ser considerado)
     stats_bloque = db.session.query(
         Bloque.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -61,15 +56,10 @@ def analizar_rendimiento_usuario(usuario):
         "bloque_debil": f"{stats_bloque.nombre} ({int(stats_bloque.porcentaje)}% aciertos)" if stats_bloque else None
     }
     
-    # Si después del análisis no hemos encontrado ni temas ni bloques débiles, no hay datos suficientes.
     if not informe["temas_debiles"] and not informe["bloque_debil"]:
         return None
 
     return informe
-# ======================================================================
-# ===== FIN: FUNCIÓN DE ANÁLISIS CORREGIDA =============================
-# ======================================================================
-
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -753,7 +743,8 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # ===== CAMBIO CLAVE AQUÍ =====
+        model = genai.GenerativeModel('gemini-1.5-flash') # Usar el nombre de modelo estable
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
