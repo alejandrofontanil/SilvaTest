@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_user, logout_user, current_user, login_required
-# --- INICIO: NUEVA IMPORTACIÓN ---
+# --- INICIO: IMPORTACIÓN NECESARIA ---
 import os
-# --- FIN: NUEVA IMPORTACIÓN ---
+# --- FIN: IMPORTACIÓN NECESARIA ---
 from mi_app import db, bcrypt, oauth
 from mi_app.models import Usuario
 from mi_app.forms import RegistrationForm, LoginForm, ObjetivoForm
