@@ -3,45 +3,34 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Esta regla se aplica solo cuando el tema oscuro está activo.
-      Le dice a cualquier elemento con fondo claro (.bg-light) o grisáceo (.bg-body-secondary)
-      que su color de texto debe ser oscuro para garantizar el contraste.
-    */
-    [data-bs-theme="dark"] .bg-light,
-    [data-bs-theme="dark"] .bg-body-secondary {
-        color: #212529 !important;
-    }
+    /* Esta regla se aplica solo cuando el tema oscuro está activo.
+     Le dice a cualquier elemento con fondo claro (.bg-light) o grisáceo (.bg-body-secondary)
+     que su color de texto debe ser oscuro para garantizar el contraste.
+    */
+    [data-bs-theme="dark"] .bg-light,
+    [data-bs-theme="dark"] .bg-body-secondary {
+        color: #212529 !important;
+    }
 
-    /* Regla adicional para asegurar que las etiquetas dentro de esos divs también hereden el color */
-    [data-bs-theme="dark"] .bg-light label {
-        color: inherit !important;
-    }
-
-    /* --- NUEVOS ESTILOS PARA MEJORAR EL CONTRASTE EN EL REPASO --- */
+    /* Regla adicional para asegurar que las etiquetas dentro de esos divs también hereden el color */
+    [data-bs-theme="dark"] .bg-light label {
+        color: inherit !important;
+    }
+    
+    /* --- ESTILOS DE REPASO PARA MEJORAR EL CONTRASTE --- */
 
     /* Estilo para la respuesta seleccionada por el usuario (cuando es INCORRECTA) */
-    /* Mejora el contraste del texto rojo sobre el fondo rojo */
-    .opcion-incorrecta-repaso {
-        background-color: #ffebeb !important; /* Fondo rojo muy claro para mayor contraste */
-        color: #990000 !important; /* Un rojo oscuro que es fácil de leer */
-        border: 1px solid #dc3545 !important;
-        font-weight: 500;
+    .bg-danger-subtle {
+        background-color: #ffcccc !important; /* Rojo pastel más claro */
+        color: #8c0000 !important; /* Rojo oscuro para el texto */
     }
 
     /* Estilo para la respuesta CORRECTA */
-    /* Mejora el contraste del texto verde sobre el fondo verde */
-    .opcion-correcta-repaso {
-        background-color: #ebf5eb !important; /* Fondo verde muy claro para mayor contraste */
-        color: #006600 !important; /* Un verde oscuro que es fácil de leer */
-        border: 1px solid #28a745 !important;
-        font-weight: 500;
+    .bg-success-subtle {
+        background-color: #ccffcc !important; /* Verde pastel más claro */
+        color: #006400 !important; /* Verde oscuro para el texto */
     }
 
-    /* Ajustar el color del icono de 'check' y 'x' para que se vea mejor */
-    .opcion-correcta-repaso .bi-check-circle-fill,
-    .opcion-incorrecta-repaso .bi-x-circle-fill {
-        color: inherit !important; /* Hereda el color del texto principal */
-    }
 </style>
 {% endblock %}
 
@@ -76,13 +65,11 @@
                     {% endif %}
 
                     {% for respuesta in respuesta_usuario.pregunta.respuestas %}
-                        {% set es_correcta = respuesta.es_correcta %}
-                        {% set es_seleccionada = respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}
-                        <div class="p-2 my-1 rounded {% if es_correcta %}opcion-correcta-repaso{% elif es_seleccionada %}opcion-incorrecta-repaso{% else %}bg-light border border-light-subtle{% endif %}">
-                            <input class="form-check-input" type="radio" name="pregunta-{{ respuesta_usuario.pregunta.id }}" disabled {% if es_seleccionada %}checked{% endif %}>
+                        <div class="p-2 my-1 rounded {% if respuesta.es_correcta %}bg-success-subtle border border-success-subtle{% elif respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}bg-danger-subtle border border-danger-subtle{% else %}bg-light border border-light-subtle{% endif %}">
+                            <input class="form-check-input" type="radio" name="pregunta-{{ respuesta_usuario.pregunta.id }}" disabled {% if respuesta.id == respuesta_usuario.respuesta_seleccionada_id %}checked{% endif %}>
                             <label class="form-check-label">{{ respuesta.texto }}</label>
-                            {% if es_correcta %} <i class="bi bi-check-circle-fill text-success"></i> (Correcta) {% endif %}
-                            {% if not es_correcta and es_seleccionada %} <i class="bi bi-x-circle-fill text-danger"></i> (Tu respuesta) {% endif %}
+                            {% if respuesta.es_correcta %} <i class="bi bi-check-circle-fill text-success"></i> (Correcta) {% endif %}
+                            {% if not respuesta.es_correcta and respuesta.id == respuesta_usuario.respuesta_seleccionada_id %} <i class="bi bi-x-circle-fill text-danger"></i> (Tu respuesta) {% endif %}
                         </div>
                     {% endfor %}
 
