@@ -1,7 +1,9 @@
 # --- INICIO: IMPORTACIONES PARA IA Y VERTEX AI ---
 import os
+import json
 import vertexai
 from vertexai.generative_models import GenerativeModel
+from google.oauth2 import service_account
 # --- FIN: IMPORTACIONES ---
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
@@ -20,17 +22,27 @@ from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesFor
 
 main_bp = Blueprint('main', __name__)
 
-# --- INICIO: CONFIGURACIÓN DE VERTEX AI ---
+# --- INICIO: CONFIGURACIÓN DE VERTEX AI (MÉTODO A PRUEBA DE BALAS) ---
 try:
+    print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
     GCP_REGION = os.getenv('GCP_REGION')
-    # La autenticación con el JSON se hace automáticamente si la variable de entorno está configurada
-    if GCP_PROJECT_ID and GCP_REGION:
-        vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION)
+    creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
+
+    # Imprimimos el estado de cada variable para depurar
+    print(f"GCP_PROJECT_ID leído: {'Sí' if GCP_PROJECT_ID else 'No'}")
+    print(f"GCP_REGION leído: {'Sí' if GCP_REGION else 'No'}")
+    print(f"GOOGLE_CREDS_JSON leído: {'Sí' if creds_json_str else 'No'}")
+
+    if GCP_PROJECT_ID and GCP_REGION and creds_json_str:
+        creds_info = json.loads(creds_json_str)
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
+        print("✅ Vertex AI inicializado con éxito.")
     else:
-        print("ADVERTENCIA: Faltan las variables de entorno GCP_PROJECT_ID o GCP_REGION para inicializar Vertex AI.")
+        print("❌ ERROR: Una o más variables de entorno no se encontraron. La inicialización de Vertex AI no puede continuar.")
 except Exception as e:
-    print(f"Error al inicializar Vertex AI: {e}")
+    print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
 # --- FIN: CONFIGURACIÓN DE VERTEX AI ---
 
 
