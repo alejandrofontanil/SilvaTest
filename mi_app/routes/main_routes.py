@@ -4,9 +4,10 @@ import json
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
+import PyPDF2
 # --- FIN: IMPORTACIONES ---
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
@@ -29,7 +30,6 @@ try:
     GCP_REGION = os.getenv('GCP_REGION')
     creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
 
-    # Imprimimos el estado de cada variable para depurar
     print(f"GCP_PROJECT_ID leído: {'Sí' if GCP_PROJECT_ID else 'No'}")
     print(f"GCP_REGION leído: {'Sí' if GCP_REGION else 'No'}")
     print(f"GOOGLE_CREDS_JSON leído: {'Sí' if creds_json_str else 'No'}")
@@ -77,6 +77,29 @@ def analizar_rendimiento_usuario(usuario):
         return None
 
     return informe
+
+# --- INICIO: NUEVA FUNCIÓN DE AYUDA PARA LEER ARCHIVOS ---
+def obtener_contexto_de_tema(tema):
+    if not tema.ruta_documento_contexto:
+        return None
+    
+    try:
+        file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema.ruta_documento_contexto)
+        
+        texto_completo = ""
+        with open(file_path, 'rb') as f:
+            if file_path.lower().endswith('.pdf'):
+                reader = PyPDF2.PdfReader(f)
+                for page in reader.pages:
+                    texto_completo += page.extract_text()
+            elif file_path.lower().endswith('.txt'):
+                texto_completo = f.read().decode('utf-8')
+
+        return texto_completo
+    except Exception as e:
+        print(f"Error leyendo el archivo de contexto '{tema.ruta_documento_contexto}': {e}")
+        return None
+# --- FIN: NUEVA FUNCIÓN DE AYUDA ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
