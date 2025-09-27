@@ -80,25 +80,39 @@ def analizar_rendimiento_usuario(usuario):
 
 # --- INICIO: NUEVA FUNCIÓN DE AYUDA PARA LEER ARCHIVOS ---
 def obtener_contexto_de_tema(tema):
-    if not tema.ruta_documento_contexto:
-        return None
-    
-    try:
-        file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema.ruta_documento_contexto)
-        
-        texto_completo = ""
-        with open(file_path, 'rb') as f:
-            if file_path.lower().endswith('.pdf'):
-                reader = PyPDF2.PdfReader(f)
-                for page in reader.pages:
-                    texto_completo += page.extract_text()
-            elif file_path.lower().endswith('.txt'):
-                texto_completo = f.read().decode('utf-8')
+    """
+    Busca un documento de contexto para un tema.
+    Si el tema actual no tiene uno, sube por la jerarquía hasta encontrar
+    un documento en alguno de sus temas padre.
+    """
+    tema_actual = tema
+    # Bucle que sube por los padres hasta llegar a la raíz (donde parent es None)
+    while tema_actual:
+        if tema_actual.ruta_documento_contexto:
+            # ¡Hemos encontrado un documento! Leemos el archivo y devolvemos el texto.
+            try:
+                file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema_actual.ruta_documento_contexto)
+                
+                texto_completo = ""
+                with open(file_path, 'rb') as f:
+                    if file_path.lower().endswith('.pdf'):
+                        reader = PyPDF2.PdfReader(f)
+                        for page in reader.pages:
+                            texto_completo += page.extract_text()
+                    elif file_path.lower().endswith('.txt'):
+                        texto_completo = f.read().decode('utf-8')
+                
+                # Devolvemos el texto del primer documento que encontremos en la jerarquía
+                return texto_completo
+            except Exception as e:
+                print(f"Error leyendo el archivo de contexto '{tema_actual.ruta_documento_contexto}': {e}")
+                return None # Si hay un error al leer el archivo, paramos.
 
-        return texto_completo
-    except Exception as e:
-        print(f"Error leyendo el archivo de contexto '{tema.ruta_documento_contexto}': {e}")
-        return None
+        # Si no hay documento en este nivel, subimos al padre
+        tema_actual = tema_actual.parent
+    
+    # Si hemos recorrido toda la jerarquía y no hemos encontrado nada, devolvemos None
+    return None
 # --- FIN: NUEVA FUNCIÓN DE AYUDA ---
 
 @main_bp.route('/')
