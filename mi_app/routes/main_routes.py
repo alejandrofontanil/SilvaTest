@@ -114,7 +114,8 @@ def obtener_contexto_de_tema(tema):
 def home():
     if not current_user.is_authenticated or current_user.es_admin:
         convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-        return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime})
+        # Pasamos 'hoy' también para usuarios no logueados o admin por si alguna plantilla lo necesita
+        return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime, 'hoy': date.today()})
 
     # --- Lógica para usuarios autenticados ---
     convocatorias = current_user.convocatorias_accesibles.all()
@@ -166,8 +167,7 @@ def home():
                            ultimas_favoritas=ultimas_favoritas,
                            stats_tests_mensual=stats_tests_mensual,
                            stats_clave=stats_clave,
-                           modules={'datetime': datetime})
-
+                           modules={'datetime': datetime, 'hoy': date.today()})
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
