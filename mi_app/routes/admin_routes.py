@@ -132,6 +132,7 @@ def editar_convocatoria(convocatoria_id):
 def eliminar_convocatoria(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
     try:
+        # Lógica de borrado en cascada manual simplificada
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados.', 'success')
