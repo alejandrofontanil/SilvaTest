@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico radar
     const chartRadarCanvas = document.getElementById('radarCompetenciasChart');
     if (chartRadarCanvas) {
-        fetch("{{ url_for('main.api_radar_competencias') }}")
+        fetch("{{ url_for('main.api_rendimiento_temas') }}")
             .then(response => response.json())
             .then(data => {
                 const ctx = chartRadarCanvas.getContext('2d');
