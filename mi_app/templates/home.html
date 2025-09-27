@@ -117,7 +117,7 @@
                         Cuenta Atrás para tu Objetivo
                     </div>
                     <div class="card-body text-center d-flex flex-column justify-content-center">
-                        {% set hoy = modules.datetime.date.today() %}
+                        {% set dias_restantes = (current_user.objetivo_fecha - modules.hoy).days %}
                         {% set dias_restantes = (current_user.objetivo_fecha - hoy).days %}
                         <h5 class="card-title">Fecha Objetivo: {{ current_user.objetivo_fecha.strftime('%d / %m / %Y') }}</h5>
                         {% if dias_restantes > 0 %}
