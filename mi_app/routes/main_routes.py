@@ -78,7 +78,6 @@ def analizar_rendimiento_usuario(usuario):
 
     return informe
 
-# --- INICIO: NUEVA FUNCIÓN DE AYUDA PARA LEER ARCHIVOS ---
 def obtener_contexto_de_tema(tema):
     """
     Busca un documento de contexto para un tema.
@@ -108,7 +107,6 @@ def obtener_contexto_de_tema(tema):
         tema_actual = tema_actual.parent
     
     return None
-# --- FIN: NUEVA FUNCIÓN DE AYUDA ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -125,7 +123,7 @@ def home():
     ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
     ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
 
-    # --- Lógica para el gráfico de barras de tests realizados ---
+    # --- INICIO: LÓGICA ACTUALIZADA PARA EL GRÁFICO DE BARRAS ---
     hoy = date.today()
     hace_1_mes = hoy - timedelta(days=30)
     hace_3_meses = hoy - timedelta(days=90)
@@ -140,6 +138,7 @@ def home():
         "trimestre": count_3_meses,
         "semestre": count_6_meses
     }
+    # --- FIN: LÓGICA ACTUALIZADA ---
 
     return render_template('home.html',
                            convocatorias=convocatorias,
