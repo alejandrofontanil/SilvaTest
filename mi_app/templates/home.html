@@ -7,11 +7,9 @@
         display: flex;
         justify-content: center;
         width: 100%;
-        overflow-x: auto; /* Permite el scroll horizontal en móvil */
-        padding-bottom: 15px; /* Deja espacio para la barra de scroll */
+        overflow-x: auto;
+        padding-bottom: 15px;
     }
-
-    /* Estas reglas solo se aplican en pantallas de móvil */
     @media (max-width: 576px) {
         .ch-subdomain-cell {
             width: 10px !important;
@@ -25,166 +23,135 @@
 {% block content %}
 
 {# ===== LÓGICA DE VISTAS PARA CADA TIPO DE USUARIO ===== #}
-{% if current_user.is_authenticated %}
+{% if current_user.is_authenticated and not current_user.es_admin %}
 
-    {# --- VISTA PARA USUARIOS CON SESIÓN INICIADA --- #}
-    {% if current_user.es_admin %}
-
-        <div class="text-center my-5" data-aos="fade-up">
-            <h1 class="display-5 fw-bold">Panel de Administrador</h1>
-            <p class="fs-4 text-muted">Acceso a todas las convocatorias del sistema.</p>
-            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-primary btn-lg mt-3">Ir al Dashboard de Admin</a>
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            {% if not current_user.ha_visto_tour and current_user.objetivo_principal %}
+                <h2 class="mb-1" data-aos="fade-right">¡A por tu objetivo, {{ current_user.nombre.split()[0] }}!</h2>
+                <p class="fs-4 text-muted" data-aos="fade-right" data-aos-delay="100">Empecemos con tu preparación para: <strong>{{ current_user.objetivo_principal.nombre }}</strong></p>
+            {% else %}
+                <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
+            {% endif %}
         </div>
-        <hr class="my-5">
-
-    {% else %}
-
-        <div class="row g-4 mb-5">
-            <div class="col-12">
-                {% if not current_user.ha_visto_tour and current_user.objetivo_principal %}
-                    <h2 class="mb-1" data-aos="fade-right">¡A por tu objetivo, {{ current_user.nombre.split()[0] }}!</h2>
-                    <p class="fs-4 text-muted" data-aos="fade-right" data-aos-delay="100">Empecemos con tu preparación para: <strong>{{ current_user.objetivo_principal.nombre }}</strong></p>
-                {% else %}
-                    <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
-                {% endif %}
-            </div>
-            
-            {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True) %}
-            <div class="col-lg-8" data-aos="fade-up">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body p-4">
-                        <h5 class="card-title text-muted mb-3">Evolución de Notas (Últimos 30 días)</h5>
-                        <div style="height: 300px;">
-                            <canvas id="evolucionNotasChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True) %}
-            <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body p-4">
-                        <h5 class="card-title text-muted mb-3">Rendimiento por Bloque</h5>
-                        <div style="height: 300px;">
-                            <canvas id="radarCompetenciasChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True) %}
-            <div class="col-lg-12" data-aos="fade-up" data-aos-delay="200">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-                            <h5 class="card-title text-muted mb-2 me-3">Actividad Reciente</h5>
-                            <div class="w-auto">
-                                <select class="form-select form-select-sm" id="calendario-rango" aria-label="Seleccionar rango de tiempo">
-                                    <option value="3" selected>Últimos 3 meses</option>
-                                    <option value="6">Últimos 6 meses</option>
-                                    <option value="12">Último año</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="cal-heatmap" class="cal-heatmap-container"></div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if stats_tests_mensual %}
-            <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="300">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header">
-                        <i class="bi bi-bar-chart-line-fill me-1"></i>
-                        Tests Realizados por Mes
-                    </div>
-                    <div class="card-body d-flex align-items-center justify-content-center">
-                        <canvas id="graficoTestsHechos" style="min-height: 200px;"></canvas>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
-            {% if current_user.is_authenticated and current_user.objetivo_fecha %}
-            <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="400">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header">
-                        <i class="bi bi-calendar-check-fill me-1"></i>
-                        Cuenta Atrás para tu Objetivo
-                    </div>
-                    <div class="card-body text-center d-flex flex-column justify-content-center">
-                        {% set dias_restantes = (current_user.objetivo_fecha - modules.hoy).days %}
-                        {% set dias_restantes = (current_user.objetivo_fecha - hoy).days %}
-                        <h5 class="card-title">Fecha Objetivo: {{ current_user.objetivo_fecha.strftime('%d / %m / %Y') }}</h5>
-                        {% if dias_restantes > 0 %}
-                            <p class="display-4 fw-bold text-primary my-2">{{ dias_restantes }}</p>
-                            <p class="h5">días restantes</p>
-                        {% elif dias_restantes == 0 %}
-                            <p class="display-4 fw-bold text-success my-2">¡Es Hoy!</p>
-                            <p class="h5">¡Mucha suerte!</p>
-                        {% else %}
-                            <p class="text-muted my-3">La fecha de tu objetivo ya ha pasado.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
-            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="500">
-                <div class="card shadow-sm h-100">
-                     <div class="card-body">
-                         <h5 class="card-title text-muted mb-3">Último Test Realizado</h5>
-                         {% if ultimo_resultado %}
-                             <p class="fw-bold fs-5">{{ ultimo_resultado.tema.nombre }}</p>
-                             <p>Nota: <span class="badge fs-6 {% if ultimo_resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">{{ "%.2f"|format(ultimo_resultado.nota) }}</span></p>
-                             <a href="{{ url_for('main.repaso_test', resultado_id=ultimo_resultado.id) }}" class="btn btn-outline-primary mt-2">Repasar este Test <i class="bi bi-arrow-right"></i></a>
-                         {% else %}
-                             <p class="text-muted">Aún no has completado ningún test.</p>
-                             <a href="#convocatorias" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
-                         {% endif %}
-                     </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="600">
-                <div class="card h-100 shadow-sm">
-                      <div class="card-body">
-                          <h5 class="card-title text-muted mb-3">Acceso Rápido a Favoritas</h5>
-                          {% if ultimas_favoritas %}
-                              <div class="list-group list-group-flush">
-                                  {% for fav in ultimas_favoritas %}
-                                      <a href="{{ url_for('main.hacer_test', tema_id=fav.tema_id) }}#card-pregunta-{{ fav.id }}" class="list-group-item list-group-item-action">
-                                          <i class="bi bi-star-fill text-warning me-2"></i>{{ fav.texto|truncate(60) }}
-                                      </a>
-                                  {% endfor %}
-                              </div>
-                               <a href="{{ url_for('main.preguntas_favoritas') }}" class="btn btn-outline-secondary mt-3 btn-sm">Ver todas</a>
-                          {% else %}
-                              <p class="text-muted">Marca preguntas con la estrella <i class="bi bi-star"></i> para que aparezcan aquí.</p>
-                          {% endif %}
-                      </div>
-                </div>
-            </div>
-             </div>
         
-        <div class="text-center" data-aos="fade-up" id="convocatorias">
-            <h2 class="display-6 fw-bold">Continúa tu preparación</h2>
-            <p class="fs-5 text-muted">Selecciona una de tus convocatorias para seguir practicando.</p>
+        <div class="col-12" data-aos="fade-up">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <h5 class="card-title text-muted">Tests Realizados</h5>
+                            <p class="display-5 fw-bold">{{ stats_clave.total_tests }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="card-title text-muted">Preguntas Respondidas</h5>
+                            <p class="display-5 fw-bold">{{ stats_clave.total_preguntas }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="card-title text-muted">Nota Media Global</h5>
+                            <p class="display-5 fw-bold">{{ "%.2f"|format(stats_clave.nota_media) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+        
+        {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True) %}
+        <div class="col-lg-8" data-aos="fade-up">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title text-muted mb-3">Evolución de Notas (Últimos 30 días)</h5>
+                    <div style="height: 300px;">
+                        <canvas id="evolucionNotasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
-    {% endif %}
+        {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True) %}
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title text-muted mb-3">Rendimiento por Temas (Objetivo)</h5>
+                    <div style="height: 300px;">
+                        <canvas id="rendimientoTemasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
-{% else %}
-    {# --- VISTA PARA VISITANTES (sin cambios) --- #}
+        {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True) %}
+        <div class="col-lg-12" data-aos="fade-up" data-aos-delay="200">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                        <h5 class="card-title text-muted mb-2 me-3">Actividad Reciente</h5>
+                        <div class="w-auto">
+                            <select class="form-select form-select-sm" id="calendario-rango" aria-label="Seleccionar rango de tiempo">
+                                <option value="3" selected>Últimos 3 meses</option>
+                                <option value="6">Últimos 6 meses</option>
+                                <option value="12">Último año</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="cal-heatmap" class="cal-heatmap-container"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if stats_tests_mensual %}
+        <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="300">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><i class="bi bi-bar-chart-line-fill me-1"></i>Tests Realizados por Mes</div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="graficoTestsHechos" style="min-height: 200px;"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if current_user.objetivo_fecha %}
+        <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="400">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><i class="bi bi-calendar-check-fill me-1"></i>Cuenta Atrás para tu Objetivo</div>
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    {% set hoy = modules.hoy %}
+                    {% set dias_restantes = (current_user.objetivo_fecha - hoy).days %}
+                    <h5 class="card-title">Fecha Objetivo: {{ current_user.objetivo_fecha.strftime('%d / %m / %Y') }}</h5>
+                    {% if dias_restantes > 0 %}
+                        <p class="display-4 fw-bold text-primary my-2">{{ dias_restantes }}</p>
+                        <p class="h5">días restantes</p>
+                    {% elif dias_restantes == 0 %}
+                        <p class="display-4 fw-bold text-success my-2">¡Es Hoy!</p>
+                        <p class="h5">¡Mucha suerte!</p>
+                    {% else %}
+                        <p class="text-muted my-3">La fecha de tu objetivo ya ha pasado.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+{% endif %}
+
+{# --- VISTA PARA ADMINS Y VISITANTES --- #}
+{% if current_user.is_authenticated and current_user.es_admin %}
+    <div class="text-center my-5" data-aos="fade-up">
+        <h1 class="display-5 fw-bold">Panel de Administrador</h1>
+        <p class="fs-4 text-muted">Acceso a todas las convocatorias del sistema.</p>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-primary btn-lg mt-3">Ir al Dashboard de Admin</a>
+    </div>
+    <hr class="my-5">
+{% elif not current_user.is_authenticated %}
     <div class="text-center" style="padding: 4rem 0;">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid mb-4" style="max-width: 250px;" data-aos="zoom-in">
         <h1 class="display-4 fw-bold" data-aos="fade-up">Aprueba a la Primera con la Preparación Inteligente.</h1>
         <p class="lead text-muted mt-3 mx-auto" style="max-width: 800px;" data-aos="fade-up" data-aos-delay="100">
-            Practica con tests oficiales, descubre tus puntos débiles con nuestro Analizador Inteligente y repasa solo lo que necesitas para optimizar tu estudio.
+            Practica con tests oficiales, descubre tus puntos débiles y repasa solo lo que necesitas para optimizar tu estudio.
         </p>
         <div class="mt-4" data-aos="fade-up" data-aos-delay="200">
             <a href="{{ url_for('auth.registro') }}" class="btn btn-primary btn-lg px-4">Empezar a Practicar Gratis</a>
@@ -193,18 +160,18 @@
     </div>
     <hr class="my-5">
     <div class="row text-center g-4" style="padding: 2rem 0;">
-        <div class="col-md-6 col-lg-3" data-aos="fade-up"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Analiza tu Evolución</h3> <p class="text-muted small">Con nuestros gráficos de Evolución de Notas, visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p> </div> </div> </div>
-        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-search" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Descubre tus Puntos Débiles</h3> <p class="text-muted small">Nuestras Estadísticas detalladas te muestran en qué temas y bloques fallas más para que sepas dónde tienes que reforzar.</p> </div> </div> </div>
-        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-recycle" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Repasa Fallos de Forma Inteligente</h3> <p class="text-muted small">Nuestra herramienta crea tests solo con las preguntas que has fallado, para un estudio 100% eficiente.</p> </div> </div> </div>
-        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-tools" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Crea Exámenes a tu Medida</h3> <p class="text-muted small">Con el Generador de Tests, puedes crear simulacros personalizados, eligiendo los temas y el número de preguntas.</p> </div> </div> </div>
+        <div class="col-md-6 col-lg-3" data-aos="fade-up"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-graph-up-arrow" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Analiza tu Evolución</h3> <p class="text-muted small">Visualiza tu progreso día a día y mantén la motivación viendo cómo mejoras.</p> </div> </div> </div>
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-search" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Descubre tus Puntos Débiles</h3> <p class="text-muted small">Nuestras estadísticas te muestran dónde fallas más para que sepas dónde reforzar.</p> </div> </div> </div>
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-recycle" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Repasa Fallos de Forma Inteligente</h3> <p class="text-muted small">Crea tests solo con las preguntas que has fallado, para un estudio 100% eficiente.</p> </div> </div> </div>
+        <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300"> <div class="card h-100 border-0 shadow-sm"> <div class="card-body p-4"> <div class="mb-3"> <i class="bi bi-tools" style="font-size: 3rem; color: var(--bs-primary);"></i> </div> <h3 class="fs-5">Crea Exámenes a tu Medida</h3> <p class="text-muted small">Genera simulacros personalizados, eligiendo los temas y el número de preguntas.</p> </div> </div> </div>
     </div>
     <hr class="my-5">
-    <div class="text-center" data-aos="fade-up" id="convocatorias">
-        <h2 class="display-6 fw-bold">Comienza tu Preparación Ahora</h2>
-        <p class="fs-5 text-muted">Selecciona uno de nuestros temarios disponibles.</p>
-    </div>
-
 {% endif %}
+
+<div class="text-center" data-aos="fade-up" id="convocatorias">
+    <h2 class="display-6 fw-bold">Comienza tu Preparación Ahora</h2>
+    <p class="fs-5 text-muted">Selecciona uno de nuestros temarios disponibles.</p>
+</div>
 
 <div class="row g-4 mt-4">
     {% if convocatorias %}
@@ -232,21 +199,10 @@
 </div>
 
 <style>
-    .card-convocatoria {
-        transition: all 0.3s ease;
-        border-width: 2px;
-    }
-    .card-convocatoria:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
-        border-color: var(--bs-primary);
-    }
-    .card-convocatoria h3 {
-        color: var(--bs-secondary-text-emphasis);
-    }
-    .card-convocatoria p {
-        color: var(--bs-primary);
-    }
+    .card-convocatoria { transition: all 0.3s ease; border-width: 2px; }
+    .card-convocatoria:hover { transform: translateY(-10px); box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important; border-color: var(--bs-primary); }
+    .card-convocatoria h3 { color: var(--bs-secondary-text-emphasis); }
+    .card-convocatoria p { color: var(--bs-primary); }
 </style>
 {% endblock %}
 
@@ -257,7 +213,6 @@
 <script src="https://cdn.jsdelivr.net/npm/cal-heatmap/dist/cal-heatmap.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap/dist/cal-heatmap.css">
 
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -265,7 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
     const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
-    // Gráfico de evolución de notas
     const chartEvolucionCanvas = document.getElementById('evolucionNotasChart');
     if (chartEvolucionCanvas) {
         fetch("{{ url_for('main.api_evolucion_notas') }}")
@@ -289,72 +243,82 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error("Error al cargar datos del gráfico de evolución:", error));
     }
 
-    // Gráfico radar
-    const chartRadarCanvas = document.getElementById('radarCompetenciasChart');
-    if (chartRadarCanvas) {
+    const chartRendimientoCanvas = document.getElementById('rendimientoTemasChart');
+    if (chartRendimientoCanvas) {
         fetch("{{ url_for('main.api_rendimiento_temas') }}")
             .then(response => response.json())
             .then(data => {
-                const ctx = chartRadarCanvas.getContext('2d');
-                if (!data || data.labels.length < 3) {
+                const ctx = chartRendimientoCanvas.getContext('2d');
+                if (!data || data.labels.length === 0) {
                     ctx.font = "14px 'Lato', sans-serif";
                     ctx.fillStyle = colorTexto;
                     ctx.textAlign = "center";
-                    ctx.fillText("Completa tests en al menos 3 bloques", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 - 10);
-                    ctx.fillText("para ver tu radar de competencias.", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 + 10);
+                    ctx.fillText("Completa tests en tu convocatoria", chartRendimientoCanvas.width / 2, chartRendimientoCanvas.height / 2 - 10);
+                    ctx.fillText("objetivo para ver este gráfico.", chartRendimientoCanvas.width / 2, chartRendimientoCanvas.height / 2 + 10);
                     return;
                 }
-                const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
-                const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-                new Chart(chartRadarCanvas, {
-                    type: 'radar', data: { labels: data.labels, datasets: [{ label: 'Nota Media por Bloque', data: data.data, fill: true, backgroundColor: colorFondoGrafico, borderColor: colorBordeGrafico, pointBackgroundColor: colorBordeGrafico, pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: colorBordeGrafico }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 10, pointLabels: { color: colorTexto, font: {size: 12} }, grid: { color: colorGrid }, angleLines: { color: colorGrid } } }, plugins: { legend: { display: false } } }
+                new Chart(chartRendimientoCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '% de Acierto',
+                            data: data.data,
+                            backgroundColor: (context) => {
+                                const value = context.raw;
+                                if (value < 50) return 'rgba(220, 53, 69, 0.7)';
+                                if (value < 75) return 'rgba(255, 193, 7, 0.7)';
+                                return 'rgba(25, 135, 84, 0.7)';
+                            },
+                            borderColor: (context) => {
+                                const value = context.raw;
+                                if (value < 50) return 'rgba(220, 53, 69, 1)';
+                                if (value < 75) return 'rgba(255, 193, 7, 1)';
+                                return 'rgba(25, 135, 84, 1)';
+                            },
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { beginAtZero: true, max: 100, ticks: { color: colorTexto }, grid: { color: colorGrid } },
+                            y: { ticks: { color: colorTexto }, grid: { color: colorGrid } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             })
-            .catch(error => console.error("Error al cargar datos del gráfico radar:", error));
+            .catch(error => console.error("Error al cargar datos del gráfico de rendimiento:", error));
     }
     
-    // Lógica para el Calendario de Actividad
     const calHeatmapDiv = document.getElementById('cal-heatmap');
     if (calHeatmapDiv) {
         let cal = new CalHeatmap();
         const selectorRango = document.getElementById('calendario-rango');
-
         function renderizarCalendario(meses) {
             const mesesInt = parseInt(meses);
             const fechaInicio = new Date();
             fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt + 1);
-            
-            cal.destroy(); 
-            
+            cal.destroy();
             cal.paint({
                 data: { source: `{{ url_for('main.api_calendario_actividad') }}?meses=${mesesInt}`, type: 'json', x: 'date', y: 'value' },
                 date: { start: fechaInicio },
                 range: mesesInt,
-                scale: {
-                    color: {
-                        type: 'threshold',
-                        domain: [1, 3, 5, 10], 
-                        range: esModoOscuro
-                               ? ['#0e4429', '#006d32', '#26a641', '#39d353']
-                               : ['#9be9a8', '#40c463', '#30a14e', '#216e39']
-                    }
-                },
+                scale: { color: { type: 'threshold', domain: [1, 3, 5, 10], range: esModoOscuro ? ['#0e4429', '#006d32', '#26a641', '#39d353'] : ['#9be9a8', '#40c463', '#30a14e', '#216e39'] } },
                 domain: { type: 'month', gutter: 5, label: { text: 'MMM', textAlign: 'start', position: 'top' }},
                 subDomain: { type: 'ghDay', radius: 2, width: 13, height: 13, gutter: 4 },
                 itemSelector: '#cal-heatmap'
             });
         }
-        
         if (selectorRango) {
             renderizarCalendario(selectorRango.value);
-            selectorRango.addEventListener('change', function() {
-                renderizarCalendario(this.value);
-            });
+            selectorRango.addEventListener('change', function() { renderizarCalendario(this.value); });
         }
     }
     
-    // Lógica para el Gráfico de Barras de Tests Realizados
     {% if stats_tests_mensual %}
     const chartTestsHechosCanvas = document.getElementById('graficoTestsHechos');
     if (chartTestsHechosCanvas) {
@@ -364,23 +328,19 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: datosGrafico.labels,
                 datasets: [{
-                    label: 'Nº de Tests',
-                    data: datosGrafico.data,
+                    label: 'Nº de Tests', data: datosGrafico.data,
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
                     y: { beginAtZero: true, ticks: { color: colorTexto, precision: 0 } },
                     x: { ticks: { color: colorTexto } }
                 },
-                plugins: {
-                    legend: { display: false }
-                }
+                plugins: { legend: { display: false } }
             }
         });
     }
@@ -388,19 +348,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-{% if current_user.is_authenticated and not current_user.ha_visto_tour %}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                {% if category == 'onboarding_trigger' %}
-                    <script>
-                        window.addEventListener('load', function() {
-                            iniciarTourBienvenida();
-                        });
-                    </script>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+{% if current_user.is_authenticated and not current_user.ha_visto_tour and get_flashed_messages(category_filter=['onboarding_trigger']) %}
+<script>
+    window.addEventListener('load', function() {
+        iniciarTourBienvenida();
+    });
+</script>
 {% endif %}
 {% endblock %}
