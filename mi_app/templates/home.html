@@ -51,7 +51,7 @@
             
             {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True) %}
             <div class="col-lg-8" data-aos="fade-up">
-                <div class="card h-100">
+                <div class="card h-100 shadow-sm">
                     <div class="card-body p-4">
                         <h5 class="card-title text-muted mb-3">Evolución de Notas (Últimos 30 días)</h5>
                         <div style="height: 300px;">
@@ -64,7 +64,7 @@
 
             {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True) %}
             <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="card h-100">
+                <div class="card h-100 shadow-sm">
                     <div class="card-body p-4">
                         <h5 class="card-title text-muted mb-3">Rendimiento por Bloque</h5>
                         <div style="height: 300px;">
@@ -77,7 +77,7 @@
 
             {% if current_user.preferencias_dashboard is none or current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True) %}
             <div class="col-lg-12" data-aos="fade-up" data-aos-delay="200">
-                <div class="card h-100">
+                <div class="card h-100 shadow-sm">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
                             <h5 class="card-title text-muted mb-2 me-3">Actividad Reciente</h5>
@@ -95,42 +95,59 @@
             </div>
             {% endif %}
 
-            <div class="col-md-6" data-aos="fade-up" data-aos-delay="300">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted mb-3">Último Test Realizado</h5>
-                        {% if ultimo_resultado %}
-                            <p class="fw-bold fs-5">{{ ultimo_resultado.tema.nombre }}</p>
-                            <p>Nota: <span class="badge fs-6 {% if ultimo_resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">{{ "%.2f"|format(ultimo_resultado.nota) }}</span></p>
-                            <a href="{{ url_for('main.repaso_test', resultado_id=ultimo_resultado.id) }}" class="btn btn-outline-primary mt-2">Repasar este Test <i class="bi bi-arrow-right"></i></a>
-                        {% else %}
-                            <p class="text-muted">Aún no has completado ningún test.</p>
-                            <a href="#convocatorias" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
-                        {% endif %}
+            {% if stats_tests_hechos %}
+            <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <i class="bi bi-bar-chart-line-fill me-1"></i>
+                        Tests Realizados
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="graficoTestsHechos" style="min-height: 200px;"></canvas>
                     </div>
                 </div>
             </div>
+            {% endif %}
 
-            <div class="col-md-6" data-aos="fade-up" data-aos-delay="400">
-                <div class="card h-100">
-                      <div class="card-body">
-                        <h5 class="card-title text-muted mb-3">Acceso Rápido a Favoritas</h5>
-                        {% if ultimas_favoritas %}
-                            <div class="list-group list-group-flush">
-                                {% for fav in ultimas_favoritas %}
-                                    <a href="{{ url_for('main.hacer_test', tema_id=fav.tema_id) }}#card-pregunta-{{ fav.id }}" class="list-group-item list-group-item-action">
-                                        <i class="bi bi-star-fill text-warning me-2"></i>{{ fav.texto|truncate(60) }}
-                                    </a>
-                                {% endfor %}
+            <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="400">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title text-muted mb-3">Último Test Realizado</h5>
+                                {% if ultimo_resultado %}
+                                    <p class="fw-bold fs-5">{{ ultimo_resultado.tema.nombre }}</p>
+                                    <p>Nota: <span class="badge fs-6 {% if ultimo_resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">{{ "%.2f"|format(ultimo_resultado.nota) }}</span></p>
+                                    <a href="{{ url_for('main.repaso_test', resultado_id=ultimo_resultado.id) }}" class="btn btn-outline-primary mt-2">Repasar este Test <i class="bi bi-arrow-right"></i></a>
+                                {% else %}
+                                    <p class="text-muted">Aún no has completado ningún test.</p>
+                                    <a href="#convocatorias" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
+                                {% endif %}
                             </div>
-                             <a href="{{ url_for('main.preguntas_favoritas') }}" class="btn btn-outline-secondary mt-3 btn-sm">Ver todas</a>
-                        {% else %}
-                            <p class="text-muted">Marca preguntas con la estrella <i class="bi bi-star"></i> para que aparezcan aquí.</p>
-                        {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card h-100 shadow-sm">
+                              <div class="card-body">
+                                  <h5 class="card-title text-muted mb-3">Acceso Rápido a Favoritas</h5>
+                                  {% if ultimas_favoritas %}
+                                      <div class="list-group list-group-flush">
+                                          {% for fav in ultimas_favoritas %}
+                                              <a href="{{ url_for('main.hacer_test', tema_id=fav.tema_id) }}#card-pregunta-{{ fav.id }}" class="list-group-item list-group-item-action">
+                                                  <i class="bi bi-star-fill text-warning me-2"></i>{{ fav.texto|truncate(60) }}
+                                              </a>
+                                          {% endfor %}
+                                      </div>
+                                       <a href="{{ url_for('main.preguntas_favoritas') }}" class="btn btn-outline-secondary mt-3 btn-sm">Ver todas</a>
+                                  {% else %}
+                                      <p class="text-muted">Marca preguntas con la estrella <i class="bi bi-star"></i> para que aparezcan aquí.</p>
+                                  {% endif %}
+                              </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+             </div>
         
         <div class="text-center" data-aos="fade-up" id="convocatorias">
             <h2 class="display-6 fw-bold">Continúa tu preparación</h2>
@@ -140,7 +157,7 @@
     {% endif %}
 
 {% else %}
-    {# --- VISTA PARA VISITANTES --- #}
+    {# --- VISTA PARA VISITANTES (sin cambios) --- #}
     <div class="text-center" style="padding: 4rem 0;">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo SilvaTest" class="img-fluid mb-4" style="max-width: 250px;" data-aos="zoom-in">
         <h1 class="display-4 fw-bold" data-aos="fade-up">Aprueba a la Primera con la Preparación Inteligente.</h1>
@@ -214,125 +231,148 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cal-heatmap/dist/cal-heatmap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap/dist/cal-heatmap.css">
 
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<script type="module" src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
 
-<script type="module">
-    import CalHeatmap from 'https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/+esm';
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+    const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
-    document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de evolución de notas
+    const chartEvolucionCanvas = document.getElementById('evolucionNotasChart');
+    if (chartEvolucionCanvas) {
+        fetch("{{ url_for('main.api_evolucion_notas') }}")
+            .then(response => response.json())
+            .then(data => {
+                const ctx = chartEvolucionCanvas.getContext('2d');
+                if (!data || data.labels.length === 0) {
+                    ctx.font = "16px 'Lato', sans-serif";
+                    ctx.fillStyle = colorTexto;
+                    ctx.textAlign = "center";
+                    ctx.fillText("Realiza algunos tests para ver tu evolución aquí.", chartEvolucionCanvas.width / 2, chartEvolucionCanvas.height / 2);
+                    return;
+                }
+                const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+                const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+                new Chart(chartEvolucionCanvas, {
+                    type: 'line', data: { labels: data.labels, datasets: [{ label: 'Nota Media Diaria', data: data.data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.3, pointBackgroundColor: colorBordeGrafico, pointRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto }, grid: { color: colorGrid } }, x: { ticks: { color: colorTexto }, grid: { color: colorGrid } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'Nota media: ' + context.parsed.y; } } } } }
+                });
+            })
+            .catch(error => console.error("Error al cargar datos del gráfico de evolución:", error));
+    }
 
-        // Código para el gráfico de evolución de notas (no cambia)
-        const chartEvolucionCanvas = document.getElementById('evolucionNotasChart');
-        if (chartEvolucionCanvas) {
-            fetch("{{ url_for('main.api_evolucion_notas') }}")
-                .then(response => response.json())
-                .then(data => {
-                    const ctx = chartEvolucionCanvas.getContext('2d');
-                    if (!data || data.labels.length === 0) {
-                        ctx.font = "16px 'Lato', sans-serif";
-                        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bs-body-color');
-                        ctx.textAlign = "center";
-                        ctx.fillText("Realiza algunos tests para ver tu evolución aquí.", chartEvolucionCanvas.width / 2, chartEvolucionCanvas.height / 2);
-                        return;
+    // Gráfico radar
+    const chartRadarCanvas = document.getElementById('radarCompetenciasChart');
+    if (chartRadarCanvas) {
+        fetch("{{ url_for('main.api_radar_competencias') }}")
+            .then(response => response.json())
+            .then(data => {
+                const ctx = chartRadarCanvas.getContext('2d');
+                if (!data || data.labels.length < 3) {
+                    ctx.font = "14px 'Lato', sans-serif";
+                    ctx.fillStyle = colorTexto;
+                    ctx.textAlign = "center";
+                    ctx.fillText("Completa tests en al menos 3 bloques", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 - 10);
+                    ctx.fillText("para ver tu radar de competencias.", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 + 10);
+                    return;
+                }
+                const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+                const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+                new Chart(chartRadarCanvas, {
+                    type: 'radar', data: { labels: data.labels, datasets: [{ label: 'Nota Media por Bloque', data: data.data, fill: true, backgroundColor: colorFondoGrafico, borderColor: colorBordeGrafico, pointBackgroundColor: colorBordeGrafico, pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: colorBordeGrafico }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 10, pointLabels: { color: colorTexto, font: {size: 12} }, grid: { color: colorGrid }, angleLines: { color: colorGrid } } }, plugins: { legend: { display: false } } }
+                });
+            })
+            .catch(error => console.error("Error al cargar datos del gráfico radar:", error));
+    }
+    
+    // --- LÓGICA CORREGIDA PARA EL CALENDARIO ---
+    const calHeatmapDiv = document.getElementById('cal-heatmap');
+    if (calHeatmapDiv) {
+        let cal = new CalHeatmap();
+        const selectorRango = document.getElementById('calendario-rango');
+
+        function renderizarCalendario(meses) {
+            const mesesInt = parseInt(meses);
+            const fechaInicio = new Date();
+            fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt + 1);
+            
+            // Destruimos la instancia anterior para evitar duplicados al cambiar de rango
+            cal.destroy(); 
+            
+            cal.paint({
+                data: { source: `{{ url_for('main.api_calendario_actividad') }}?meses=${mesesInt}`, type: 'json', x: 'date', y: 'value' },
+                date: { start: fechaInicio },
+                range: mesesInt,
+                scale: {
+                    color: {
+                        type: 'threshold',
+                        domain: [1, 3, 5, 10],
+                        range: esModoOscuro
+                               ? ['#0e4429', '#006d32', '#26a641', '#39d353']
+                               : ['#9be9a8', '#40c463', '#30a14e', '#216e39']
                     }
-                    const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-                    const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
-                    const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-                    const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
-                    const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-                    new Chart(chartEvolucionCanvas, {
-                        type: 'line', data: { labels: data.labels, datasets: [{ label: 'Nota Media Diaria', data: data.data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.3, pointBackgroundColor: colorBordeGrafico, pointRadius: 4 }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto }, grid: { color: colorGrid } }, x: { ticks: { color: colorTexto }, grid: { color: colorGrid } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'Nota media: ' + context.parsed.y; } } } } }
-                    });
-                })
-                .catch(error => console.error("Error al cargar datos del gráfico de evolución:", error));
-        }
-
-        // Código para el gráfico radar (no cambia)
-        const chartRadarCanvas = document.getElementById('radarCompetenciasChart');
-        if (chartRadarCanvas) {
-            fetch("{{ url_for('main.api_radar_competencias') }}")
-                .then(response => response.json())
-                .then(data => {
-                    const ctx = chartRadarCanvas.getContext('2d');
-                    if (!data || data.labels.length < 3) {
-                        ctx.font = "14px 'Lato', sans-serif";
-                        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bs-body-color');
-                        ctx.textAlign = "center";
-                        ctx.fillText("Completa tests en al menos 3 bloques", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 - 10);
-                        ctx.fillText("para ver tu radar de competencias.", chartRadarCanvas.width / 2, chartRadarCanvas.height / 2 + 10);
-                        return;
-                    }
-                    const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-                    const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
-                    const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-                    const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
-                    const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-                    new Chart(chartRadarCanvas, {
-                        type: 'radar', data: { labels: data.labels, datasets: [{ label: 'Nota Media por Bloque', data: data.data, fill: true, backgroundColor: colorFondoGrafico, borderColor: colorBordeGrafico, pointBackgroundColor: colorBordeGrafico, pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: colorBordeGrafico }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 10, pointLabels: { color: colorTexto, font: {size: 12} }, grid: { color: colorGrid }, angleLines: { color: colorGrid } } }, plugins: { legend: { display: false } } }
-                    });
-                })
-                .catch(error => console.error("Error al cargar datos del gráfico radar:", error));
+                },
+                domain: { type: 'month', gutter: 5, label: { text: 'MMM', textAlign: 'start', position: 'top' }},
+                subDomain: { type: 'ghDay', radius: 2, width: 13, height: 13, gutter: 4 },
+                itemSelector: '#cal-heatmap'
+            });
         }
         
-        // --- INICIO: LÓGICA CORREGIDA Y MÁS ROBUSTA PARA EL CALENDARIO ---
-        const calHeatmapDiv = document.getElementById('cal-heatmap');
-        if (calHeatmapDiv) {
-            let cal = new CalHeatmap(); // Creamos la instancia una sola vez fuera
-            const selectorRango = document.getElementById('calendario-rango');
-
-            function renderizarCalendario(meses) {
-                const mesesInt = parseInt(meses);
-                const fechaInicio = new Date();
-                fechaInicio.setMonth(fechaInicio.getMonth() - mesesInt);
-
-                // Destruimos la instancia anterior. El .then() asegura que no pintamos
-                // hasta que el anterior se haya borrado completamente.
-                cal.destroy().then(() => {
-                    // Limpiamos el HTML del contenedor por si acaso.
-                    calHeatmapDiv.innerHTML = '';
-                    
-                    // Creamos una NUEVA instancia para asegurar que no hay estados residuales
-                    cal = new CalHeatmap();
-                    
-                    cal.paint({
-                        data: {
-                            source: `{{ url_for('main.api_calendario_actividad') }}?meses=${mesesInt}`,
-                            type: 'json', x: 'date', y: 'value'
-                        },
-                        date: { start: fechaInicio },
-                        range: mesesInt,
-                        scale: {
-                            color: {
-                                type: 'threshold',
-                                range: ['#a2d2a2', '#69b069', '#448d44', '#1e6823'],
-                                domain: [1, 3, 5, 10],
-                                scheme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
-                            }
-                        },
-                        domain: { type: 'month', gutter: 5, label: { text: 'MMM', textAlign: 'start', position: 'top' } },
-                        subDomain: { type: 'ghDay', radius: 2, width: 13, height: 13, gutter: 4 },
-                        itemSelector: '#cal-heatmap'
-                    });
-                });
-            }
-
-            if (selectorRango) {
-                // Renderizamos la vista inicial por defecto
-                renderizarCalendario(selectorRango.value);
-
-                // Añadimos el "escuchador" para cuando cambie la selección
-                selectorRango.addEventListener('change', function() {
-                    renderizarCalendario(this.value);
-                });
-            }
+        if (selectorRango) {
+            renderizarCalendario(selectorRango.value);
+            selectorRango.addEventListener('change', function() {
+                renderizarCalendario(this.value);
+            });
         }
-        // --- FIN: LÓGICA CORREGIDA ---
-    });
+    }
+    
+    // --- LÓGICA PARA EL NUEVO GRÁFICO DE BARRAS ---
+    {% if stats_tests_hechos %}
+    const chartTestsHechosCanvas = document.getElementById('graficoTestsHechos');
+    if (chartTestsHechosCanvas) {
+        const datosTests = {{ stats_tests_hechos | tojson }};
+        new Chart(chartTestsHechosCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['Último Mes', 'Últimos 3 Meses', 'Últimos 6 Meses'],
+                datasets: [{
+                    label: 'Nº de Tests',
+                    data: [datosTests.mes, datosTests.trimestre, datosTests.semestre],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 159, 64, 0.5)',
+                        'rgba(75, 192, 192, 0.5)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: colorTexto, precision: 0 } },
+                    x: { ticks: { color: colorTexto } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
 </script>
 
 {% if current_user.is_authenticated and not current_user.ha_visto_tour %}
@@ -342,7 +382,7 @@
                 {% if category == 'onboarding_trigger' %}
                     <script>
                         window.addEventListener('load', function() {
-                           iniciarTourBienvenida();
+                            iniciarTourBienvenida();
                         });
                     </script>
                 {% endif %}
