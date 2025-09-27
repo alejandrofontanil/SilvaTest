@@ -152,3 +152,7 @@ class UploadContextoForm(FlaskForm):
     ])
     submit = SubmitField('Subir y Guardar Documento')
 # --- FIN: NUEVO FORMULARIO ---
+
+class ObjetivoFechaForm(FlaskForm):
+    objetivo_fecha = DateField('Fecha de tu Examen u Objetivo', format='%Y-%m-%d', validators=[DataRequired()])
+    submit = SubmitField('Guardar Fecha')
