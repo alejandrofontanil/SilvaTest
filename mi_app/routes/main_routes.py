@@ -29,7 +29,7 @@ try:
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
     GCP_REGION = os.getenv('GCP_REGION')
     creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
-
+    
     print(f"GCP_PROJECT_ID leído: {'Sí' if GCP_PROJECT_ID else 'No'}")
     print(f"GCP_REGION leído: {'Sí' if GCP_REGION else 'No'}")
     print(f"GOOGLE_CREDS_JSON leído: {'Sí' if creds_json_str else 'No'}")
@@ -40,7 +40,7 @@ try:
         vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
         print("✅ Vertex AI inicializado con éxito.")
     else:
-        print("❌ ERROR: Una o más variables de entorno no se encontraron. La inicialización de Vertex AI no puede continuar.")
+        print("❌ ERROR: Una o más variables de entorno no se encontraron.")
 except Exception as e:
     print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
 # --- FIN: CONFIGURACIÓN DE VERTEX AI ---
@@ -86,10 +86,8 @@ def obtener_contexto_de_tema(tema):
     un documento en alguno de sus temas padre.
     """
     tema_actual = tema
-    # Bucle que sube por los padres hasta llegar a la raíz (donde parent es None)
     while tema_actual:
         if tema_actual.ruta_documento_contexto:
-            # ¡Hemos encontrado un documento! Leemos el archivo y devolvemos el texto.
             try:
                 file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema_actual.ruta_documento_contexto)
                 
@@ -102,43 +100,60 @@ def obtener_contexto_de_tema(tema):
                     elif file_path.lower().endswith('.txt'):
                         texto_completo = f.read().decode('utf-8')
                 
-                # Devolvemos el texto del primer documento que encontremos en la jerarquía
                 return texto_completo
             except Exception as e:
                 print(f"Error leyendo el archivo de contexto '{tema_actual.ruta_documento_contexto}': {e}")
-                return None # Si hay un error al leer el archivo, paramos.
+                return None
 
-        # Si no hay documento en este nivel, subimos al padre
         tema_actual = tema_actual.parent
     
-    # Si hemos recorrido toda la jerarquía y no hemos encontrado nada, devolvemos None
     return None
 # --- FIN: NUEVA FUNCIÓN DE AYUDA ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-    if current_user.is_authenticated and current_user.es_admin:
-        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-        return render_template('home.html', convocatorias=convocatorias)
-    elif current_user.is_authenticated:
-        convocatorias = current_user.convocatorias_accesibles.all()
-        ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
-        ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
-        return render_template('home.html',
-                                 convocatorias=convocatorias,
-                                 ultimo_resultado=ultimo_resultado,
-                                 ultimas_favoritas=ultimas_favoritas)
-    else:
+    if not current_user.is_authenticated:
         convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
-        return render_template('home.html', convocatorias=convocatorias)
+        return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime})
+    
+    if current_user.es_admin:
+        convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
+        return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime})
+
+    convocatorias = current_user.convocatorias_accesibles.all()
+    ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
+    ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
+
+    # --- Lógica para el gráfico de barras de tests realizados ---
+    hoy = date.today()
+    hace_1_mes = hoy - timedelta(days=30)
+    hace_3_meses = hoy - timedelta(days=90)
+    hace_6_meses = hoy - timedelta(days=180)
+
+    count_1_mes = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_1_mes).count()
+    count_3_meses = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_3_meses).count()
+    count_6_meses = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_6_meses).count()
+    
+    stats_tests_hechos = {
+        "mes": count_1_mes,
+        "trimestre": count_3_meses,
+        "semestre": count_6_meses
+    }
+
+    return render_template('home.html',
+                           convocatorias=convocatorias,
+                           ultimo_resultado=ultimo_resultado,
+                           ultimas_favoritas=ultimas_favoritas,
+                           stats_tests_hechos=stats_tests_hechos,
+                           modules={'datetime': datetime})
 
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
+    if not current_user.is_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     
     breadcrumbs = [
@@ -308,6 +323,7 @@ def hacer_test(tema_id):
                            tema=tema,
                            preguntas=preguntas_test,
                            form=form,
+                           is_personalizado=False, # Importante para la URL de corrección
                            breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
@@ -701,9 +717,7 @@ def api_calendario_actividad():
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia:
         abort(403)
-    
-    # Se eliminó la comprobación de GEMINI_API_KEY porque ahora usamos autenticación de servicio
-    
+        
     data = request.get_json()
     pregunta_id = data.get('preguntaId')
     respuesta_usuario_id = data.get('respuestaUsuarioId')
@@ -712,41 +726,53 @@ def explicar_respuesta_ia():
         return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
 
     pregunta = Pregunta.query.get_or_404(pregunta_id)
+    
+    contexto_documento = obtener_contexto_de_tema(pregunta.tema)
+    
     bloque = pregunta.tema.bloque
     
     personalidad_ia = "un preparador de oposiciones experto"
     if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
         personalidad_ia += f" en {bloque.contexto_ia}"
 
-    prompt_parts = [
-        f"Actúa como {personalidad_ia}. Tu tono es didáctico, neutral y explicativo.",
-        "El objetivo es aportar valor añadido y clarificar conceptos clave para un opositor.",
-        "La explicación debe ser concisa (2-3 frases) y centrarse en el 'porqué' de la respuesta correcta.",
-        "Usa negritas para remarcar los conceptos o palabras clave en los que el opositor debe fijarse.",
-        f"\n**Pregunta:**\n{pregunta.texto}\n",
-    ]
-
     respuesta_correcta_texto = ""
     respuesta_usuario_texto = ""
-
     for opcion in pregunta.respuestas:
         if opcion.es_correcta:
             respuesta_correcta_texto = opcion.texto
         if str(opcion.id) == str(respuesta_usuario_id):
             respuesta_usuario_texto = opcion.texto
 
-    prompt_parts.append(f"La respuesta correcta es: **{respuesta_correcta_texto}**.")
-    
-    if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-        prompt_parts.append(f"La respuesta marcada fue: **{respuesta_usuario_texto}**.")
-        prompt_parts.append("La tarea es explicar el razonamiento detrás de la respuesta correcta y por qué la opción marcada es incorrecta, centrándose en el detalle técnico o legal que las diferencia.")
+    if contexto_documento:
+        prompt_parts = [
+            f"Actúa como un experto que responde basándose ÚNICA Y EXCLUSIVAMENTE en el siguiente texto de un temario oficial:\n\n--- INICIO DEL TEMARIO ---\n{contexto_documento}\n--- FIN DEL TEMARIO ---\n\n",
+            f"Pregunta del test: {pregunta.texto}\n",
+            f"Respuesta correcta: **{respuesta_correcta_texto}**\n"
+        ]
+        if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
+             prompt_parts.append(f"El usuario respondió incorrectamente: **{respuesta_usuario_texto}**\n")
+             prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué la opción correcta es la correcta y la del usuario no.")
+        else:
+             prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué esta es la respuesta correcta.")
+
     else:
-        prompt_parts.append("La tarea es explicar por qué esta es la respuesta correcta, aportando algún dato extra o un consejo para afianzar el conocimiento.")
+        prompt_parts = [
+            f"Actúa como {personalidad_ia}. Tu tono es didáctico, neutral y explicativo.",
+            "El objetivo es aportar valor añadido y clarificar conceptos clave para un opositor.",
+            "La explicación debe ser concisa (2-3 frases) y centrarse en el 'porqué' de la respuesta correcta.",
+            "Usa negritas para remarcar los conceptos o palabras clave en los que el opositor debe fijarse.",
+            f"\n**Pregunta:**\n{pregunta.texto}\n",
+            f"La respuesta correcta es: **{respuesta_correcta_texto}**."
+        ]
+        if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
+            prompt_parts.append(f"La respuesta marcada fue: **{respuesta_usuario_texto}**.")
+            prompt_parts.append("La tarea es explicar el razonamiento detrás de la respuesta correcta y por qué la opción marcada es incorrecta.")
+        else:
+            prompt_parts.append("La tarea es explicar por qué esta es la respuesta correcta, aportando algún dato extra o un consejo para afianzar el conocimiento.")
 
     prompt = "\n".join(prompt_parts)
 
     try:
-        # --- NUEVA FORMA DE LLAMAR A LA API ---
         model = GenerativeModel("gemini-1.5-flash-001")
         response = model.generate_content(prompt)
         return jsonify({'explicacion': response.text})
@@ -798,7 +824,6 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        # --- NUEVA FORMA DE LLAMAR A LA API ---
         model = GenerativeModel("gemini-1.5-flash-001")
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
