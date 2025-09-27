@@ -112,14 +112,11 @@ def obtener_contexto_de_tema(tema):
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
-    if not current_user.is_authenticated:
-        convocatorias = Convocatoria.query.filter_by(es_publica=True).order_by(Convocatoria.nombre).all()
-        return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime})
-    
-    if current_user.es_admin:
+    if not current_user.is_authenticated or current_user.es_admin:
         convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
         return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime})
 
+    # --- Lógica para usuarios autenticados ---
     convocatorias = current_user.convocatorias_accesibles.all()
     ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
     ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
@@ -152,11 +149,23 @@ def home():
 
     stats_tests_mensual = {"labels": labels, "data": data}
 
+    # --- Lógica para las Estadísticas Clave ---
+    total_tests = ResultadoTest.query.filter_by(autor=current_user).count()
+    total_preguntas_resp = RespuestaUsuario.query.filter_by(autor=current_user).count()
+    nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
+    
+    stats_clave = {
+        "total_tests": total_tests,
+        "total_preguntas": total_preguntas_resp,
+        "nota_media": nota_media_global
+    }
+
     return render_template('home.html',
                            convocatorias=convocatorias,
                            ultimo_resultado=ultimo_resultado,
                            ultimas_favoritas=ultimas_favoritas,
                            stats_tests_mensual=stats_tests_mensual,
+                           stats_clave=stats_clave,
                            modules={'datetime': datetime})
 
 
