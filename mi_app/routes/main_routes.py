@@ -12,6 +12,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from sqlalchemy.sql.expression import func as sql_func
 from datetime import date, timedelta, datetime
+from dateutil.relativedelta import relativedelta
 import random
 from collections import defaultdict
 from itertools import groupby
@@ -19,7 +20,7 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm
+from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
 
 main_bp = Blueprint('main', __name__)
 
@@ -123,28 +124,39 @@ def home():
     ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
     ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
 
-    # --- INICIO: LÓGICA ACTUALIZADA PARA EL GRÁFICO DE BARRAS ---
+    # --- Lógica para el gráfico de barras de tests mensuales ---
+    stats_tests_mensual = None
     hoy = date.today()
-    hace_1_mes = hoy - timedelta(days=30)
-    hace_3_meses = hoy - timedelta(days=90)
-    hace_6_meses = hoy - timedelta(days=180)
+    inicio_periodo = (hoy - relativedelta(months=5)).replace(day=1)
 
-    count_1_mes = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_1_mes).count()
-    count_3_meses = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_3_meses).count()
-    count_6_meses = db.session.query(ResultadoTest).filter(ResultadoTest.usuario_id == current_user.id, ResultadoTest.fecha >= hace_6_meses).count()
+    resultados = db.session.query(
+        func.date_trunc('month', ResultadoTest.fecha).label('mes'),
+        func.count(ResultadoTest.id).label('total')
+    ).filter(
+        ResultadoTest.usuario_id == current_user.id,
+        ResultadoTest.fecha >= inicio_periodo
+    ).group_by('mes').order_by('mes').all()
+
+    datos_grafico = {r.mes.strftime('%b %y'): r.total for r in resultados}
+    labels = []
+    data = []
     
-    stats_tests_hechos = {
-        "mes": count_1_mes,
-        "trimestre": count_3_meses,
-        "semestre": count_6_meses
-    }
-    # --- FIN: LÓGICA ACTUALIZADA ---
+    for i in range(6):
+        mes_actual = hoy - relativedelta(months=i)
+        etiqueta = mes_actual.strftime('%b %y')
+        labels.append(etiqueta)
+        data.append(datos_grafico.get(etiqueta, 0))
+    
+    labels.reverse()
+    data.reverse()
+
+    stats_tests_mensual = {"labels": labels, "data": data}
 
     return render_template('home.html',
                            convocatorias=convocatorias,
                            ultimo_resultado=ultimo_resultado,
                            ultimas_favoritas=ultimas_favoritas,
-                           stats_tests_hechos=stats_tests_hechos,
+                           stats_tests_mensual=stats_tests_mensual,
                            modules={'datetime': datetime})
 
 
@@ -190,6 +202,10 @@ def cuenta():
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
     dashboard_form = DashboardPreferencesForm()
+    objetivo_fecha_form = ObjetivoFechaForm()
+
+    if request.method == 'GET' and current_user.objetivo_fecha:
+        objetivo_fecha_form.objetivo_fecha.data = current_user.objetivo_fecha
 
     if request.method == 'GET' and current_user.preferencias_dashboard:
         dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
@@ -264,6 +280,7 @@ def cuenta():
         form=form,
         objetivo_form=objetivo_form,
         dashboard_form=dashboard_form,
+        objetivo_fecha_form=objetivo_fecha_form,
         resultados=resultados_tabla,
         labels_grafico=labels_grafico, datos_grafico=datos_grafico,
         total_preguntas_hechas=total_preguntas_hechas,
@@ -281,6 +298,18 @@ def resetear_estadisticas():
     db.session.commit()
     flash('¡Tus estadísticas han sido reseteadas con éxito!', 'success')
     return redirect(url_for('main.cuenta'))
+
+@main_bp.route('/cuenta/guardar-fecha-objetivo', methods=['POST'])
+@login_required
+def guardar_objetivo_fecha():
+    form = ObjetivoFechaForm()
+    if form.validate_on_submit():
+        current_user.objetivo_fecha = form.objetivo_fecha.data
+        db.session.commit()
+        flash('¡Tu fecha objetivo ha sido guardada!', 'success')
+    else:
+        flash('Hubo un error al guardar la fecha. Por favor, asegúrate de seleccionarla correctamente.', 'danger')
+    return redirect(url_for('main.cuenta', tab='personalizar'))
 
 @main_bp.route('/cuenta/favoritas')
 @login_required
@@ -322,7 +351,7 @@ def hacer_test(tema_id):
                            tema=tema,
                            preguntas=preguntas_test,
                            form=form,
-                           is_personalizado=False, # Importante para la URL de corrección
+                           is_personalizado=False,
                            breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])

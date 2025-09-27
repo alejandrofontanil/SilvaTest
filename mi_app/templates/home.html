@@ -334,44 +334,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // --- LÓGICA PARA EL NUEVO GRÁFICO DE BARRAS ---
-    {% if stats_tests_hechos %}
-    const chartTestsHechosCanvas = document.getElementById('graficoTestsHechos');
-    if (chartTestsHechosCanvas) {
-        const datosTests = {{ stats_tests_hechos | tojson }};
-        new Chart(chartTestsHechosCanvas, {
-            type: 'bar',
-            data: {
-                labels: ['Último Mes', 'Últimos 3 Meses', 'Últimos 6 Meses'],
-                datasets: [{
-                    label: 'Nº de Tests',
-                    data: [datosTests.mes, datosTests.trimestre, datosTests.semestre],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.5)',
-                        'rgba(255, 159, 64, 0.5)',
-                        'rgba(75, 192, 192, 0.5)'
-                    ],
-                    borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
-                    borderWidth: 1
-                }]
+    {% if stats_tests_mensual %}
+const chartTestsHechosCanvas = document.getElementById('graficoTestsHechos');
+if (chartTestsHechosCanvas) {
+    const datosGrafico = {{ stats_tests_mensual | tojson }};
+    new Chart(chartTestsHechosCanvas, {
+        type: 'bar',
+        data: {
+            labels: datosGrafico.labels, // Usamos las etiquetas del backend
+            datasets: [{
+                label: 'Nº de Tests',
+                data: datosGrafico.data, // Usamos los datos del backend
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { color: colorTexto, precision: 0 } },
+                x: { ticks: { color: colorTexto } }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { color: colorTexto, precision: 0 } },
-                    x: { ticks: { color: colorTexto } }
-                },
-                plugins: {
-                    legend: { display: false }
-                }
+            plugins: {
+                legend: { display: false }
             }
-        });
-    }
-    {% endif %}
+        }
+    });
+}
+{% endif %}
 });
 </script>
 
