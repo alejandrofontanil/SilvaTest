@@ -1,16 +1,16 @@
-# --- INICIO: IMPORTACIONES PARA IA Y VERTEX AI ---
+# --- INICIO: IMPORTACIONES COMPLETAS ---
 import os
 import json
+import io
+import requests
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
 import PyPDF2
-# --- FIN: IMPORTACIONES ---
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
-from sqlalchemy.sql.expression import func as sql_func
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 import random
@@ -21,31 +21,30 @@ from flask_wtf import FlaskForm
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
+# --- FIN: IMPORTACIONES ---
 
 main_bp = Blueprint('main', __name__)
 
-# --- INICIO: CONFIGURACIÓN DE VERTEX AI (MÉTODO A PRUEBA DE BALAS) ---
+# --- CONFIGURACIÓN DE VERTEX AI ---
 try:
     print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
     GCP_REGION = os.getenv('GCP_REGION')
     creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
     
-    print(f"GCP_PROJECT_ID leído: {'Sí' if GCP_PROJECT_ID else 'No'}")
-    print(f"GCP_REGION leído: {'Sí' if GCP_REGION else 'No'}")
-    print(f"GOOGLE_CREDS_JSON leído: {'Sí' if creds_json_str else 'No'}")
-
     if GCP_PROJECT_ID and GCP_REGION and creds_json_str:
         creds_info = json.loads(creds_json_str)
         credentials = service_account.Credentials.from_service_account_info(creds_info)
         vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
         print("✅ Vertex AI inicializado con éxito.")
     else:
-        print("❌ ERROR: Una o más variables de entorno no se encontraron.")
+        print("❌ ERROR: Faltan variables de entorno de Google Cloud para inicializar Vertex AI.")
 except Exception as e:
     print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
 # --- FIN: CONFIGURACIÓN DE VERTEX AI ---
 
+
+# --- FUNCIONES DE AYUDA ---
 
 def obtener_preguntas_recursivas(tema):
     preguntas = []
@@ -81,52 +80,49 @@ def analizar_rendimiento_usuario(usuario):
 
 def obtener_contexto_de_tema(tema):
     """
-    Busca un documento de contexto para un tema.
-    Si el tema actual no tiene uno, sube por la jerarquía hasta encontrar
-    un documento en alguno de sus temas padre.
+    Busca un documento de contexto para un tema. Si no tiene, busca en sus padres.
+    Ahora lee el documento desde una URL de Cloudinary.
     """
     tema_actual = tema
     while tema_actual:
         if tema_actual.ruta_documento_contexto:
             try:
-                file_path = os.path.join(current_app.root_path, 'static/contexto_uploads', tema_actual.ruta_documento_contexto)
-                
+                url = tema_actual.ruta_documento_contexto
+                response = requests.get(url)
+                response.raise_for_status()
+
                 texto_completo = ""
-                with open(file_path, 'rb') as f:
-                    if file_path.lower().endswith('.pdf'):
-                        reader = PyPDF2.PdfReader(f)
-                        for page in reader.pages:
-                            texto_completo += page.extract_text()
-                    elif file_path.lower().endswith('.txt'):
-                        texto_completo = f.read().decode('utf-8')
+                file_stream = io.BytesIO(response.content)
+
+                if url.lower().endswith('.pdf'):
+                    reader = PyPDF2.PdfReader(file_stream)
+                    for page in reader.pages:
+                        texto_completo += page.extract_text()
+                elif url.lower().endswith('.txt'):
+                    texto_completo = response.text
                 
                 return texto_completo
             except Exception as e:
-                print(f"Error leyendo el archivo de contexto '{tema_actual.ruta_documento_contexto}': {e}")
+                print(f"Error leyendo el archivo de contexto desde la URL '{tema_actual.ruta_documento_contexto}': {e}")
                 return None
-
         tema_actual = tema_actual.parent
-    
     return None
+
+# --- RUTAS PRINCIPALES DE LA APLICACIÓN ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
 def home():
     if not current_user.is_authenticated or current_user.es_admin:
         convocatorias = Convocatoria.query.order_by(Convocatoria.nombre).all()
-        # Pasamos 'hoy' también para usuarios no logueados o admin por si alguna plantilla lo necesita
         return render_template('home.html', convocatorias=convocatorias, modules={'datetime': datetime, 'hoy': date.today()})
 
-    # --- Lógica para usuarios autenticados ---
     convocatorias = current_user.convocatorias_accesibles.all()
     ultimo_resultado = ResultadoTest.query.filter_by(autor=current_user).order_by(desc(ResultadoTest.fecha)).first()
     ultimas_favoritas = current_user.preguntas_favoritas.order_by(Pregunta.id.desc()).limit(3).all()
 
-    # --- Lógica para el gráfico de barras de tests mensuales ---
-    stats_tests_mensual = None
     hoy = date.today()
     inicio_periodo = (hoy - relativedelta(months=5)).replace(day=1)
-
     resultados = db.session.query(
         func.date_trunc('month', ResultadoTest.fecha).label('mes'),
         func.count(ResultadoTest.id).label('total')
@@ -138,23 +134,18 @@ def home():
     datos_grafico = {r.mes.strftime('%b %y'): r.total for r in resultados}
     labels = []
     data = []
-    
     for i in range(6):
         mes_actual = hoy - relativedelta(months=i)
         etiqueta = mes_actual.strftime('%b %y')
         labels.append(etiqueta)
         data.append(datos_grafico.get(etiqueta, 0))
-    
     labels.reverse()
     data.reverse()
-
     stats_tests_mensual = {"labels": labels, "data": data}
 
-    # --- Lógica para las Estadísticas Clave ---
     total_tests = ResultadoTest.query.filter_by(autor=current_user).count()
     total_preguntas_resp = RespuestaUsuario.query.filter_by(autor=current_user).count()
     nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
-    
     stats_clave = {
         "total_tests": total_tests,
         "total_preguntas": total_preguntas_resp,
@@ -173,17 +164,10 @@ def home():
 @login_required
 def convocatoria_detalle(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
-    if not current_user.is_admin and convocatoria not in current_user.convocatorias_accesibles.all():
+    if not current_user.es_admin and convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-    
-    breadcrumbs = [
-        ('Inicio', url_for('main.home')),
-        (convocatoria.nombre, None)
-    ]
-
-    return render_template('convocatoria_detalle.html',
-                           convocatoria=convocatoria,
-                           breadcrumbs=breadcrumbs)
+    breadcrumbs = [('Inicio', url_for('main.home')), (convocatoria.nombre, None)]
+    return render_template('convocatoria_detalle.html', convocatoria=convocatoria, breadcrumbs=breadcrumbs)
 
 @main_bp.route('/bloque/<int:bloque_id>')
 @login_required
@@ -192,18 +176,13 @@ def bloque_detalle(bloque_id):
     if not current_user.es_admin and bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
     temas = bloque.temas.filter_by(parent_id=None).order_by(Tema.nombre).all()
-    
     convocatoria = bloque.convocatoria
     breadcrumbs = [
         ('Inicio', url_for('main.home')),
         (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)),
         (bloque.nombre, None)
     ]
-
-    return render_template('bloque_detalle.html',
-                           bloque=bloque,
-                           temas=temas,
-                           breadcrumbs=breadcrumbs)
+    return render_template('bloque_detalle.html', bloque=bloque, temas=temas, breadcrumbs=breadcrumbs)
 
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
@@ -213,13 +192,13 @@ def cuenta():
     dashboard_form = DashboardPreferencesForm()
     objetivo_fecha_form = ObjetivoFechaForm()
 
-    if request.method == 'GET' and current_user.objetivo_fecha:
-        objetivo_fecha_form.objetivo_fecha.data = current_user.objetivo_fecha
-
-    if request.method == 'GET' and current_user.preferencias_dashboard:
-        dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
-        dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
-        dashboard_form.mostrar_calendario_actividad.data = current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True)
+    if request.method == 'GET':
+        if current_user.objetivo_fecha:
+            objetivo_fecha_form.objetivo_fecha.data = current_user.objetivo_fecha
+        if current_user.preferencias_dashboard:
+            dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
+            dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
+            dashboard_form.mostrar_calendario_actividad.data = current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True)
 
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
@@ -250,7 +229,7 @@ def cuenta():
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
     
     resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
-    total_preguntas_hechas = db.session.query(RespuestaUsuario).filter_by(autor=current_user).count()
+    total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
     nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
 
     stats_temas = []
@@ -286,19 +265,13 @@ def cuenta():
 
     return render_template(
         'cuenta.html', title='Mi Cuenta',
-        form=form,
-        objetivo_form=objetivo_form,
-        dashboard_form=dashboard_form,
-        objetivo_fecha_form=objetivo_fecha_form,
-        resultados=resultados_tabla,
-        labels_grafico=labels_grafico, datos_grafico=datos_grafico,
-        total_preguntas_hechas=total_preguntas_hechas,
-        nota_media_global=nota_media_global,
-        stats_temas=stats_temas,
-        stats_bloques=stats_bloques,
-        active_tab=active_tab,
-        iniciar_tour_automaticamente=iniciar_tour
+        form=form, objetivo_form=objetivo_form, dashboard_form=dashboard_form, objetivo_fecha_form=objetivo_fecha_form,
+        resultados=resultados_tabla, labels_grafico=labels_grafico, datos_grafico=datos_grafico,
+        total_preguntas_hechas=total_preguntas_hechas, nota_media_global=nota_media_global,
+        stats_temas=stats_temas, stats_bloques=stats_bloques,
+        active_tab=active_tab, iniciar_tour_automaticamente=iniciar_tour
     )
+
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
 def resetear_estadisticas():
@@ -614,7 +587,7 @@ def corregir_simulacro_personalizado():
         tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
         db.session.add(tema_simulacro_personalizado)
         db.session.commit()
-        
+            
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
@@ -682,6 +655,7 @@ def offline():
     return render_template('offline.html')
 
 # --- RUTAS DE API PARA GRÁFICOS ---
+
 @main_bp.route('/api/evolucion-notas')
 @login_required
 def api_evolucion_notas():
@@ -704,16 +678,13 @@ def api_evolucion_notas():
 @main_bp.route('/api/rendimiento-temas')
 @login_required
 def api_rendimiento_temas():
-    # 1. Identificar la convocatoria principal del usuario
     convocatoria_objetivo = current_user.objetivo_principal
     if not convocatoria_objetivo:
         return jsonify({'error': 'No se ha establecido un objetivo principal.'}), 400
 
-    # 2. Obtener todos los temas de esa convocatoria
     temas_ids = db.session.query(Tema.id).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_objetivo.id).all()
     tema_ids_list = [id[0] for id in temas_ids]
 
-    # 3. Calcular el rendimiento por cada tema
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -722,10 +693,7 @@ def api_rendimiento_temas():
         Tema.id.in_(tema_ids_list)
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) > 0).all()
 
-    # 4. Preparar los datos para el gráfico
-    # Ordenamos de peor a mejor rendimiento para que sea más visual
     stats_temas_sorted = sorted(stats_temas, key=lambda x: x.porcentaje)
-    
     labels = [stat.nombre for stat in stats_temas_sorted]
     data = [round(stat.porcentaje) for stat in stats_temas_sorted]
 
@@ -738,8 +706,7 @@ def api_calendario_actividad():
     if meses_a_mostrar not in [3, 6, 12]:
         meses_a_mostrar = 3
     fecha_fin = datetime.utcnow().date()
-    dias_a_restar = meses_a_mostrar * 31
-    fecha_inicio = fecha_fin - timedelta(days=dias_a_restar)
+    fecha_inicio = fecha_fin - relativedelta(months=meses_a_mostrar)
 
     resultados_por_dia = db.session.query(
         func.date(ResultadoTest.fecha).label('dia'),
@@ -755,13 +722,14 @@ def api_calendario_actividad():
     ]
     return jsonify(data_para_calendario)
 
+# --- RUTAS DE IA ---
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia:
         abort(403)
-        
+    
     data = request.get_json()
     pregunta_id = data.get('preguntaId')
     respuesta_usuario_id = data.get('respuestaUsuarioId')
@@ -770,11 +738,9 @@ def explicar_respuesta_ia():
         return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
 
     pregunta = Pregunta.query.get_or_404(pregunta_id)
-    
     contexto_documento = obtener_contexto_de_tema(pregunta.tema)
     
     bloque = pregunta.tema.bloque
-    
     personalidad_ia = "un preparador de oposiciones experto"
     if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
         personalidad_ia += f" en {bloque.contexto_ia}"
@@ -794,11 +760,10 @@ def explicar_respuesta_ia():
             f"Respuesta correcta: **{respuesta_correcta_texto}**\n"
         ]
         if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-             prompt_parts.append(f"El usuario respondió incorrectamente: **{respuesta_usuario_texto}**\n")
-             prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué la opción correcta es la correcta y la del usuario no.")
+            prompt_parts.append(f"El usuario respondió incorrectamente: **{respuesta_usuario_texto}**\n")
+            prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué la opción correcta es la correcta y la del usuario no.")
         else:
-             prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué esta es la respuesta correcta.")
-
+            prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué esta es la respuesta correcta.")
     else:
         prompt_parts = [
             f"Actúa como {personalidad_ia}. Tu tono es didáctico, neutral y explicativo.",
@@ -822,26 +787,7 @@ def explicar_respuesta_ia():
         return jsonify({'explicacion': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Vertex AI: {e}")
-        return jsonify({'error': 'Hubo un problema al generar la explicación. Por favor, inténtalo de nuevo.'}), 500
-
-@main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
-@login_required
-def guardar_preferencias_dashboard():
-    form = DashboardPreferencesForm()
-    
-    if form.validate_on_submit():
-        preferencias = {
-            'mostrar_grafico_evolucion': form.mostrar_grafico_evolucion.data,
-            'mostrar_rendimiento_bloque': form.mostrar_rendimiento_bloque.data,
-            'mostrar_calendario_actividad': form.mostrar_calendario_actividad.data,
-        }
-        current_user.preferencias_dashboard = preferencias
-        db.session.commit()
-        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
-    else:
-        flash('Hubo un error al guardar tus preferencias.', 'danger')
-        
-    return redirect(url_for('main.cuenta', tab='personalizar'))
+        return jsonify({'error': 'Hubo un problema al generar la explicación.'}), 500
 
 @main_bp.route('/api/generar-plan-ia', methods=['POST'])
 @login_required
@@ -850,9 +796,8 @@ def generar_plan_ia():
         abort(403)
 
     informe = analizar_rendimiento_usuario(current_user)
-
     if not informe:
-        return jsonify({'error': '¡Necesitas completar más tests! Aún no tengo suficientes datos para generar un plan fiable.'}), 400
+        return jsonify({'error': '¡Necesitas completar más tests para generar un plan fiable.'}), 400
     
     resumen_rendimiento = f"Temas a reforzar: {', '.join(informe['temas_debiles'])}. "
     if informe['bloque_debil']:
@@ -873,4 +818,23 @@ def generar_plan_ia():
         return jsonify({'plan': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Vertex AI para el plan de estudio: {e}")
-        return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA. Inténtalo de nuevo más tarde.'}), 500
+        return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA.'}), 500
+
+@main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
+@login_required
+def guardar_preferencias_dashboard():
+    form = DashboardPreferencesForm()
+    
+    if form.validate_on_submit():
+        preferencias = {
+            'mostrar_grafico_evolucion': form.mostrar_grafico_evolucion.data,
+            'mostrar_rendimiento_bloque': form.mostrar_rendimiento_bloque.data,
+            'mostrar_calendario_actividad': form.mostrar_calendario_actividad.data,
+        }
+        current_user.preferencias_dashboard = preferencias
+        db.session.commit()
+        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
+    else:
+        flash('Hubo un error al guardar tus preferencias.', 'danger')
+        
+    return redirect(url_for('main.cuenta', tab='personalizar'))
