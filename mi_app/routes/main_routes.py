@@ -701,27 +701,34 @@ def api_evolucion_notas():
     datos_grafico = [round(notas_medias_por_dia[dia], 2) for dia in dias_ordenados]
     return jsonify({'labels': labels_grafico, 'data': datos_grafico})
 
-@main_bp.route('/api/radar-competencias')
+@main_bp.route('/api/rendimiento-temas')
 @login_required
-def api_radar_competencias():
-    stats_por_bloque = db.session.query(
-        Bloque.nombre,
-        func.avg(case((RespuestaUsuario.es_correcta, 10), else_=0)).label('nota_media')
-    ).select_from(RespuestaUsuario).join(
-        Pregunta, RespuestaUsuario.pregunta_id == Pregunta.id
-    ).join(
-        Tema, Pregunta.tema_id == Tema.id
-    ).join(
-        Bloque, Tema.bloque_id == Bloque.id
-    ).filter(
-        RespuestaUsuario.usuario_id == current_user.id
-    ).group_by(
-        Bloque.nombre
-    ).order_by(
-        Bloque.nombre
-    ).all()
-    labels = [resultado[0] for resultado in stats_por_bloque]
-    data = [round(resultado[1], 2) if resultado[1] is not None else 0 for resultado in stats_por_bloque]
+def api_rendimiento_temas():
+    # 1. Identificar la convocatoria principal del usuario
+    convocatoria_objetivo = current_user.objetivo_principal
+    if not convocatoria_objetivo:
+        return jsonify({'error': 'No se ha establecido un objetivo principal.'}), 400
+
+    # 2. Obtener todos los temas de esa convocatoria
+    temas_ids = db.session.query(Tema.id).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_objetivo.id).all()
+    tema_ids_list = [id[0] for id in temas_ids]
+
+    # 3. Calcular el rendimiento por cada tema
+    stats_temas = db.session.query(
+        Tema.nombre,
+        (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
+    ).join(Pregunta).join(RespuestaUsuario).filter(
+        RespuestaUsuario.usuario_id == current_user.id,
+        Tema.id.in_(tema_ids_list)
+    ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) > 0).all()
+
+    # 4. Preparar los datos para el gráfico
+    # Ordenamos de peor a mejor rendimiento para que sea más visual
+    stats_temas_sorted = sorted(stats_temas, key=lambda x: x.porcentaje)
+    
+    labels = [stat.nombre for stat in stats_temas_sorted]
+    data = [round(stat.porcentaje) for stat in stats_temas_sorted]
+
     return jsonify({'labels': labels, 'data': data})
 
 @main_bp.route('/api/calendario-actividad')

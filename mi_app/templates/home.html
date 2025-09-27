@@ -133,7 +133,43 @@
                 </div>
             </div>
             {% endif %}
+            
+            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="500">
+                <div class="card shadow-sm h-100">
+                     <div class="card-body">
+                         <h5 class="card-title text-muted mb-3">Último Test Realizado</h5>
+                         {% if ultimo_resultado %}
+                             <p class="fw-bold fs-5">{{ ultimo_resultado.tema.nombre }}</p>
+                             <p>Nota: <span class="badge fs-6 {% if ultimo_resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">{{ "%.2f"|format(ultimo_resultado.nota) }}</span></p>
+                             <a href="{{ url_for('main.repaso_test', resultado_id=ultimo_resultado.id) }}" class="btn btn-outline-primary mt-2">Repasar este Test <i class="bi bi-arrow-right"></i></a>
+                         {% else %}
+                             <p class="text-muted">Aún no has completado ningún test.</p>
+                             <a href="#convocatorias" class="btn btn-primary mt-2">Empezar a practicar <i class="bi bi-arrow-right"></i></a>
+                         {% endif %}
+                     </div>
+                </div>
             </div>
+
+            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="600">
+                <div class="card h-100 shadow-sm">
+                      <div class="card-body">
+                          <h5 class="card-title text-muted mb-3">Acceso Rápido a Favoritas</h5>
+                          {% if ultimas_favoritas %}
+                              <div class="list-group list-group-flush">
+                                  {% for fav in ultimas_favoritas %}
+                                      <a href="{{ url_for('main.hacer_test', tema_id=fav.tema_id) }}#card-pregunta-{{ fav.id }}" class="list-group-item list-group-item-action">
+                                          <i class="bi bi-star-fill text-warning me-2"></i>{{ fav.texto|truncate(60) }}
+                                      </a>
+                                  {% endfor %}
+                              </div>
+                               <a href="{{ url_for('main.preguntas_favoritas') }}" class="btn btn-outline-secondary mt-3 btn-sm">Ver todas</a>
+                          {% else %}
+                              <p class="text-muted">Marca preguntas con la estrella <i class="bi bi-star"></i> para que aparezcan aquí.</p>
+                          {% endif %}
+                      </div>
+                </div>
+            </div>
+             </div>
         
         <div class="text-center" data-aos="fade-up" id="convocatorias">
             <h2 class="display-6 fw-bold">Continúa tu preparación</h2>
