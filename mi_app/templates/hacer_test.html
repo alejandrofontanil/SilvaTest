@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
-{% block content %}
+{% block styles %}
+{{ super() }}
 <style>
+    /* Estilos para el test */
     .visu-image { max-height: 350px; width: auto; max-width: 100%; border-radius: 0.75rem; margin-bottom: 1rem; }
     .feedback-container { padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: bold; }
     .feedback-correcto { border: 2px solid var(--bs-success); background-color: rgba(var(--bs-success-rgb), 0.1); color: var(--bs-success-text-emphasis); }
@@ -9,7 +11,9 @@
     .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 12px 24px; border-radius: 25px; z-index: 1050; opacity: 0; transition: opacity 0.5s, bottom 0.5s; font-weight: 500; }
     .toast-notification.show { bottom: 40px; opacity: 1; }
 </style>
+{% endblock %}
 
+{% block content %}
 <div class="container my-4">
     <div class="row justify-content-center">
         <div class="col-lg-10">
@@ -84,7 +88,7 @@
                                                 <img src="{{ pregunta.imagen_url }}" alt="Imagen de la pregunta" class="img-fluid visu-image shadow-sm">
                                             </div>
                                         {% endif %}
-                                        <p class="card-text fs-5">{{ pregunta.texto }}</p>
+                                        <p class="card-text fs-5">{{ pregunta.texto | safe }}</p>
                                         <div class="feedback-container mt-3" style="display: none;"></div>
                                         {% if pregunta.tipo_pregunta == 'respuesta_texto' %}
                                             <div class="mt-3">
@@ -108,7 +112,7 @@
                                 {% endif %}
                             {% endfor %}
                             
-                            <div class="d-flex justify-content-between mt-4">
+                            <div class="d-flex justify-content-between align-items-center mt-4">
                                 <button type="button" id="prev-page-btn" class="btn btn-secondary" disabled><i class="bi bi-arrow-left"></i> Anterior</button>
                                 <div>
                                     <span id="page-indicator" class="align-middle text-muted fw-bold">Página 1 de X</span>
