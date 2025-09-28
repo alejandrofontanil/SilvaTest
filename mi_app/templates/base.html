@@ -155,7 +155,6 @@
         display: block;
       }
 
-      /* --- AÑADIDO: ESTILOS RESPONSIVE PARA EL TOUR (SHEPHERD.JS) --- */
       @media (max-width: 768px) {
           .shepherd-element {
               position: fixed !important;
@@ -167,15 +166,13 @@
               max-width: 90vw !important;
               transform: none !important; 
           }
-
           .shepherd-arrow {
               display: none !important;
           }
       }
       
-      /* --- AÑADIDO: ESTILOS PARA EL BANNER DE INSTALACIÓN PWA --- */
       #ios-install-prompt {
-        display: none; /* Oculto por defecto */
+        display: none;
         position: fixed;
         bottom: 0;
         left: 0;
@@ -189,10 +186,10 @@
         transform: translateY(100%);
       }
       #ios-install-prompt.show {
-        /* display: block; No es necesario si el script lo maneja */
         transform: translateY(0);
       }
     </style>
+    {% block styles %}{% endblock %}
   </head>
   <body class="d-flex flex-column min-vh-100">
 
@@ -300,6 +297,30 @@
             <button type="button" id="close-ios-prompt" class="btn-close ms-2" aria-label="Cerrar"></button>
         </div>
     </div>
+    
+    <div class="modal fade" id="iaDisclaimerModal" tabindex="-1" aria-labelledby="iaDisclaimerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="iaDisclaimerModalLabel"><i class="bi bi-robot me-2"></i>Aviso sobre las Funciones de IA</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Estás a punto de usar una función impulsada por Inteligencia Artificial generativa.</p>
+                    <ul>
+                        <li><strong>Es una ayuda, no un sustituto:</strong> Las explicaciones y planes de estudio son una herramienta de apoyo y no reemplazan el temario oficial ni el criterio de un preparador.</li>
+                        <li><strong>Posibles imprecisiones:</strong> Aunque la IA es muy avanzada, puede cometer errores o generar información que no sea 100% precisa.</li>
+                        <li><strong>Tu responsabilidad:</strong> Como opositor, eres el responsable final de verificar y contrastar la información con las fuentes oficiales de tu convocatoria.</li>
+                    </ul>
+                    <p class="fw-bold">Al continuar, aceptas que comprendes y asumes estas condiciones.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="acceptIaDisclaimer">Acepto, continuar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -309,7 +330,6 @@
     <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
     
     {% block scripts %}
-    {{ super() if super }}
     <script>
       (function() {
         const htmlElement = document.documentElement;
