@@ -685,15 +685,22 @@ def api_rendimiento_temas():
     temas_ids = db.session.query(Tema.id).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_objetivo.id).all()
     tema_ids_list = [id[0] for id in temas_ids]
 
+    # --- INICIO DEL CAMBIO: Consulta más explícita ---
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).join(Pregunta).join(RespuestaUsuario).filter(
+    ).select_from(Tema).join(
+        Pregunta, Tema.id == Pregunta.tema_id
+    ).join(
+        RespuestaUsuario, Pregunta.id == RespuestaUsuario.pregunta_id
+    ).filter(
         RespuestaUsuario.usuario_id == current_user.id,
         Tema.id.in_(tema_ids_list)
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) > 0).all()
+    # --- FIN DEL CAMBIO ---
 
     stats_temas_sorted = sorted(stats_temas, key=lambda x: x.porcentaje)
+    
     labels = [stat.nombre for stat in stats_temas_sorted]
     data = [round(stat.porcentaje) for stat in stats_temas_sorted]
 
