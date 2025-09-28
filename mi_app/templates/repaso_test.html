@@ -27,16 +27,8 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <p class="fw-bold fs-5 mb-0">Pregunta {{ loop.index }}:</p>
                     <div class="btn-group">
-                        {% if current_user.tiene_acceso_ia %}
-                        <button type="button" class="btn btn-sm btn-outline-primary btn-explicar-ia" 
-                                data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" 
-                                data-respuesta-usuario-id="{{ respuesta_usuario.respuesta_seleccionada_id or '' }}"
-                                title="Explicar con IA">
-                            <i class="bi bi-robot"></i> Explicar con IA
-                        </button>
-                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-secondary btn-favorito" data-pregunta-id="{{ respuesta_usuario.pregunta.id }}" title="Marcar como favorita">
-                            <i class="bi {% if current_user.is_favorita(respuesta_usuario.pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                            <i class="bi {% if current_user.es_favorita(respuesta_usuario.pregunta) %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
                         </button>
                     </div>
                 </div>
@@ -64,6 +56,16 @@
                         </div>
                     {% endif %}
                     
+                    {% if current_user.tiene_acceso_ia %}
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm btn-explicar-ia"
+                                data-pregunta-id="{{ respuesta_usuario.pregunta.id }}"
+                                data-respuesta-usuario-id="{{ respuesta_usuario.respuesta_seleccionada_id or '' }}">
+                            <i class="bi bi-robot"></i> Explicar con IA
+                        </button>
+                    </div>
+                    {% endif %}
+
                     <div class="explicacion-ia-container mt-3" style="display: none;">
                     </div>
                 </div>
@@ -76,70 +78,83 @@
 {% block scripts %}
     {{ super() }}
     
+    {# --- INICIO DE CAMBIOS --- #}
+    <script src="{{ url_for('static', filename='js/ia-disclaimer.js') }}"></script>
+    {# --- FIN DE CAMBIOS --- #}
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = '{{ csrf_token() }}';
 
-        // --- LÓGICA PARA BOTONES DE FAVORITO Y REPORTAR ---
-        // (Tu código para favoritos y reportar iría aquí si lo tuvieras separado)
-        
-        // --- LÓGICA PARA EL BOTÓN DE EXPLICAR CON IA ---
+        // --- LÓGICA PARA BOTÓN DE FAVORITO ---
+        document.querySelectorAll('.btn-favorito').forEach(function(boton) {
+            boton.addEventListener('click', function() {
+                const preguntaId = this.dataset.preguntaId;
+                const icono = this.querySelector('i');
+                const url = `{{ url_for('main.toggle_favorito', pregunta_id=0) }}`.replace('0', preguntaId);
+                
+                fetch(url, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        if (data.es_favorita) {
+                            icono.className = 'bi bi-star-fill text-warning';
+                        } else {
+                            icono.className = 'bi bi-star';
+                        }
+                    }
+                });
+            });
+        });
+
+        // --- INICIO DE CAMBIOS: LÓGICA ACTUALIZADA PARA EL BOTÓN DE IA ---
         document.querySelectorAll('.btn-explicar-ia').forEach(boton => {
             boton.addEventListener('click', function(e) {
                 e.preventDefault();
 
-                const preguntaId = this.dataset.preguntaId;
-                const respuestaUsuarioId = this.dataset.respuestaUsuarioId;
-                const container = this.closest('.card-body').querySelector('.explicacion-ia-container');
-                
-                container.style.display = 'block';
-                container.innerHTML = `
-                    <div class="d-flex align-items-center text-muted p-3 bg-body-secondary rounded">
-                        <div class="spinner-border spinner-border-sm me-2" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <strong>Analizando con IA, por favor espera...</strong>
-                    </div>
-                `;
-                this.disabled = true;
+                const runIAExplanation = () => {
+                    const preguntaId = this.dataset.preguntaId;
+                    const respuestaUsuarioId = this.dataset.respuestaUsuarioId;
+                    const container = this.closest('.card-body').querySelector('.explicacion-ia-container');
+                    
+                    container.style.display = 'block';
+                    container.innerHTML = `<div class="d-flex align-items-center text-muted p-3 bg-body-secondary rounded"><div class="spinner-border spinner-border-sm me-2" role="status"></div><strong>Analizando con IA...</strong></div>`;
+                    this.disabled = true;
 
-                fetch("{{ url_for('main.explicar_respuesta_ia') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({
-                        preguntaId: preguntaId,
-                        respuestaUsuarioId: respuestaUsuarioId
+                    fetch("{{ url_for('main.explicar_respuesta_ia') }}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ preguntaId: preguntaId, respuestaUsuarioId: respuestaUsuarioId })
                     })
-                })
-                .then(response => {
-                    if (!response.ok) { throw new Error('Error del servidor'); }
-                    return response.json();
-                })
-                .then(data => {
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'p-3 rounded bg-body-secondary border';
-                    if (data.explicacion) {
-                        contentDiv.innerHTML = marked.parse(data.explicacion);
-                    } else {
-                        contentDiv.innerHTML = `<div class="alert alert-warning mb-0">${data.error || 'Ocurrió un error desconocido.'}</div>`;
-                    }
-                    container.innerHTML = ''; // Limpiar el spinner
-                    container.appendChild(contentDiv);
-                })
-                .catch(error => {
-                    console.error('Error en la llamada fetch:', error);
-                    container.innerHTML = `<div class="alert alert-danger mb-0">Error de conexión. Por favor, inténtalo de nuevo.</div>`;
-                })
-                .finally(() => {
-                    this.disabled = false;
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'p-3 rounded bg-body-secondary border';
+                        if (data.explicacion) {
+                            contentDiv.innerHTML = marked.parse(data.explicacion);
+                        } else {
+                            contentDiv.innerHTML = `<div class="alert alert-warning mb-0">${data.error || 'Ocurrió un error desconocido.'}</div>`;
+                        }
+                        container.innerHTML = '';
+                        container.appendChild(contentDiv);
+                    })
+                    .catch(error => {
+                        console.error('Error en la llamada fetch:', error);
+                        container.innerHTML = `<div class="alert alert-danger mb-0">Error de conexión. Por favor, inténtalo de nuevo.</div>`;
+                    })
+                    .finally(() => { this.disabled = false; });
+                };
+
+                // Llamamos al manejador del disclaimer, que decidirá si muestra el modal o ejecuta la función directamente
+                window.handleAIAction(runIAExplanation);
             });
         });
+        // --- FIN DE CAMBIOS ---
     });
     </script>
 {% endblock %}
