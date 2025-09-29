@@ -46,11 +46,22 @@
 {% endmacro %}
 
 
-{% block content %} {# O block admin_content, dependiendo de tu layout #}
+{% block content %}
 <div class="card shadow-sm">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h1 class="h4 mb-0"><i class="bi bi-list-nested"></i> Vista General del Temario</h1>
-        <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema</a>
+    <div class="card-header">
+        <!-- INICIO DEL CAMBIO: Contenedor para alinear título y botones -->
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="h4 mb-0"><i class="bi bi-list-nested"></i> Vista General del Temario</h1>
+            <div>
+                <a href="{{ url_for('admin.exportar_preguntas') }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
+                </a>
+                <a href="{{ url_for('admin.crear_tema') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle-fill"></i> Añadir Nuevo Tema
+                </a>
+            </div>
+        </div>
+        <!-- FIN DEL CAMBIO -->
     </div>
     <div class="card-body">
         

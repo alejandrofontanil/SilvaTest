@@ -521,3 +521,63 @@ def toggle_acceso_ia(usuario_id):
     estado = "activado" if usuario.tiene_acceso_ia else "desactivado"
     flash(f'El acceso a la IA para {usuario.nombre} ha sido {estado}.', 'success')
     return redirect(url_for('admin.admin_usuarios'))
+
+import pandas as pd
+import io
+from flask import Response
+
+@admin_bp.route('/exportar-preguntas')
+@admin_required
+def exportar_preguntas():
+    """
+    Exporta todas las preguntas y respuestas a un archivo Excel.
+    """
+    try:
+        # 1. Obtener todas las preguntas con sus temas y respuestas
+        preguntas = Pregunta.query.options(
+            selectinload(Pregunta.tema), 
+            selectinload(Pregunta.respuestas)
+        ).order_by(Pregunta.tema_id, Pregunta.id).all()
+
+        # 2. Preparar los datos para el Excel
+        data_para_excel = []
+        for p in preguntas:
+            fila = {
+                'ID Pregunta': p.id,
+                'Enunciado': p.texto,
+                'Tema ID': p.tema.id,
+                'Tema Nombre': p.tema.nombre,
+                'Opción A': '',
+                'Opción B': '',
+                'Opción C': '',
+                'Opción D': '',
+                'Respuesta Correcta': ''
+            }
+            
+            opciones = ['Opción A', 'Opción B', 'Opción C', 'Opción D']
+            for i, r in enumerate(p.respuestas):
+                if i < len(opciones):
+                    fila[opciones[i]] = r.texto
+                    if r.es_correcta:
+                        fila['Respuesta Correcta'] = chr(65 + i) # A, B, C, D
+            
+            data_para_excel.append(fila)
+
+        # 3. Crear el archivo Excel en memoria
+        df = pd.DataFrame(data_para_excel)
+        output = io.BytesIO()
+        writer = pd.ExcelWriter(output, engine='openpyxl')
+        df.to_excel(writer, index=False, sheet_name='Preguntas')
+        writer.close()
+        output.seek(0)
+
+        # 4. Devolver el archivo para su descarga
+        return Response(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment;filename=export_preguntas.xlsx"}
+        )
+
+    except Exception as e:
+        flash(f"Error al generar el archivo Excel: {e}", "danger")
+        return redirect(url_for('admin.admin_temas'))
