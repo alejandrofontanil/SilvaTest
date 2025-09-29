@@ -530,44 +530,70 @@ from flask import Response
 @admin_required
 def exportar_preguntas():
     """
-    Exporta todas las preguntas y respuestas a un archivo Excel.
+    Exporta todas las preguntas y respuestas a un archivo Excel con la jerarquía completa.
     """
     try:
-        # 1. Obtener todas las preguntas con sus temas y respuestas
+        # 1. Consulta optimizada para obtener toda la información necesaria de una vez
         preguntas = Pregunta.query.options(
-            selectinload(Pregunta.tema), 
+            selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
             selectinload(Pregunta.respuestas)
-        ).order_by(Pregunta.tema_id, Pregunta.id).all()
+        ).order_by(Tema.id, Pregunta.id).all()
 
         # 2. Preparar los datos para el Excel
         data_para_excel = []
         for p in preguntas:
+            # Construir la jerarquía
+            tema_actual = p.tema
+            bloque = tema_actual.bloque
+            convocatoria = bloque.convocatoria if bloque else None
+            
+            # Determinar si es un subtema y quién es su padre
+            tema_padre_nombre = tema_actual.parent.nombre if tema_actual.parent else ''
+
             fila = {
                 'ID Pregunta': p.id,
                 'Enunciado': p.texto,
-                'Tema ID': p.tema.id,
-                'Tema Nombre': p.tema.nombre,
+                'Convocatoria': convocatoria.nombre if convocatoria else 'N/A',
+                'Bloque': bloque.nombre if bloque else 'N/A',
+                'Tema Padre': tema_padre_nombre,
+                'Tema/Subtema': tema_actual.nombre,
+                'Tema ID': tema_actual.id,
                 'Opción A': '',
                 'Opción B': '',
                 'Opción C': '',
                 'Opción D': '',
-                'Respuesta Correcta': ''
+                'Respuesta Correcta': '',
+                'Retroalimentación': p.retroalimentacion or ''
             }
             
             opciones = ['Opción A', 'Opción B', 'Opción C', 'Opción D']
-            for i, r in enumerate(p.respuestas):
+            # Aseguramos un orden consistente en las respuestas
+            respuestas_ordenadas = sorted(p.respuestas, key=lambda r: r.id)
+            for i, r in enumerate(respuestas_ordenadas):
                 if i < len(opciones):
                     fila[opciones[i]] = r.texto
                     if r.es_correcta:
-                        fila['Respuesta Correcta'] = chr(65 + i) # A, B, C, D
+                        # Asigna la letra A, B, C, o D
+                        fila['Respuesta Correcta'] = chr(65 + i)
             
             data_para_excel.append(fila)
+
+        if not data_para_excel:
+            flash("No hay preguntas para exportar.", "warning")
+            return redirect(url_for('admin.admin_temas'))
 
         # 3. Crear el archivo Excel en memoria
         df = pd.DataFrame(data_para_excel)
         output = io.BytesIO()
         writer = pd.ExcelWriter(output, engine='openpyxl')
         df.to_excel(writer, index=False, sheet_name='Preguntas')
+        
+        # Ajustar el ancho de las columnas para que sea más legible
+        worksheet = writer.sheets['Preguntas']
+        for column_cells in worksheet.columns:
+            length = max(len(str(cell.value)) for cell in column_cells)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = length + 2
+
         writer.close()
         output.seek(0)
 
@@ -575,9 +601,11 @@ def exportar_preguntas():
         return Response(
             output,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment;filename=export_preguntas.xlsx"}
+            headers={"Content-Disposition": "attachment;filename=export_preguntas_silvatest.xlsx"}
         )
 
     except Exception as e:
+        print(f"Error al generar el archivo Excel: {e}")
+        traceback.print_exc()
         flash(f"Error al generar el archivo Excel: {e}", "danger")
         return redirect(url_for('admin.admin_temas'))
