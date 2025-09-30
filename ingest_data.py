@@ -9,8 +9,6 @@ from pinecone import Pinecone, ServerlessSpec
 
 print("Cargando configuración...")
 load_dotenv()
-
-# CAMBIO: Usamos la nueva librería con la API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -20,10 +18,7 @@ INDEX_NAME = "silvatest-temario"
 
 if INDEX_NAME not in pc.list_indexes().names():
     print(f"Creando índice serverless '{INDEX_NAME}'...")
-    pc.create_index(
-        name=INDEX_NAME, dimension=768, metric='cosine',
-        spec=ServerlessSpec(cloud='aws', region='us-east-1')
-    )
+    pc.create_index(name=INDEX_NAME, dimension=768, metric='cosine', spec=ServerlessSpec(cloud='aws', region='us-east-1'))
     time.sleep(10)
 else:
     print(f"El índice '{INDEX_NAME}' ya existe.")
@@ -51,12 +46,10 @@ def get_text_chunks(text, chunk_size=1500, chunk_overlap=200):
     return chunks
 
 def get_embedding(text):
-    """Obtiene el vector (embedding) para un trozo de texto."""
     try:
-        time.sleep(1) # Para no saturar la API
-        # CAMBIO: Nueva forma de llamar al modelo de embedding
+        time.sleep(1)
         result = genai.embed_content(
-            model="models/embedding-004",
+            model="models/text-embedding-004", # <-- CAMBIO AQUÍ
             content=text,
             task_type="RETRIEVAL_DOCUMENT"
         )
@@ -75,8 +68,7 @@ def main():
         if filename.lower().endswith(".pdf"):
             print(f"\n--- Procesando archivo: {filename} ---")
             text = get_pdf_text(os.path.join(docs_folder, filename))
-            if not text:
-                continue
+            if not text: continue
             chunks = get_text_chunks(text)
             vectors_to_upsert = []
             for i, chunk in enumerate(chunks):
