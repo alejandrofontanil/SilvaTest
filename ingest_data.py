@@ -1,3 +1,4 @@
+# ingest_data.py (versión actualizada)
 import os
 import PyPDF2
 from dotenv import load_dotenv
@@ -8,46 +9,32 @@ import time
 import traceback
 from pinecone import Pinecone, ServerlessSpec
 
-# --- 1. CONFIGURACIÓN INICIAL ---
 print("Cargando configuración...")
 load_dotenv()
 
-# Leemos el ID del proyecto y la REGIÓN desde el .env
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 LOCATION = os.getenv("GCP_REGION")
-
-# Inicializa Vertex AI explícitamente con tu ID de proyecto y tu REGIÓN
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
-# CAMBIO: Usamos el modelo más reciente
-model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+# CAMBIO: Usamos un modelo de embedding más estable
+model = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
 
-# Inicializa la conexión con Pinecone
 print("Conectando a Pinecone...")
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-
 INDEX_NAME = "silvatest-temario"
 
-# --- 2. CREACIÓN DEL ÍNDICE EN PINECONE ---
 if INDEX_NAME not in pc.list_indexes().names():
-    print(f"Creando índice serverless '{INDEX_NAME}' en Pinecone...")
+    print(f"Creando índice serverless '{INDEX_NAME}'...")
     pc.create_index(
-        name=INDEX_NAME,
-        dimension=768,
-        metric='cosine',
-        spec=ServerlessSpec(
-            cloud='aws',
-            region='us-east-1' 
-        )
+        name=INDEX_NAME, dimension=768, metric='cosine',
+        spec=ServerlessSpec(cloud='aws', region='us-east-1')
     )
-    print("Índice creado con éxito. Esperando a que esté listo...")
     time.sleep(10)
 else:
     print(f"El índice '{INDEX_NAME}' ya existe.")
 
 index = pc.Index(INDEX_NAME)
 
-# --- 3. FUNCIONES PARA PROCESAR DOCUMENTOS ---
 def get_pdf_text(pdf_path):
     text = ""
     try:
@@ -70,56 +57,41 @@ def get_text_chunks(text, chunk_size=1500, chunk_overlap=200):
 
 def get_embedding(text):
     try:
-        time.sleep(1) 
+        time.sleep(1)
         embeddings = model.get_embeddings([text])
         return embeddings[0].values
     except Exception as e:
         print(f"Error al obtener embedding: {e}")
         return None
 
-# --- 4. FUNCIÓN PRINCIPAL DEL SCRIPT ---
 def main():
     docs_folder = "documentos_para_ia"
     if not os.path.exists(docs_folder) or not os.listdir(docs_folder):
-        print(f"La carpeta '{docs_folder}' no existe o está vacía.")
+        print(f"La carpeta '{docs_folder}' está vacía o no existe.")
         return
 
     for filename in os.listdir(docs_folder):
         if filename.lower().endswith(".pdf"):
-            pdf_path = os.path.join(docs_folder, filename)
             print(f"\n--- Procesando archivo: {filename} ---")
-            
-            text = get_pdf_text(pdf_path)
+            text = get_pdf_text(os.path.join(docs_folder, filename))
             if not text:
-                print(f"No se pudo extraer texto de {filename}. Saltando archivo.")
                 continue
-
             chunks = get_text_chunks(text)
-            print(f"Documento dividido en {len(chunks)} trozos.")
-            
             vectors_to_upsert = []
             for i, chunk in enumerate(chunks):
                 print(f"  - Generando vector para el trozo {i+1}/{len(chunks)}...")
                 embedding = get_embedding(chunk)
-                
                 if embedding:
-                    vector_id = f"{filename}-chunk-{i}"
-                    metadata = {'text': chunk, 'source': filename}
-                    vectors_to_upsert.append((vector_id, embedding, metadata))
-
+                    vectors_to_upsert.append((f"{filename}-chunk-{i}", embedding, {'text': chunk, 'source': filename}))
             if vectors_to_upsert:
                 print(f"Subiendo {len(vectors_to_upsert)} vectores a Pinecone...")
                 index.upsert(vectors=vectors_to_upsert, batch_size=100)
-                print("¡Vectores subidos con éxito!")
-
     print("\n--- ¡Proceso de ingesta completado! ---")
-    stats = index.describe_index_stats()
-    print(f"Total de vectores en el índice: {stats['total_vector_count']}")
+    print(f"Total de vectores en el índice: {index.describe_index_stats()['total_vector_count']}")
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print("\n--- Ha ocurrido un error crítico durante la ejecución ---")
-        print(e)
+        print(f"\n--- Error crítico ---: {e}")
         traceback.print_exc()
