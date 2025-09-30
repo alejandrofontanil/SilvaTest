@@ -1,10 +1,8 @@
-# ingest_data.py (versión actualizada)
 import os
 import PyPDF2
 from dotenv import load_dotenv
 import pinecone
-import vertexai
-from vertexai.language_models import TextEmbeddingModel
+import google.generativeai as genai
 import time
 import traceback
 from pinecone import Pinecone, ServerlessSpec
@@ -12,12 +10,9 @@ from pinecone import Pinecone, ServerlessSpec
 print("Cargando configuración...")
 load_dotenv()
 
-PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = os.getenv("GCP_REGION")
-vertexai.init(project=PROJECT_ID, location=LOCATION)
-
-# CAMBIO: Usamos un modelo de embedding más estable
-model = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
+# CAMBIO: Usamos la nueva librería con la API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 print("Conectando a Pinecone...")
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
@@ -56,10 +51,16 @@ def get_text_chunks(text, chunk_size=1500, chunk_overlap=200):
     return chunks
 
 def get_embedding(text):
+    """Obtiene el vector (embedding) para un trozo de texto."""
     try:
-        time.sleep(1)
-        embeddings = model.get_embeddings([text])
-        return embeddings[0].values
+        time.sleep(1) # Para no saturar la API
+        # CAMBIO: Nueva forma de llamar al modelo de embedding
+        result = genai.embed_content(
+            model="models/embedding-004",
+            content=text,
+            task_type="RETRIEVAL_DOCUMENT"
+        )
+        return result['embedding']
     except Exception as e:
         print(f"Error al obtener embedding: {e}")
         return None

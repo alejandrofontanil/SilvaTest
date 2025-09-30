@@ -1,22 +1,20 @@
-# ask_agent.py (versión actualizada)
 import os
 from dotenv import load_dotenv
 import pinecone
-import vertexai
-from vertexai.generative_models import GenerativeModel
-from vertexai.language_models import TextEmbeddingModel
+import google.generativeai as genai
 from pinecone import Pinecone
 
+# --- 1. CONFIGURACIÓN INICIAL ---
 print("Cargando configuración...")
 load_dotenv()
 
-PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = os.getenv("GCP_REGION")
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+# CAMBIO: Usamos la nueva librería con la API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
-# CAMBIO: Usamos los modelos más estables y universales
-embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
-chat_model = GenerativeModel("gemini-1.0-pro")
+# CAMBIO: Cargamos los modelos con la nueva sintaxis
+embedding_model = "models/embedding-004"
+chat_model = genai.GenerativeModel("gemini-1.5-flash")
 
 print("Conectando a Pinecone...")
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
@@ -24,6 +22,7 @@ INDEX_NAME = "silvatest-temario"
 index = pc.Index(INDEX_NAME)
 print("¡Conexión exitosa!")
 
+# --- 2. LÓGICA DEL CHAT ---
 def run_chat():
     print("\n--- Agente de IA SilvaTest (Escribe 'salir' para terminar) ---")
     while True:
@@ -31,15 +30,26 @@ def run_chat():
         if query.lower() == 'salir':
             break
         print("Agente: Pensando...")
-        query_embedding = embedding_model.get_embeddings([query])[0].values
+
+        # CAMBIO: Nueva forma de generar el embedding de la pregunta
+        query_embedding = genai.embed_content(
+            model=embedding_model,
+            content=query,
+            task_type="RETRIEVAL_QUERY"
+        )['embedding']
+
         results = index.query(vector=query_embedding, top_k=3, include_metadata=True)
+        
         context = ""
         sources = set()
         for match in results['matches']:
             context += match['metadata']['text'] + "\n---\n"
             sources.add(match['metadata']['source'])
+        
         prompt = f"Basándote únicamente en el siguiente contexto, responde a la pregunta. Si la respuesta no está en el contexto, di que no tienes información.\n\n--- CONTEXTO ---\n{context}\n--- FIN DEL CONTEXTO ---\n\nPregunta: {query}\nRespuesta:"
+        
         response = chat_model.generate_content(prompt)
+        
         print("\nAgente:", response.text)
         if sources:
             print(f"(Fuentes encontradas: {', '.join(sources)})")
