@@ -231,6 +231,11 @@
                     </li>
                     {% endif %}
 
+                    <li class="nav-item">
+                        <a id="agente-ia-link" class="nav-link" href="{{ url_for('main.agente_ia_page') }}">
+                            <i class="bi bi-robot"></i> Agente IA
+                        </a>
+                    </li>
                     <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
                 

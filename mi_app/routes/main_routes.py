@@ -45,7 +45,6 @@ except Exception as e:
 
 
 # --- FUNCIONES DE AYUDA ---
-
 def obtener_preguntas_recursivas(tema):
     preguntas = []
     preguntas.extend(tema.preguntas)
@@ -79,10 +78,6 @@ def analizar_rendimiento_usuario(usuario):
     return informe
 
 def obtener_contexto_de_tema(tema):
-    """
-    Busca un documento de contexto para un tema. Si no tiene, busca en sus padres.
-    Ahora lee el documento desde una URL de Cloudinary.
-    """
     tema_actual = tema
     while tema_actual:
         if tema_actual.ruta_documento_contexto:
@@ -90,17 +85,14 @@ def obtener_contexto_de_tema(tema):
                 url = tema_actual.ruta_documento_contexto
                 response = requests.get(url)
                 response.raise_for_status()
-
                 texto_completo = ""
                 file_stream = io.BytesIO(response.content)
-
                 if url.lower().endswith('.pdf'):
                     reader = PyPDF2.PdfReader(file_stream)
                     for page in reader.pages:
                         texto_completo += page.extract_text()
                 elif url.lower().endswith('.txt'):
                     texto_completo = response.text
-                
                 return texto_completo
             except Exception as e:
                 print(f"Error leyendo el archivo de contexto desde la URL '{tema_actual.ruta_documento_contexto}': {e}")
@@ -152,7 +144,6 @@ def home():
         "nota_media": nota_media_global
     }
     
-    # --- INICIO DEL CAMBIO: Lógica para la barra de progreso ---
     progreso_objetivo = None
     if current_user.objetivo_fecha and hasattr(current_user, 'fecha_creacion') and current_user.fecha_creacion:
         hoy = date.today()
@@ -169,7 +160,6 @@ def home():
                     "dias_pasados": dias_pasados,
                     "total_dias": total_dias
                 }
-    # --- FIN DEL CAMBIO ---
 
     return render_template('home.html',
                            convocatorias=convocatorias,
@@ -177,7 +167,7 @@ def home():
                            ultimas_favoritas=ultimas_favoritas,
                            stats_tests_mensual=stats_tests_mensual,
                            stats_clave=stats_clave,
-                           progreso_objetivo=progreso_objetivo, # <-- Nueva variable
+                           progreso_objetivo=progreso_objetivo,
                            modules={'datetime': datetime, 'hoy': date.today()})
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
@@ -211,7 +201,6 @@ def cuenta():
     objetivo_form = ObjetivoForm()
     dashboard_form = DashboardPreferencesForm()
     objetivo_fecha_form = ObjetivoFechaForm()
-
     if request.method == 'GET':
         if current_user.objetivo_fecha:
             objetivo_fecha_form.objetivo_fecha.data = current_user.objetivo_fecha
@@ -219,78 +208,50 @@ def cuenta():
             dashboard_form.mostrar_grafico_evolucion.data = current_user.preferencias_dashboard.get('mostrar_grafico_evolucion', True)
             dashboard_form.mostrar_rendimiento_bloque.data = current_user.preferencias_dashboard.get('mostrar_rendimiento_bloque', True)
             dashboard_form.mostrar_calendario_actividad.data = current_user.preferencias_dashboard.get('mostrar_calendario_actividad', True)
-
     opciones = [(0, 'Todas mis convocatorias')] + [(c.id, c.nombre) for c in current_user.convocatorias_accesibles.order_by('nombre').all()]
     form.convocatoria.choices = opciones
-    
     convocatoria_id = request.args.get('convocatoria_id', 0, type=int)
     active_tab = request.args.get('tab', 'evolucion')
-
     if form.validate_on_submit():
         id_seleccionado = form.convocatoria.data
         tab_activa_al_enviar = request.form.get('tab', 'evolucion')
         return redirect(url_for('main.cuenta', convocatoria_id=id_seleccionado, tab=tab_activa_al_enviar))
-    
     form.convocatoria.data = convocatoria_id
-
     query_resultados = ResultadoTest.query.filter_by(autor=current_user)
     if convocatoria_id != 0:
         query_resultados = query_resultados.join(Tema).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
-    
     resultados_del_periodo = query_resultados.order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(lambda: {'notas': [], 'nota_media': 0})
     for fecha, grupo in groupby(resultados_del_periodo, key=lambda r: r.fecha.date()):
         notas_del_dia = [r.nota for r in grupo]
         if notas_del_dia:
             resultados_agrupados[fecha]['nota_media'] = sum(notas_del_dia) / len(notas_del_dia)
-    
     dias_ordenados = sorted(resultados_agrupados.keys())
     labels_grafico = [dia.strftime('%d/%m/%Y') for dia in dias_ordenados]
     datos_grafico = [round(resultados_agrupados[dia]['nota_media'], 2) for dia in dias_ordenados]
-    
     resultados_tabla = query_resultados.order_by(ResultadoTest.fecha.desc()).all()
     total_preguntas_hechas = RespuestaUsuario.query.filter_by(autor=current_user).count()
     nota_media_global = db.session.query(func.avg(ResultadoTest.nota)).filter_by(autor=current_user).scalar() or 0
-
-    stats_temas = []
-    stats_bloques = []
-    
-    query_stats_base = db.session.query(
-        func.count(RespuestaUsuario.id).label('total'),
-        func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)).label('aciertos')
-    ).select_from(RespuestaUsuario).join(Pregunta).filter(RespuestaUsuario.usuario_id == current_user.id)
-    
+    stats_temas, stats_bloques = [], []
+    query_stats_base = db.session.query(func.count(RespuestaUsuario.id).label('total'), func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)).label('aciertos')).select_from(RespuestaUsuario).join(Pregunta).filter(RespuestaUsuario.usuario_id == current_user.id)
     stats_por_tema_query = query_stats_base.join(Tema)
     if convocatoria_id != 0:
         stats_por_tema_query = stats_por_tema_query.join(Bloque).filter(Bloque.convocatoria_id == convocatoria_id)
     resultados_temas = stats_por_tema_query.group_by(Tema.id).add_columns(Tema.nombre.label('nombre')).all()
-
     stats_por_bloque_query = query_stats_base.join(Tema).join(Bloque)
     if convocatoria_id != 0:
         stats_por_bloque_query = stats_por_bloque_query.filter(Bloque.convocatoria_id == convocatoria_id)
     resultados_bloques = stats_por_bloque_query.group_by(Bloque.id).add_columns(Bloque.nombre.label('nombre')).all()
-
     for r in resultados_temas:
         porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
         stats_temas.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
-
     for r in resultados_bloques:
         porcentaje = (r.aciertos / r.total * 100) if r.total > 0 else 0
         stats_bloques.append({'nombre': r.nombre, 'total': r.total, 'aciertos': r.aciertos, 'porcentaje': round(porcentaje)})
-    
     stats_temas.sort(key=lambda x: x['porcentaje'])
     stats_bloques.sort(key=lambda x: x['porcentaje'])
-
     iniciar_tour = request.args.get('tour', 'false').lower() == 'true'
-
-    return render_template(
-        'cuenta.html', title='Mi Cuenta',
-        form=form, objetivo_form=objetivo_form, dashboard_form=dashboard_form, objetivo_fecha_form=objetivo_fecha_form,
-        resultados=resultados_tabla, labels_grafico=labels_grafico, datos_grafico=datos_grafico,
-        total_preguntas_hechas=total_preguntas_hechas, nota_media_global=nota_media_global,
-        stats_temas=stats_temas, stats_bloques=stats_bloques,
-        active_tab=active_tab, iniciar_tour_automaticamente=iniciar_tour
-    )
+    return render_template('cuenta.html', title='Mi Cuenta', form=form, objetivo_form=objetivo_form, dashboard_form=dashboard_form, objetivo_fecha_form=objetivo_fecha_form, resultados=resultados_tabla, labels_grafico=labels_grafico, datos_grafico=datos_grafico, total_preguntas_hechas=total_preguntas_hechas, nota_media_global=nota_media_global, stats_temas=stats_temas, stats_bloques=stats_bloques, active_tab=active_tab, iniciar_tour_automaticamente=iniciar_tour)
 
 @main_bp.route('/cuenta/resetear', methods=['POST'])
 @login_required
@@ -310,7 +271,7 @@ def guardar_objetivo_fecha():
         db.session.commit()
         flash('¡Tu fecha objetivo ha sido guardada!', 'success')
     else:
-        flash('Hubo un error al guardar la fecha. Por favor, asegúrate de seleccionarla correctamente.', 'danger')
+        flash('Hubo un error al guardar la fecha.', 'danger')
     return redirect(url_for('main.cuenta', tab='personalizar'))
 
 @main_bp.route('/cuenta/favoritas')
@@ -326,35 +287,19 @@ def hacer_test(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-    
-    bloque = tema.bloque
-    convocatoria = bloque.convocatoria
-    breadcrumbs = [
-        ('Inicio', url_for('main.home')),
-        (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)),
-        (bloque.nombre, url_for('main.bloque_detalle', bloque_id=bloque.id)),
-        (tema.nombre, None)
-    ]
-
+    bloque, convocatoria = tema.bloque, tema.bloque.convocatoria
+    breadcrumbs = [('Inicio', url_for('main.home')), (convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=convocatoria.id)), (bloque.nombre, url_for('main.bloque_detalle', bloque_id=bloque.id)), (tema.nombre, None)]
     preguntas_test = obtener_preguntas_recursivas(tema)
     if not preguntas_test:
-        flash('Este tema no contiene preguntas (ni en sus subtemas).', 'warning')
+        flash('Este tema no contiene preguntas.', 'warning')
         return redirect(url_for('main.bloque_detalle', bloque_id=tema.bloque_id))
-    
     random.shuffle(preguntas_test)
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
-    
-    return render_template('hacer_test.html',
-                           title=f"Test de {tema.nombre}",
-                           tema=tema,
-                           preguntas=preguntas_test,
-                           form=form,
-                           is_personalizado=False,
-                           breadcrumbs=breadcrumbs)
+    return render_template('hacer_test.html', title=f"Test de {tema.nombre}", tema=tema, preguntas=preguntas_test, form=form, is_personalizado=False, breadcrumbs=breadcrumbs)
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
@@ -362,18 +307,14 @@ def corregir_test(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if not current_user.es_admin and tema.bloque.convocatoria not in current_user.convocatorias_accesibles.all():
         abort(403)
-    
     preguntas_en_test = obtener_preguntas_recursivas(tema)
-    aciertos = 0
-    total_preguntas = len(preguntas_en_test)
     if not preguntas_en_test:
         flash('No se puede corregir un test sin preguntas.', 'warning')
         return redirect(url_for('main.home'))
-    
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
-    
+    aciertos = 0
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -382,24 +323,19 @@ def corregir_test(tema_id):
                 respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
                 if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
                     es_correcta = True
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
+                db.session.add(RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado))
         elif pregunta.tipo_pregunta == 'respuesta_texto':
             respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta.id}')
-            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
-               respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
+            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
                 es_correcta = True
             if respuesta_texto_usuario is not None:
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
-        
+                db.session.add(RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado))
         if es_correcta:
             aciertos += 1
-            
+    total_preguntas = len(preguntas_en_test)
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     db.session.commit()
-    
     flash(f'¡Test finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
@@ -427,13 +363,11 @@ def repaso_global():
     ids_preguntas_falladas = list({r.pregunta_id for r in respuestas_falladas})
     preguntas_a_repasar = Pregunta.query.filter(Pregunta.id.in_(ids_preguntas_falladas)).all()
     random.shuffle(preguntas_a_repasar)
-    
     for pregunta in preguntas_a_repasar:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             respuestas_barajadas = list(pregunta.respuestas)
             random.shuffle(respuestas_barajadas)
             pregunta.respuestas_barajadas = respuestas_barajadas
-            
     return render_template('repaso_global_test.html', preguntas=preguntas_a_repasar, form=form)
 
 @main_bp.route('/repaso_global/corregir', methods=['POST'])
@@ -441,32 +375,25 @@ def repaso_global():
 def corregir_repaso_global():
     aciertos = 0
     ids_preguntas_enviadas = [key.split('-')[1] for key in request.form if key.startswith('pregunta-')]
-    total_preguntas = len(ids_preguntas_enviadas)
-    
     for pregunta_id in ids_preguntas_enviadas:
         respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta_id}')
         pregunta = Pregunta.query.get(pregunta_id)
         es_correcta = False
-        
         if pregunta.tipo_pregunta == 'opcion_multiple':
             if respuesta_texto_usuario:
                 respuesta_marcada = Respuesta.query.get(int(respuesta_texto_usuario))
                 if respuesta_marcada and respuesta_marcada.es_correcta:
                     es_correcta = True
         elif pregunta.tipo_pregunta == 'respuesta_texto':
-            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
-               respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
+            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
                 es_correcta = True
-        
         if es_correcta:
             aciertos += 1
             respuestas_a_limpiar = RespuestaUsuario.query.filter_by(autor=current_user, pregunta_id=pregunta_id, es_correcta=False).all()
             for r in respuestas_a_limpiar:
                 db.session.delete(r)
-                
     db.session.commit()
-    nota_string = f"Has acertado {aciertos} de {total_preguntas}."
-    flash(f'¡Repaso finalizado! {nota_string}', 'success')
+    flash(f'¡Repaso finalizado! Has acertado {aciertos} de {len(ids_preguntas_enviadas)}.', 'success')
     return redirect(url_for('main.cuenta'))
 
 @main_bp.route('/comprobar_respuesta', methods=['POST'])
@@ -476,23 +403,18 @@ def comprobar_respuesta():
     id_respuesta = datos.get('respuesta_id')
     if not id_respuesta:
         return jsonify({'error': 'No se recibió ID de respuesta'}), 400
-    
     respuesta = Respuesta.query.get(id_respuesta)
     if not respuesta:
         return jsonify({'error': 'Respuesta no encontrada'}), 404
-    
-    if respuesta.es_correcta:
-        return jsonify({'es_correcta': True, 'retroalimentacion': respuesta.pregunta.retroalimentacion})
-    else:
-        return jsonify({'es_correcta': False, 'retroalimentacion': respuesta.pregunta.retroalimentacion})
+    return jsonify({'es_correcta': respuesta.es_correcta, 'retroalimentacion': respuesta.pregunta.retroalimentacion})
 
 @main_bp.route('/pregunta/<int:pregunta_id>/toggle_favorito', methods=['POST'])
 @login_required
 def toggle_favorito(pregunta_id):
     pregunta = Pregunta.query.get_or_404(pregunta_id)
+    es_favorita_ahora = False
     if current_user.es_favorita(pregunta):
         current_user.desmarcar_favorita(pregunta)
-        es_favorita_ahora = False
     else:
         current_user.marcar_favorita(pregunta)
         es_favorita_ahora = True
@@ -522,35 +444,24 @@ def generador_simulacro():
     if form.validate_on_submit():
         preguntas_para_el_test_ids = []
         temas_seleccionados_ids = request.form.getlist('tema_seleccionado', type=int)
-        
         if not temas_seleccionados_ids:
             flash('Debes seleccionar al menos un tema.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
-            
         for tema_id in temas_seleccionados_ids:
-            try:
-                num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
-            except (ValueError, TypeError):
-                num_preguntas = 10
-            
-            if num_preguntas == 0:
-                continue
-
+            try: num_preguntas = int(request.form.get(f'num_preguntas_{tema_id}', 10))
+            except (ValueError, TypeError): num_preguntas = 10
+            if num_preguntas == 0: continue
             tema = Tema.query.get_or_404(tema_id)
             preguntas_disponibles = obtener_preguntas_recursivas(tema)
             num_a_seleccionar = min(num_preguntas, len(preguntas_disponibles))
-            
             if num_a_seleccionar > 0:
                 preguntas_seleccionadas = random.sample(preguntas_disponibles, k=num_a_seleccionar)
                 preguntas_para_el_test_ids.extend([p.id for p in preguntas_seleccionadas])
-                
         if not preguntas_para_el_test_ids:
             flash('No se pudieron generar preguntas con los criterios seleccionados.', 'warning')
             return redirect(url_for('main.generador_simulacro'))
-        
         session['id_preguntas_simulacro'] = preguntas_para_el_test_ids
         return redirect(url_for('main.simulacro_personalizado_test'))
-    
     convocatorias_accesibles = current_user.convocatorias_accesibles.order_by(Convocatoria.nombre).all()
     return render_template('generador_simulacro.html', title="Generador de Simulacros", convocatorias=convocatorias_accesibles, form=form)
 
@@ -559,59 +470,40 @@ def generador_simulacro():
 def simulacro_personalizado_test():
     ids_preguntas = session.get('id_preguntas_simulacro', [])
     if not ids_preguntas:
-        flash('No hay un simulacro personalizado para empezar. Por favor, genera uno nuevo.', 'warning')
+        flash('No hay un simulacro personalizado para empezar.', 'warning')
         return redirect(url_for('main.generador_simulacro'))
-    
     preguntas_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas)).all()
     random.shuffle(preguntas_test)
-    
     for pregunta in preguntas_test:
         if pregunta.tipo_pregunta == 'opcion_multiple':
             lista_respuestas = list(pregunta.respuestas)
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
-            
     form = FlaskForm()
     tema_dummy = {'nombre': 'Simulacro Personalizado', 'es_simulacro': True}
-    return render_template('hacer_test.html',
-                           title="Simulacro Personalizado",
-                           tema=tema_dummy,
-                           preguntas=preguntas_test,
-                           is_personalizado=True,
-                           form=form)
+    return render_template('hacer_test.html', title="Simulacro Personalizado", tema=tema_dummy, preguntas=preguntas_test, is_personalizado=True, form=form)
 
 @main_bp.route('/simulacro/corregir', methods=['POST'])
 @login_required
 def corregir_simulacro_personalizado():
     ids_preguntas_en_test = session.get('id_preguntas_simulacro', [])
     if not ids_preguntas_en_test:
-        flash('La sesión de tu simulacro ha expirado. Por favor, genera uno nuevo.', 'danger')
+        flash('La sesión de tu simulacro ha expirado.', 'danger')
         return redirect(url_for('main.generador_simulacro'))
-    
     preguntas_en_test = db.session.query(Pregunta).filter(Pregunta.id.in_(ids_preguntas_en_test)).all()
-    aciertos = 0
-    total_preguntas = len(preguntas_en_test)
-    
+    aciertos, total_preguntas = 0, len(preguntas_en_test)
     tema_simulacro_personalizado = Tema.query.filter_by(nombre="Simulacros Personalizados").first()
     if not tema_simulacro_personalizado:
         bloque_general = Bloque.query.filter_by(nombre="General").first()
         if not bloque_general:
             convo_general = Convocatoria.query.filter_by(nombre="General").first()
             if not convo_general:
-                convo_general = Convocatoria(nombre="General")
-                db.session.add(convo_general)
-                db.session.flush()
-            bloque_general = Bloque(nombre="General", convocatoria_id=convo_general.id)
-            db.session.add(bloque_general)
-            db.session.flush()
-        tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True)
-        db.session.add(tema_simulacro_personalizado)
-        db.session.commit()
-            
+                convo_general = Convocatoria(nombre="General"); db.session.add(convo_general); db.session.flush()
+            bloque_general = Bloque(nombre="General", convocatoria_id=convo_general.id); db.session.add(bloque_general); db.session.flush()
+        tema_simulacro_personalizado = Tema(nombre="Simulacros Personalizados", bloque_id=bloque_general.id, es_simulacro=True); db.session.add(tema_simulacro_personalizado); db.session.commit()
     nuevo_resultado = ResultadoTest(nota=0, tema_id=tema_simulacro_personalizado.id, autor=current_user)
     db.session.add(nuevo_resultado)
     db.session.flush()
-    
     for pregunta in preguntas_en_test:
         es_correcta = False
         if pregunta.tipo_pregunta == 'opcion_multiple':
@@ -620,25 +512,18 @@ def corregir_simulacro_personalizado():
                 respuesta_seleccionada = Respuesta.query.get(id_respuesta_marcada)
                 if respuesta_seleccionada and respuesta_seleccionada.es_correcta:
                     es_correcta = True
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
+                db.session.add(RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_seleccionada_id=int(id_respuesta_marcada), resultado_test=nuevo_resultado))
         elif pregunta.tipo_pregunta == 'respuesta_texto':
             respuesta_texto_usuario = request.form.get(f'pregunta-{pregunta.id}')
-            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and \
-               respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
+            if respuesta_texto_usuario and pregunta.respuesta_correcta_texto and respuesta_texto_usuario.strip().lower() == pregunta.respuesta_correcta_texto.strip().lower():
                 es_correcta = True
             if respuesta_texto_usuario is not None:
-                respuesta_usuario = RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado)
-                db.session.add(respuesta_usuario)
-        
-        if es_correcta:
-            aciertos += 1
-            
+                db.session.add(RespuestaUsuario(es_correcta=es_correcta, autor=current_user, pregunta_id=pregunta.id, respuesta_texto_usuario=respuesta_texto_usuario, resultado_test=nuevo_resultado))
+        if es_correcta: aciertos += 1
     nota_final = (aciertos / total_preguntas) * 10 if total_preguntas > 0 else 0
     nuevo_resultado.nota = nota_final
     session.pop('id_preguntas_simulacro', None)
     db.session.commit()
-    
     flash(f'¡Simulacro finalizado! Tu nota es: {nota_final:.2f}/10', 'success')
     return redirect(url_for('main.resultado_test', resultado_id=nuevo_resultado.id))
 
@@ -675,21 +560,15 @@ def offline():
     return render_template('offline.html')
 
 # --- RUTAS DE API PARA GRÁFICOS ---
-
 @main_bp.route('/api/evolucion-notas')
 @login_required
 def api_evolucion_notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
-    resultados_periodo = ResultadoTest.query.filter(
-        ResultadoTest.autor == current_user,
-        ResultadoTest.fecha >= fecha_inicio
-    ).order_by(ResultadoTest.fecha.asc()).all()
+    resultados_periodo = ResultadoTest.query.filter(ResultadoTest.autor == current_user, ResultadoTest.fecha >= fecha_inicio).order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(list)
     for resultado in resultados_periodo:
         resultados_agrupados[resultado.fecha.date()].append(resultado.nota)
-    notas_medias_por_dia = {
-        fecha: sum(notas) / len(notas) for fecha, notas in resultados_agrupados.items()
-    }
+    notas_medias_por_dia = {fecha: sum(notas) / len(notas) for fecha, notas in resultados_agrupados.items()}
     dias_ordenados = sorted(notas_medias_por_dia.keys())
     labels_grafico = [dia.strftime('%d/%m') for dia in dias_ordenados]
     datos_grafico = [round(notas_medias_por_dia[dia], 2) for dia in dias_ordenados]
@@ -701,114 +580,73 @@ def api_rendimiento_temas():
     convocatoria_objetivo = current_user.objetivo_principal
     if not convocatoria_objetivo:
         return jsonify({'error': 'No se ha establecido un objetivo principal.'}), 400
-
     temas_ids = db.session.query(Tema.id).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_objetivo.id).all()
     tema_ids_list = [id[0] for id in temas_ids]
-
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
-    ).select_from(Tema).join(
-        Pregunta, Tema.id == Pregunta.tema_id
-    ).join(
-        RespuestaUsuario, Pregunta.id == RespuestaUsuario.pregunta_id
-    ).filter(
+    ).select_from(Tema).join(Pregunta, Tema.id == Pregunta.tema_id).join(RespuestaUsuario, Pregunta.id == RespuestaUsuario.pregunta_id).filter(
         RespuestaUsuario.usuario_id == current_user.id,
         Tema.id.in_(tema_ids_list)
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) > 0).all()
-
     stats_temas_sorted = sorted(stats_temas, key=lambda x: x.porcentaje)
-    
     labels = [stat.nombre for stat in stats_temas_sorted]
     data = [round(stat.porcentaje) for stat in stats_temas_sorted]
-
     return jsonify({'labels': labels, 'data': data})
 
 @main_bp.route('/api/calendario-actividad')
 @login_required
 def api_calendario_actividad():
     meses_a_mostrar = request.args.get('meses', 3, type=int)
-    if meses_a_mostrar not in [3, 6, 12]:
-        meses_a_mostrar = 3
+    if meses_a_mostrar not in [3, 6, 12]: meses_a_mostrar = 3
     fecha_fin = datetime.utcnow().date()
     fecha_inicio = fecha_fin - relativedelta(months=meses_a_mostrar)
-
-    resultados_por_dia = db.session.query(
-        func.date(ResultadoTest.fecha).label('dia'),
-        func.count(ResultadoTest.id).label('cantidad')
-    ).filter(
+    resultados_por_dia = db.session.query(func.date(ResultadoTest.fecha).label('dia'), func.count(ResultadoTest.id).label('cantidad')).filter(
         ResultadoTest.usuario_id == current_user.id,
         func.date(ResultadoTest.fecha).between(fecha_inicio, fecha_fin)
     ).group_by('dia').all()
-    
-    data_para_calendario = [
-        {'date': resultado.dia.strftime('%Y-%m-%d'), 'value': resultado.cantidad}
-        for resultado in resultados_por_dia
-    ]
-    return jsonify(data_para_calendario)
+    return jsonify([{'date': r.dia.strftime('%Y-%m-%d'), 'value': r.cantidad} for r in resultados_por_dia])
 
 # --- RUTAS DE IA ---
-
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
-    if not current_user.tiene_acceso_ia:
-        abort(403)
-    
+    if not current_user.tiene_acceso_ia: abort(403)
     data = request.get_json()
-    pregunta_id = data.get('preguntaId')
-    respuesta_usuario_id = data.get('respuestaUsuarioId')
-
-    if not pregunta_id:
-        return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
-
+    pregunta_id, respuesta_usuario_id = data.get('preguntaId'), data.get('respuestaUsuarioId')
+    if not pregunta_id: return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
     pregunta = Pregunta.query.get_or_404(pregunta_id)
     contexto_documento = obtener_contexto_de_tema(pregunta.tema)
-    
     bloque = pregunta.tema.bloque
-    personalidad_ia = "un preparador de oposiciones experto"
-    if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia:
-        personalidad_ia += f" en {bloque.contexto_ia}"
-
-    respuesta_correcta_texto = ""
-    respuesta_usuario_texto = ""
+    personalidad_ia = "un preparador de oposiciones experto" + (f" en {bloque.contexto_ia}" if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia else "")
+    respuesta_correcta_texto, respuesta_usuario_texto = "", ""
     for opcion in pregunta.respuestas:
-        if opcion.es_correcta:
-            respuesta_correcta_texto = opcion.texto
-        if str(opcion.id) == str(respuesta_usuario_id):
-            respuesta_usuario_texto = opcion.texto
-
+        if opcion.es_correcta: respuesta_correcta_texto = opcion.texto
+        if str(opcion.id) == str(respuesta_usuario_id): respuesta_usuario_texto = opcion.texto
     if contexto_documento:
         prompt_parts = [
-            f"Actúa como un experto que responde basándose ÚNICA Y EXCLUSIVAMENTE en el siguiente texto de un temario oficial:\n\n--- INICIO DEL TEMARIO ---\n{contexto_documento}\n--- FIN DEL TEMARIO ---\n\n",
-            f"Pregunta del test: {pregunta.texto}\n",
+            f"Actúa como un experto que responde basándose ÚNICA Y EXCLUSIVAMENTE en el siguiente texto:\n\n--- INICIO DEL TEXTO ---\n{contexto_documento}\n--- FIN DEL TEXTO ---\n\n",
+            f"Pregunta: {pregunta.texto}\n",
             f"Respuesta correcta: **{respuesta_correcta_texto}**\n"
         ]
         if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-            prompt_parts.append(f"El usuario respondió incorrectamente: **{respuesta_usuario_texto}**\n")
-            prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué la opción correcta es la correcta y la del usuario no.")
+            prompt_parts.extend([f"El usuario respondió: **{respuesta_usuario_texto}**\n", "Explica por qué la del usuario es incorrecta y la otra es correcta, usando solo la información del texto."])
         else:
-            prompt_parts.append("Usando solo la información del temario, explica de forma concisa por qué esta es la respuesta correcta.")
+            prompt_parts.append("Explica por qué esta es la respuesta correcta, usando solo la información del texto.")
     else:
         prompt_parts = [
-            f"Actúa como {personalidad_ia}. Tu tono es didáctico, neutral y explicativo.",
-            "El objetivo es aportar valor añadido y clarificar conceptos clave para un opositor.",
-            "La explicación debe ser concisa (2-3 frases) y centrarse en el 'porqué' de la respuesta correcta.",
-            "Usa negritas para remarcar los conceptos o palabras clave en los que el opositor debe fijarse.",
+            f"Actúa como {personalidad_ia}. Tono didáctico y conciso.",
+            "Explica en 2-3 frases el 'porqué' de la respuesta correcta. Usa negritas para conceptos clave.",
             f"\n**Pregunta:**\n{pregunta.texto}\n",
             f"La respuesta correcta es: **{respuesta_correcta_texto}**."
         ]
         if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-            prompt_parts.append(f"La respuesta marcada fue: **{respuesta_usuario_texto}**.")
-            prompt_parts.append("La tarea es explicar el razonamiento detrás de la respuesta correcta y por qué la opción marcada es incorrecta.")
+            prompt_parts.extend([f"La respuesta marcada fue: **{respuesta_usuario_texto}**.", "Explica el razonamiento de la respuesta correcta y por qué la marcada es incorrecta."])
         else:
-            prompt_parts.append("La tarea es explicar por qué esta es la respuesta correcta, aportando algún dato extra o un consejo para afianzar el conocimiento.")
-
-    prompt = "\n".join(prompt_parts)
-
+            prompt_parts.append("Explica por qué es correcta, aportando un dato extra o consejo.")
     try:
         model = GenerativeModel("gemini-1.0-pro")
-        response = model.generate_content(prompt)
+        response = model.generate_content("\n".join(prompt_parts))
         return jsonify({'explicacion': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Vertex AI: {e}")
@@ -817,39 +655,28 @@ def explicar_respuesta_ia():
 @main_bp.route('/api/generar-plan-ia', methods=['POST'])
 @login_required
 def generar_plan_ia():
-    if not current_user.tiene_acceso_ia:
-        abort(403)
-
+    if not current_user.tiene_acceso_ia: abort(403)
     informe = analizar_rendimiento_usuario(current_user)
-    if not informe:
-        return jsonify({'error': '¡Necesitas completar más tests para generar un plan fiable.'}), 400
-    
-    resumen_rendimiento = f"Temas a reforzar: {', '.join(informe['temas_debiles'])}. "
-    if informe['bloque_debil']:
-        resumen_rendimiento += f"Bloque más débil: {informe['bloque_debil']}."
-
+    if not informe: return jsonify({'error': 'Necesitas más tests para generar un plan.'}), 400
+    resumen_rendimiento = f"Temas débiles: {', '.join(informe['temas_debiles'])}. " + (f"Bloque más débil: {informe['bloque_debil']}." if informe['bloque_debil'] else "")
     prompt_parts = [
-        "Actúa como un preparador de oposiciones de élite para Agentes Medioambientales de Castilla y León y Asturias. Tu nombre es Silva, el Entrenador IA. Eres motivador, directo y estratégico.",
-        f"Un opositor llamado {current_user.nombre} te pide un plan de choque. Su informe de rendimiento es: {resumen_rendimiento}",
-        "Basado en estos datos, crea un plan de estudio concreto y accionable para los próximos 3 días.",
-        "El plan debe estar formateado en Markdown, ser fácil de leer y tener 3 puntos clave.",
-        "Empieza con una frase de ánimo personalizada y termina sugiriendo un objetivo claro y numérico (ej: 'Tu objetivo esta semana es subir la media en el bloque X por encima del 6.0')."
+        "Actúa como un preparador de oposiciones de élite llamado Silva. Eres motivador, directo y estratégico.",
+        f"Un opositor llamado {current_user.nombre} te pide un plan. Su rendimiento es: {resumen_rendimiento}",
+        "Crea un plan de estudio concreto para los próximos 3 días en Markdown con 3 puntos clave.",
+        "Empieza con una frase de ánimo y termina con un objetivo numérico (ej: 'Tu objetivo es subir la media en el bloque X por encima del 6.0')."
     ]
-    prompt = "\n".join(prompt_parts)
-
     try:
         model = GenerativeModel("gemini-1.0-pro")
-        response = model.generate_content(prompt)
+        response = model.generate_content("\n".join(prompt_parts))
         return jsonify({'plan': response.text})
     except Exception as e:
-        print(f"Error al llamar a la API de Vertex AI para el plan de estudio: {e}")
-        return jsonify({'error': 'Hubo un problema al contactar con el Entrenador IA.'}), 500
+        print(f"Error al llamar a la API de Vertex AI: {e}")
+        return jsonify({'error': 'Hubo un problema con el Entrenador IA.'}), 500
 
 @main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
 @login_required
 def guardar_preferencias_dashboard():
     form = DashboardPreferencesForm()
-    
     if form.validate_on_submit():
         preferencias = {
             'mostrar_grafico_evolucion': form.mostrar_grafico_evolucion.data,
@@ -858,21 +685,19 @@ def guardar_preferencias_dashboard():
         }
         current_user.preferencias_dashboard = preferencias
         db.session.commit()
-        flash('¡Las preferencias de tu panel han sido actualizadas!', 'success')
+        flash('¡Preferencias del panel actualizadas!', 'success')
     else:
-        flash('Hubo un error al guardar tus preferencias.', 'danger')
-        
+        flash('Error al guardar tus preferencias.', 'danger')
     return redirect(url_for('main.cuenta', tab='personalizar'))
 
+# --- NUEVA RUTA API PARA GRÁFICO DE BLOQUES ---
 @main_bp.route('/api/rendimiento-bloques')
 @login_required
 def api_rendimiento_bloques():
     convocatoria_objetivo = current_user.objetivo_principal
     if not convocatoria_objetivo:
         return jsonify({'labels': [], 'data': []})
-
     bloques_ids = [b.id for b in convocatoria_objetivo.bloques]
-
     stats_bloques = db.session.query(
         Bloque.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -880,10 +705,7 @@ def api_rendimiento_bloques():
         RespuestaUsuario.usuario_id == current_user.id,
         Bloque.id.in_(bloques_ids)
     ).group_by(Bloque.id).having(func.count(RespuestaUsuario.id) > 0).all()
-
     stats_bloques_sorted = sorted(stats_bloques, key=lambda x: x.porcentaje)
-    
     labels = [stat.nombre for stat in stats_bloques_sorted]
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
-
     return jsonify({'labels': labels, 'data': data})
