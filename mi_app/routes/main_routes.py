@@ -608,6 +608,14 @@ def api_calendario_actividad():
     return jsonify([{'date': r.dia.strftime('%Y-%m-%d'), 'value': r.cantidad} for r in resultados_por_dia])
 
 # --- RUTAS DE IA ---
+@main_bp.route('/agente-ia')
+@login_required
+def agente_ia_page():
+    if not current_user.tiene_acceso_ia:
+        flash('No tienes acceso a esta función premium en este momento.', 'warning')
+        return redirect(url_for('main.home'))
+    return render_template('agente_ia.html', title="Asistente de Estudio IA")
+
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
@@ -673,6 +681,34 @@ def generar_plan_ia():
         print(f"Error al llamar a la API de Vertex AI: {e}")
         return jsonify({'error': 'Hubo un problema con el Entrenador IA.'}), 500
 
+@main_bp.route('/api/agente-ia', methods=['POST'])
+@login_required
+def api_agente_ia():
+    if not current_user.tiene_acceso_ia:
+        abort(403)
+    data = request.get_json()
+    user_message = data.get('message')
+    if not user_message:
+        return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
+    contexto_oposicion = ""
+    if current_user.objetivo_principal:
+        convocatoria_nombre = current_user.objetivo_principal.nombre
+        contexto_oposicion = f"El opositor se está preparando para la oposición de {convocatoria_nombre}. Adapta tus respuestas a ese temario si es posible."
+    prompt_parts = [
+        "Eres Silva, un asistente de IA experto en oposiciones de Agente Medioambiental en España, especialmente de Castilla y León y Asturias. Eres amable, preciso y didáctico.",
+        contexto_oposicion,
+        "Responde a la pregunta del usuario de forma clara y concisa, como si fueras un preparador experto.",
+        f"\nPregunta del usuario: {user_message}"
+    ]
+    prompt = "\n".join(prompt_parts)
+    try:
+        model = GenerativeModel("gemini-1.0-pro")
+        response = model.generate_content(prompt)
+        return jsonify({'response': response.text})
+    except Exception as e:
+        print(f"Error al llamar a la API de Vertex AI para el agente: {e}")
+        return jsonify({'response': 'Lo siento, estoy teniendo problemas para conectar con mi cerebro digital. Inténtalo de nuevo en un momento.'}), 500
+
 @main_bp.route('/cuenta/guardar-dashboard', methods=['POST'])
 @login_required
 def guardar_preferencias_dashboard():
@@ -690,7 +726,6 @@ def guardar_preferencias_dashboard():
         flash('Error al guardar tus preferencias.', 'danger')
     return redirect(url_for('main.cuenta', tab='personalizar'))
 
-# --- NUEVA RUTA API PARA GRÁFICO DE BLOQUES ---
 @main_bp.route('/api/rendimiento-bloques')
 @login_required
 def api_rendimiento_bloques():

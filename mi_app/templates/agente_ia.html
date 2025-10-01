@@ -4,122 +4,162 @@
 {{ super() }}
 <style>
     #chat-container {
-        height: 60vh;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        height: 70vh;
+        max-height: 700px;
         border: 1px solid var(--bs-border-color);
-        border-radius: 0.5rem;
-        padding: 1rem;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        background-color: var(--bs-light-bg-subtle);
+    }
+    #chat-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
     }
     .chat-message {
-        padding: 0.75rem 1rem;
-        border-radius: 0.75rem;
-        margin-bottom: 0.5rem;
         max-width: 80%;
+        padding: 0.75rem 1.25rem;
+        border-radius: 1.25rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
     }
     .user-message {
         background-color: var(--bs-primary);
         color: var(--bs-btn-color, #FFFFFF);
-        margin-left: auto;
-        border-bottom-right-radius: 0;
+        align-self: flex-end;
+        border-bottom-right-radius: 0.25rem;
     }
     .agent-message {
-        background-color: var(--bs-light-bg-subtle, #f1f1f1);
+        background-color: var(--bs-body-bg);
         border: 1px solid var(--bs-border-color);
-        margin-right: auto;
-        border-bottom-left-radius: 0;
+        align-self: flex-start;
+        border-bottom-left-radius: 0.25rem;
     }
-    .thinking {
-        color: var(--bs-secondary-text-emphasis);
+    #chat-input-container {
+        border-top: 1px solid var(--bs-border-color);
+        padding: 1rem;
+    }
+    .thinking-indicator {
+        display: none; /* Oculto por defecto */
+        align-self: flex-start;
         font-style: italic;
+        color: var(--bs-secondary-color);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container my-4">
-    <h1 class="mb-3"><i class="bi bi-robot me-2"></i>Agente de IA Experto</h1>
-    <p class="lead text-muted mb-4">Haz una pregunta sobre el temario que has subido. El agente buscará en los documentos para darte una respuesta precisa.</p>
+<div class="container mt-4" data-aos="fade-up">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <h2 class="text-center mb-2"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA</h2>
+            <p class="text-center text-muted mb-4">
+                Pregúntame cualquier cosa sobre tu temario. Por ejemplo: "¿Qué es un ecosistema?" o "Explícame la Ley de Montes en 100 palabras".
+            </p>
 
-    <div id="chat-container" class="mb-3 bg-body-tertiary">
+            <div id="chat-container" class="shadow-sm">
+                <div id="chat-messages">
+                    <div class="agent-message chat-message">
+                        ¡Hola, {{ current_user.nombre.split()[0] }}! Soy Silva, tu asistente de estudio. ¿En qué puedo ayudarte a prepararte hoy?
+                    </div>
+                </div>
+                <div id="chat-input-container">
+                    <form id="chat-form">
+                        <div class="input-group">
+                            <input type="text" id="user-input" class="form-control form-control-lg" placeholder="Escribe tu pregunta aquí..." autocomplete="off" required>
+                            <button class="btn btn-primary" type="submit" id="send-btn">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-
-    <form id="chat-form">
-        <div class="input-group">
-            <input type="text" id="user-input" class="form-control form-control-lg" placeholder="Escribe tu pregunta aquí..." required autocomplete="off">
-            <button class="btn btn-primary" type="submit" id="send-btn">
-                <span id="send-icon"><i class="bi bi-send-fill"></i></span>
-                <span id="loading-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            </button>
-        </div>
-    </form>
+    </div>
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
-    const chatContainer = document.getElementById('chat-container');
     const sendBtn = document.getElementById('send-btn');
-    const sendIcon = document.getElementById('send-icon');
-    const loadingSpinner = document.getElementById('loading-spinner');
+    const chatMessages = document.getElementById('chat-messages');
 
-    function addMessage(content, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('chat-message', `${sender}-message`);
-        messageDiv.innerHTML = content;
-        chatContainer.appendChild(messageDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+    chatForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const userMessage = userInput.value.trim();
+        if (userMessage === '') return;
 
-    chatForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        const userQuery = userInput.value.trim();
-        if (!userQuery) return;
-
-        addMessage(userQuery, 'user');
+        // Añadir mensaje del usuario al chat
+        addMessageToChat('user', userMessage);
         userInput.value = '';
         userInput.disabled = true;
-        sendIcon.style.display = 'none';
-        loadingSpinner.style.display = 'inline-block';
-        
-        addMessage('<div class="thinking">Agente: Pensando...</div>', 'agent');
+        sendBtn.disabled = true;
 
+        // Mostrar indicador "Pensando..."
+        const thinkingIndicator = addMessageToChat('agent', 'Pensando...', true);
+
+        // Enviar al servidor
         fetch("{{ url_for('main.api_agente_ia') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({ pregunta: userQuery })
+            body: JSON.stringify({ message: userMessage })
         })
         .then(response => response.json())
         .then(data => {
-            const lastMessage = chatContainer.lastElementChild;
-            if (data.respuesta) {
-                lastMessage.innerHTML = marked.parse(data.respuesta);
-                if (data.fuentes && data.fuentes.length > 0) {
-                    lastMessage.innerHTML += `<small class="d-block mt-2 text-muted">Fuentes: ${data.fuentes.join(', ')}</small>`;
-                }
-            } else {
-                lastMessage.innerHTML = `<div class="text-danger">${data.error || 'Ocurrió un error.'}</div>`;
-            }
+            // Reemplazar "Pensando..." con la respuesta real
+            updateAgentMessage(thinkingIndicator, data.response);
         })
         .catch(error => {
-            const lastMessage = chatContainer.lastElementChild;
-            lastMessage.innerHTML = '<div class="text-danger">Error de conexión. Inténtalo de nuevo.</div>';
             console.error('Error:', error);
+            updateAgentMessage(thinkingIndicator, 'Lo siento, ha ocurrido un error. Por favor, inténtalo de nuevo.');
         })
         .finally(() => {
             userInput.disabled = false;
-            sendIcon.style.display = 'inline-block';
-            loadingSpinner.style.display = 'none';
+            sendBtn.disabled = false;
             userInput.focus();
         });
     });
+
+    function addMessageToChat(sender, message, isThinking = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-message');
+        
+        if (sender === 'user') {
+            messageDiv.classList.add('user-message');
+            messageDiv.textContent = message;
+        } else {
+            messageDiv.classList.add('agent-message');
+            messageDiv.innerHTML = message; // Usar innerHTML para procesar Markdown/HTML
+            if (isThinking) {
+                messageDiv.classList.add('thinking-indicator');
+                messageDiv.style.display = 'block';
+            }
+        }
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return messageDiv; // Devolver el elemento para poder actualizarlo
+    }
+
+    function updateAgentMessage(element, newMessage) {
+        // Usamos una librería como 'marked' para convertir Markdown a HTML si quisiéramos
+        // Por ahora, solo reemplazamos el texto y quitamos el indicador
+        element.innerHTML = newMessage;
+        element.classList.remove('thinking-indicator');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 });
 </script>
 {% endblock %}
