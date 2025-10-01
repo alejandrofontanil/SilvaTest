@@ -151,6 +151,25 @@ def home():
         "total_preguntas": total_preguntas_resp,
         "nota_media": nota_media_global
     }
+    
+    # --- INICIO DEL CAMBIO: Lógica para la barra de progreso ---
+    progreso_objetivo = None
+    if current_user.objetivo_fecha and hasattr(current_user, 'fecha_creacion') and current_user.fecha_creacion:
+        hoy = date.today()
+        fecha_inicio = current_user.fecha_creacion.date()
+        
+        if current_user.objetivo_fecha > fecha_inicio:
+            total_dias = (current_user.objetivo_fecha - fecha_inicio).days
+            dias_pasados = (hoy - fecha_inicio).days
+            
+            if total_dias > 0:
+                porcentaje = max(0, min(100, (dias_pasados / total_dias) * 100))
+                progreso_objetivo = {
+                    "porcentaje": int(porcentaje),
+                    "dias_pasados": dias_pasados,
+                    "total_dias": total_dias
+                }
+    # --- FIN DEL CAMBIO ---
 
     return render_template('home.html',
                            convocatorias=convocatorias,
@@ -158,6 +177,7 @@ def home():
                            ultimas_favoritas=ultimas_favoritas,
                            stats_tests_mensual=stats_tests_mensual,
                            stats_clave=stats_clave,
+                           progreso_objetivo=progreso_objetivo, # <-- Nueva variable
                            modules={'datetime': datetime, 'hoy': date.today()})
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
@@ -685,7 +705,6 @@ def api_rendimiento_temas():
     temas_ids = db.session.query(Tema.id).join(Bloque).filter(Bloque.convocatoria_id == convocatoria_objetivo.id).all()
     tema_ids_list = [id[0] for id in temas_ids]
 
-    # --- INICIO DEL CAMBIO: Consulta más explícita ---
     stats_temas = db.session.query(
         Tema.nombre,
         (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
@@ -697,7 +716,6 @@ def api_rendimiento_temas():
         RespuestaUsuario.usuario_id == current_user.id,
         Tema.id.in_(tema_ids_list)
     ).group_by(Tema.id).having(func.count(RespuestaUsuario.id) > 0).all()
-    # --- FIN DEL CAMBIO ---
 
     stats_temas_sorted = sorted(stats_temas, key=lambda x: x.porcentaje)
     
