@@ -789,7 +789,7 @@ def explicar_respuesta_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = GenerativeModel("gemini-1.5-flash-001")
+        model = GenerativeModel("gemini-1.0-pro")
         response = model.generate_content(prompt)
         return jsonify({'explicacion': response.text})
     except Exception as e:
@@ -820,7 +820,7 @@ def generar_plan_ia():
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = GenerativeModel("gemini-1.5-flash-001")
+        model = GenerativeModel("gemini-1.0-pro")
         response = model.generate_content(prompt)
         return jsonify({'plan': response.text})
     except Exception as e:
