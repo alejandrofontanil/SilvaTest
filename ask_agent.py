@@ -4,15 +4,17 @@ import pinecone
 import google.generativeai as genai
 from pinecone import Pinecone
 
+# --- 1. CONFIGURACIÓN INICIAL ---
 print("Cargando configuración...")
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# CAMBIO: Usamos el nombre de modelo correcto
+# Usamos los nombres de modelo correctos para esta API
 embedding_model = "models/text-embedding-004"
-chat_model = genai.GenerativeModel("gemini-1.5-flash")
+# CAMBIO: Usamos el nombre de modelo más estable
+chat_model = genai.GenerativeModel("gemini-pro")
 
 print("Conectando a Pinecone...")
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
@@ -20,11 +22,13 @@ INDEX_NAME = "silvatest-temario"
 index = pc.Index(INDEX_NAME)
 print("¡Conexión exitosa!")
 
+# --- 2. LÓGICA DEL CHAT ---
 def run_chat():
     print("\n--- Agente de IA SilvaTest (Escribe 'salir' para terminar) ---")
     while True:
         query = input("Tú: ")
-        if query.lower() == 'salir': break
+        if query.lower() == 'salir':
+            break
         print("Agente: Pensando...")
 
         query_embedding = genai.embed_content(
@@ -42,6 +46,7 @@ def run_chat():
             sources.add(match['metadata']['source'])
         
         prompt = f"Basándote únicamente en el siguiente contexto, responde a la pregunta. Si la respuesta no está en el contexto, di que no tienes información.\n\n--- CONTEXTO ---\n{context}\n--- FIN DEL CONTEXTO ---\n\nPregunta: {query}\nRespuesta:"
+        
         response = chat_model.generate_content(prompt)
         
         print("\nAgente:", response.text)
