@@ -87,7 +87,7 @@
         <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
             <div class="card h-100 shadow-sm">
                 <div class="card-body p-4">
-                    <h5 class="card-title text-muted mb-3">Rendimiento por Temas (Objetivo)</h5>
+                    <h5 class="card-title text-muted mb-3">Rendimiento por Bloques (Objetivo)</h5>
                     <div style="height: 300px;">
                         <canvas id="rendimientoTemasChart"></canvas>
                     </div>
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const chartRendimientoCanvas = document.getElementById('rendimientoTemasChart');
     if (chartRendimientoCanvas) {
-        fetch("{{ url_for('main.api_rendimiento_temas') }}")
+        fetch("{{ url_for('main.api_rendimiento_bloques') }}")
             .then(response => response.json())
             .then(data => {
                 const ctx = chartRendimientoCanvas.getContext('2d');
@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 date: { start: fechaInicio },
                 range: mesesInt,
                 scale: { color: { type: 'threshold', domain: [1, 3, 5, 10], range: esModoOscuro ? ['#0e4429', '#006d32', '#26a641', '#39d353'] : ['#9be9a8', '#40c463', '#30a14e', '#216e39'] } },
-                domain: { type: 'month', gutter: 5, label: { text: 'MMM', textAlign: 'start', position: 'top' }},
+                domain: { type: 'month', gutter: 15, label: { text: 'MMM', textAlign: 'start', position: 'top' }},
                 subDomain: { type: 'ghDay', radius: 2, width: 13, height: 13, gutter: 4 },
                 itemSelector: '#cal-heatmap'
             });

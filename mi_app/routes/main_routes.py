@@ -845,3 +845,27 @@ def guardar_preferencias_dashboard():
         flash('Hubo un error al guardar tus preferencias.', 'danger')
         
     return redirect(url_for('main.cuenta', tab='personalizar'))
+
+@main_bp.route('/api/rendimiento-bloques')
+@login_required
+def api_rendimiento_bloques():
+    convocatoria_objetivo = current_user.objetivo_principal
+    if not convocatoria_objetivo:
+        return jsonify({'labels': [], 'data': []})
+
+    bloques_ids = [b.id for b in convocatoria_objetivo.bloques]
+
+    stats_bloques = db.session.query(
+        Bloque.nombre,
+        (func.sum(case((RespuestaUsuario.es_correcta, 1), else_=0)) * 100.0 / func.count(RespuestaUsuario.id)).label('porcentaje')
+    ).join(Tema, Bloque.id == Tema.bloque_id).join(Pregunta, Tema.id == Pregunta.tema_id).join(RespuestaUsuario, Pregunta.id == RespuestaUsuario.pregunta_id).filter(
+        RespuestaUsuario.usuario_id == current_user.id,
+        Bloque.id.in_(bloques_ids)
+    ).group_by(Bloque.id).having(func.count(RespuestaUsuario.id) > 0).all()
+
+    stats_bloques_sorted = sorted(stats_bloques, key=lambda x: x.porcentaje)
+    
+    labels = [stat.nombre for stat in stats_bloques_sorted]
+    data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
+
+    return jsonify({'labels': labels, 'data': data})

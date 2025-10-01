@@ -30,10 +30,10 @@ class Usuario(db.Model, UserMixin):
     ha_visto_tour = db.Column(db.Boolean, nullable=False, server_default='false')
     tiene_acceso_ia = db.Column(db.Boolean, nullable=False, server_default='false')
     preferencias_dashboard = db.Column(db.JSON, nullable=True)
-    
-    # --- NUEVA COLUMNA PARA FECHA OBJETIVO ---
     objetivo_fecha = db.Column(db.Date, nullable=True)
-    # --- FIN DE NUEVA COLUMNA ---
+    
+    # --- LÍNEA AÑADIDA PARA LA BARRA DE PROGRESO ---
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
