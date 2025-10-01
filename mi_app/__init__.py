@@ -8,9 +8,9 @@ import os
 import cloudinary
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
-from sqlalchemy import MetaData # <-- 1. AÑADE ESTA IMPORTACIÓN
+from sqlalchemy import MetaData
 
-# --- 2. AÑADE ESTA CONFIGURACIÓN PARA LOS NOMBRES DE LA BBDD ---
+# Configuración para los nombres de las constraints de la BBDD (soluciona errores de migración)
 naming_convention = {
     "ix": 'ix_%(column_0_label)s',
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -19,10 +19,9 @@ naming_convention = {
     "pk": "pk_%(table_name)s"
 }
 metadata = MetaData(naming_convention=naming_convention)
-# --- FIN DE LA CONFIGURACIÓN ---
 
-# Inicializamos las extensiones
-db = SQLAlchemy(metadata=metadata) # <-- 3. MODIFICA ESTA LÍNEA
+# Inicialización de las extensiones de Flask
+db = SQLAlchemy(metadata=metadata)
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 mail = Mail()
@@ -30,29 +29,31 @@ migrate = Migrate()
 oauth = OAuth()
 csrf = CSRFProtect()
 
-
 @login_manager.user_loader
 def load_user(user_id):
     from .models import Usuario
     return Usuario.query.get(int(user_id))
 
-
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
 
     # --- CONFIGURACIÓN DE LA APP ---
-    # ... (El resto del archivo no cambia)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Configuración de la Base de Datos
     basedir = os.path.abspath(os.path.dirname(__file__))
     db_uri = os.environ.get('DATABASE_URL')
     if db_uri and db_uri.startswith("postgres://"):
         db_uri = db_uri.replace("postgres://", "postgresql://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///' + os.path.join(basedir, 'site.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Configuración de ReCAPTCHA (si lo usas)
     app.config['RECAPTCHA_PUBLIC_KEY'] = os.environ.get('RECAPTCHA_PUBLIC_KEY')
     app.config['RECAPTCHA_PRIVATE_KEY'] = os.environ.get('RECAPTCHA_PRIVATE_KEY')
 
+    # Configuración de Flask-Mail para envío de correos
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
@@ -60,17 +61,15 @@ def create_app():
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
-    # Conectamos las extensiones con la app
+    # Conectar las extensiones con la app
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    migrate.init_app(app, db) # <-- 4. MODIFICA ESTA LÍNEA
+    migrate.init_app(app, db, render_as_batch=True) # render_as_batch es importante para SQLite
     oauth.init_app(app)
     csrf.init_app(app)
 
-    # ... (El resto del archivo sigue exactamente igual)
-    # ... (Registro de OAUTH, Cloudinary, Blueprints, Error Handlers, etc.)
     # --- REGISTRO DE GOOGLE OAUTH ---
     oauth.register(
         name='google',
@@ -79,27 +78,38 @@ def create_app():
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
         client_kwargs={'scope': 'openid email profile'}
     )
+    
     # --- CONFIGURACIÓN DE CLOUDINARY ---
     cloudinary.config(
         cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
         api_key=os.environ.get('CLOUDINARY_API_KEY'),
         api_secret=os.environ.get('CLOUDINARY_API_SECRET')
     )
+    
+    # Configuración de Flask-Login
     login_manager.login_view = 'auth.login'
     login_manager.login_message_category = 'info'
     login_manager.login_message = "Por favor, inicia sesión para acceder a esta página."
+
     with app.app_context():
+        # --- REGISTRO DE BLUEPRINTS (RUTAS) ---
         from .routes.auth_routes import auth_bp
         app.register_blueprint(auth_bp)
+        
         from .routes.main_routes import main_bp
         app.register_blueprint(main_bp)
+        
         from .routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
-    @app.errorhandler(404)
-    def not_found_error(error):
-        return render_template('errors/404.html'), 404
-    @app.errorhandler(500)
-    def internal_error(error):
-        db.session.rollback()
-        return render_template('errors/500.html'), 500
+
+        # --- MANEJADORES DE ERRORES ---
+        @app.errorhandler(404)
+        def not_found_error(error):
+            return render_template('errors/404.html'), 404
+
+        @app.errorhandler(500)
+        def internal_error(error):
+            db.session.rollback()
+            return render_template('errors/500.html'), 500
+            
     return app
