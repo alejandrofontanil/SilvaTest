@@ -27,8 +27,6 @@ python-dateutil
 cloudinary
 PyPDF2==3.0.1
 Flask-Mail
-pandas
-openpyxl
 
 # --- Google Sheets & Auth ---
 gspread
@@ -37,8 +35,8 @@ google-api-python-client
 google-auth-httplib2
 Authlib
 
-# --- Librerías de IA (para el agente) ---
+# --- Librerías de IA (Todas las necesarias) ---
 pinecone
 google-generativeai
 openai
-google-cloud-aiplatform
+google-cloud-aiplatform  # Esta proporciona 'vertexai'
