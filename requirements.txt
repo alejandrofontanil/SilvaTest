@@ -25,13 +25,14 @@ requests
 python-dateutil
 cloudinary
 PyPDF2==3.0.1
+Flask-Mail
 
 # --- Google Sheets & Auth ---
 gspread
 oauth2client
 google-api-python-client
 google-auth-httplib2
-Authlib  # <-- LÍNEA AÑADIDA
+Authlib
 
 # --- Librerías de IA (para el agente) ---
 pinecone==3.2.2
