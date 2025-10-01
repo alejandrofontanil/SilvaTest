@@ -35,7 +35,8 @@ google-api-python-client
 google-auth-httplib2
 Authlib
 
-# --- Librerías de IA (para el agente) ---
-pinecone==3.2.2
+# --- Librerías de IA (Todas las necesarias) ---
+pinecone
 google-generativeai
 openai
+google-cloud-aiplatform  # Esta proporciona 'vertexai'
