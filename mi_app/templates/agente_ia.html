@@ -63,6 +63,12 @@
         from { opacity: 0.6; }
         to { opacity: 1; }
     }
+    #tokens-display {
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0 1rem 0.5rem 1rem;
+        text-align: right;
+    }
 </style>
 {% endblock %}
 
@@ -71,9 +77,11 @@
     <div class="row justify-content-center">
         <div class="col-lg-10 col-xl-8">
             <h2 class="text-center mb-2"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA RAG</h2>
-            <p class="text-center text-muted mb-4">
-                Pregúntame sobre el temario que has cargado (Ley de Pesca). La IA usará tus documentos para responder.
+            <p id="tokens-display" class="text-muted">
+                Tokens Restantes: <span id="remaining-tokens-value">{{ current_user.rag_tokens_restantes|default(0) }}</span>
+                {% if current_user.rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
             </p>
+            
 
             <div id="chat-container" class="shadow-lg">
                 <div id="chat-messages">
@@ -89,6 +97,9 @@
                                 <i class="bi bi-send-fill"></i>
                             </button>
                         </div>
+                        <small id="token-limit-message" class="text-danger mt-2" style="display:none;">
+                            Has agotado tus tokens de IA. Contacta con el administrador para recargar.
+                        </small>
                     </form>
                 </div>
             </div>
@@ -106,13 +117,38 @@
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const chatMessages = document.getElementById('chat-messages');
+        const tokensDisplay = document.getElementById('remaining-tokens-value');
+        const limitMessage = document.getElementById('token-limit-message');
+        
+        // Inicializa el saldo de tokens desde la plantilla
+        let currentTokens = parseInt(tokensDisplay.textContent);
+
+        // Función para actualizar el estado del formulario y la visualización de tokens
+        function updateTokenState(remainingTokens) {
+            currentTokens = remainingTokens;
+            tokensDisplay.textContent = currentTokens;
+            
+            // Lógica de bloqueo
+            if (currentTokens <= 0) {
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                limitMessage.style.display = 'block';
+            } else {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                limitMessage.style.display = 'none';
+            }
+        }
+        
+        // Ejecutar al cargar la página para bloquear si el saldo es cero
+        updateTokenState(currentTokens);
 
         // Función auxiliar para desplazarse al final del chat
         function scrollToBottom() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Función para añadir mensajes y el indicador de pensando
+        // Función para añadir mensajes y el indicador de pensando (mantenida)
         function addMessageToChat(sender, message, isThinking = false, sources = []) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('chat-message');
@@ -139,7 +175,7 @@
             return messageDiv;
         }
 
-        // Función para actualizar el mensaje del agente con la respuesta real
+        // Función para actualizar el mensaje del agente con la respuesta real (mantenida)
         function updateAgentMessage(element, newMessage, sources) {
             element.innerHTML = newMessage;
             element.classList.remove('thinking-indicator');
@@ -147,7 +183,6 @@
             if (sources && sources.length > 0) {
                 const sourceDiv = document.createElement('div');
                 sourceDiv.classList.add('source-citation');
-                // Mostramos solo el nombre del archivo (el último elemento del path)
                 sourceDiv.textContent = `Fuentes citadas: ${sources.map(s => s.split('/').pop()).join(', ')}`;
                 element.appendChild(sourceDiv);
             }
@@ -157,45 +192,57 @@
         chatForm.addEventListener('submit', function (event) {
             event.preventDefault();
             const userMessage = userInput.value.trim();
-            if (userMessage === '') return;
+            
+            if (userMessage === '' || currentTokens <= 0) return; // Bloqueo de seguridad JS
 
             // 1. Añadir mensaje del usuario
             addMessageToChat('user', userMessage);
             userInput.value = '';
             
             // 2. Bloquear entrada y mostrar indicador
-            userInput.disabled = true;
-            sendBtn.disabled = true;
+            updateTokenState(currentTokens); // Bloquea mientras se procesa
             const thinkingIndicator = addMessageToChat('agent', '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...', true);
 
-            // 3. Enviar a la nueva ruta RAG
-            fetch("{{ url_for('main.api_consulta_rag') }}", { // RUTA CORREGIDA
+            // 3. Enviar a la ruta RAG
+            fetch("{{ url_for('main.api_consulta_rag') }}", { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Obtiene el token CSRF para seguridad
                     'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify({ message: userMessage })
             })
             .then(response => {
                 if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Error desconocido del servidor.'); });
+                    return response.json().then(err => { 
+                        // Maneja el 403 del backend por saldo agotado
+                        if (response.status === 403) {
+                            updateTokenState(0);
+                            throw new Error(err.error);
+                        }
+                        // Otros errores (500)
+                        throw new Error(err.error || 'Error desconocido del servidor.'); 
+                    });
                 }
                 return response.json();
             })
             .then(data => {
                 // 4. Actualizar con la respuesta RAG y las fuentes
                 updateAgentMessage(thinkingIndicator, data.response, data.sources);
+                
+                // 5. CRÍTICO: Actualizar saldo de tokens
+                if (data.remaining_tokens !== undefined) {
+                    updateTokenState(data.remaining_tokens);
+                }
             })
             .catch(error => {
                 console.error('Error en la consulta RAG:', error);
-                updateAgentMessage(thinkingIndicator, `Lo siento, ha ocurrido un error al conectar con el Agente RAG: ${error.message || 'Verifica la configuración de Vertex AI/Pinecone.'}`, []);
+                // Mostrar el error directamente al usuario
+                updateAgentMessage(thinkingIndicator, `Lo siento, ha ocurrido un error: ${error.message || 'Verifica la configuración.'}`, []);
             })
             .finally(() => {
-                // 5. Desbloquear entrada
-                userInput.disabled = false;
-                sendBtn.disabled = false;
+                // 6. Desbloquear entrada o mantener el bloqueo si los tokens son 0
+                updateTokenState(currentTokens); 
                 userInput.focus();
             });
         });

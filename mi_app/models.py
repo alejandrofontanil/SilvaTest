@@ -184,5 +184,3 @@ class RespuestaUsuario(db.Model):
     respuesta_seleccionada_id = db.Column(db.Integer, db.ForeignKey('respuesta.id'), nullable=True)
     respuesta_texto_usuario = db.Column(db.String(500), nullable=True)
     resultado_test_id = db.Column(db.Integer, db.ForeignKey('resultado_test.id'), nullable=False)
-
-    
