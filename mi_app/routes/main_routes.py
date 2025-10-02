@@ -19,17 +19,17 @@ from itertools import groupby
 from flask_wtf import FlaskForm
 
 from mi_app import db
-from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
-from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
-
+from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario # Importación de Usuario
 # --- IMPORTACIÓN CRÍTICA PARA RAG ---
-# CORRECCIÓN: Se usa la importación relativa (..) asumiendo que ask_agent.py está en mi_app/
 from ..ask_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
+# Definición de coste: 100 tokens es una estimación segura para una consulta RAG simple
+RAG_COST_PER_QUERY = 100
+
 main_bp = Blueprint('main', __name__)
 
-# --- CONFIGURACIÓN DE VERTEX AI ---
+# --- CONFIGURACIÓN DE VERTEX AI (Se mantiene para explicaciones) ---
 try:
     print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
@@ -48,7 +48,7 @@ except Exception as e:
 # --- FIN: CONFIGURACIÓN DE VERTEX AI ---
 
 
-# --- FUNCIONES DE AYUDA ---
+# --- FUNCIONES DE AYUDA (Mantenidas) ---
 def obtener_preguntas_recursivas(tema):
     preguntas = []
     preguntas.extend(tema.preguntas)
@@ -104,7 +104,7 @@ def obtener_contexto_de_tema(tema):
         tema_actual = tema_actual.parent
     return None
 
-# --- RUTAS PRINCIPALES DE LA APLICACIÓN ---
+# --- RUTAS PRINCIPALES DE LA APLICACIÓN (Mantenidas) ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -617,31 +617,46 @@ def api_calendario_actividad():
 @main_bp.route('/api/consulta-rag', methods=['POST'])
 @login_required
 def api_consulta_rag():
+    # 1. Verificación de acceso y tokens
     if not current_user.tiene_acceso_ia:
         return jsonify({'error': 'Acceso denegado. Función premium.'}), 403
     
+    # Costo por consulta RAG (ej: 100 tokens)
+    if current_user.rag_tokens_restantes <= 0:
+        return jsonify({
+            'error': 'Has agotado tus tokens de IA. Contacta con el administrador para recargar.',
+            'remaining_tokens': 0
+        }), 403
+
     data = request.get_json()
     user_message = data.get('message')
     
     if not user_message:
         return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
     
-    # Llama a la función de consulta RAG en ask_agent.py
+    # 2. Llama a la función de consulta RAG
     try:
         response_data = get_rag_response(user_message)
         
         if "Error" in response_data['result']:
-            # Manejar errores de inicialización o consulta del agente
-            return jsonify({'response': response_data['result'], 'sources': []}), 500
+            # Si hay un error interno del Agente (ej: fallo de conexión a Gemini), no descontamos el token.
+            return jsonify({'response': response_data['result'], 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
         
+        # 3. Descontar token si la consulta fue exitosa
+        current_user.rag_tokens_restantes -= RAG_COST_PER_QUERY
+        db.session.commit()
+
+        # 4. Devolver la respuesta junto con el nuevo saldo
         return jsonify({
             'response': response_data['result'],
-            'sources': response_data['sources']
+            'sources': response_data['sources'],
+            'remaining_tokens': current_user.rag_tokens_restantes
         })
         
     except Exception as e:
+        # Manejo de error genérico de Flask
         print(f"Error al procesar la consulta RAG en Flask: {e}")
-        return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': []}), 500
+        return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
 
 # --- FIN NUEVA RUTA RAG ---
 
@@ -651,7 +666,7 @@ def agente_ia_page():
     if not current_user.tiene_acceso_ia:
         flash('No tienes acceso a esta función premium en este momento.', 'warning')
         return redirect(url_for('main.home'))
-    return render_template('agente_ia.html', title="Asistente de Estudio IA")
+    return render_template('agente_ia.html', title="Asistente de Estudio IA", rag_tokens_restantes=current_user.rag_tokens_restantes)
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required

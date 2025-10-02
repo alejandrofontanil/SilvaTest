@@ -32,7 +32,12 @@ class Usuario(db.Model, UserMixin):
     preferencias_dashboard = db.Column(db.JSON, nullable=True)
     objetivo_fecha = db.Column(db.Date, nullable=True)
     
-    # --- LÍNEA AÑADIDA PARA LA BARRA DE PROGRESO ---
+    # --- CAMPO RAG IA: Límite de uso de la IA por usuario ---
+    # Inicializado con un saldo generoso para pruebas (50,000 tokens)
+    rag_tokens_restantes = db.Column(db.Integer, default=50000) 
+    # --------------------------------------------------------
+
+    # LÍNEA AÑADIDA PARA LA BARRA DE PROGRESO
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
@@ -179,3 +184,5 @@ class RespuestaUsuario(db.Model):
     respuesta_seleccionada_id = db.Column(db.Integer, db.ForeignKey('respuesta.id'), nullable=True)
     respuesta_texto_usuario = db.Column(db.String(500), nullable=True)
     resultado_test_id = db.Column(db.Integer, db.ForeignKey('resultado_test.id'), nullable=False)
+
+    

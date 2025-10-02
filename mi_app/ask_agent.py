@@ -1,16 +1,15 @@
-# --- Importaciones (sin cambios) ---
 import os
-from dotenv import load_dotenv
 import json
+from dotenv import load_dotenv
 from google.cloud import aiplatform
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_vertexai import VertexAIEmbeddings
-from langchain_google_vertexai import ChatVertexAI
-from langchain_pinecone import Pinecone as PineconeVectorStore 
-from langchain.chains import RetrievalQA
-from pinecone import Pinecone 
-from datetime import datetime # Para añadir el timestamp de inicio
+from langchain_pinecone import Pinecone
+from urllib.parse import urlparse 
 
-# --- 1. CONFIGURACIÓN DE INFRAESTRUCTURA Y AGENTE (Inicialización Global) ---
+# --- 1. CONFIGURACIÓN INICIAL ---
+# Carga las variables de entorno del archivo .env
 load_dotenv()
 
 # Variables de Pinecone
@@ -22,120 +21,133 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_REGION = os.getenv("GCP_REGION")
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
 
-# Inicialización de Vertex AI (Necesario para autenticar)
+# Verificar variables críticas
+if not all([PINECONE_API_KEY, GCP_PROJECT_ID, GOOGLE_CREDS_JSON]):
+    raise ValueError("Faltan variables de entorno críticas (Pinecone o GCP). Revisa tu archivo .env.")
+
+# Configurar autenticación de Vertex AI usando el Service Account
 try:
     if GOOGLE_CREDS_JSON:
         creds_info = json.loads(GOOGLE_CREDS_JSON)
-        # Escribimos las credenciales a un archivo temporal si no existe (solo necesario en desarrollo local)
-        # En Render, se asume que las credenciales son leídas directamente o vía variables.
         temp_key_path = "gcp_service_account_key.json"
-        if not os.path.exists(temp_key_path) and 'private_key' in creds_info:
-            with open(temp_key_path, "w") as f:
-                json.dump(creds_info, f)
+        
+        # Corregido: Forzar la carga de credenciales para Codespaces
+        # Si el archivo JSON existe O si la clave privada está en el JSON
+        if os.path.exists(temp_key_path) or 'private_key' in creds_info:
+            if not os.path.exists(temp_key_path) and 'private_key' in creds_info:
+                with open(temp_key_path, "w") as f:
+                    json.dump(creds_info, f)
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_key_path
     
+    # Inicializa Vertex AI
     aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Vertex AI inicializado para RAG.")
-    
-except Exception as e:
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Error al inicializar Vertex AI: {e}")
-    QA_AGENT = None
-    # No llamamos a exit() aquí para que Flask pueda arrancar (aunque el agente falle)
+    print("✅ Vertex AI inicializado y autenticado con éxito.")
 
-def setup_rag_agent():
-    """Inicializa y devuelve la cadena RAG. Se ejecuta una sola vez al arrancar Flask."""
+except Exception as e:
+    # Capturamos errores de autenticación comunes de Codespaces/GCP
+    print(f"Error al inicializar Vertex AI o al autenticar: {e}")
+    print("Asegúrate de que GOOGLE_CREDS_JSON está bien formateado y los permisos IAM son correctos.")
+    exit()
+
+# --- 2. DEFINICIÓN DE FUENTES DE DATOS Y PROCESAMIENTO ---
+# Directorio raíz donde se encuentran los documentos PDF
+DATA_PATH = "documentos_para_ia"
+
+# Función para cargar y procesar documentos de forma recursiva
+def process_documents():
+    documents = []
     
-    # Se añade un bloque try/except para aislar el error de conexión de Pinecone/Vertex
-    try:
-        # 1. Inicializar Embeddings (DEBE COINCIDIR con la ingesta)
-        embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004")
-        
-        # 2. Conectar al VectorStore (Pinecone)
-        # La clave API se lee de la variable de entorno y se usa aquí.
-        pc = Pinecone(api_key=PINECONE_API_KEY) 
-        vector_store = PineconeVectorStore.from_existing_index(
-            index_name=INDEX_NAME, 
-            embedding=embeddings_model
-        )
-        
-        # 3. Inicializar el LLM de Gemini
-        # CAMBIO CLAVE: De 'gemini-2.5-pro' a 'gemini-2.5-flash' para optimización
-        llm = ChatVertexAI(
-            model_name="gemini-2.5-flash", 
-            temperature=0.2,
-            project=GCP_PROJECT_ID,
-            location=GCP_REGION,
-        )
-        
-        # 4. Crear la cadena RAG (RetrievalQA)
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=vector_store.as_retriever(search_kwargs={"k": 5}),
-            return_source_documents=True
-        )
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Agente RAG con Gemini 2.5 Flash listo.")
-        return qa_chain
-        
-    except Exception as e:
-        # El error 403 o de Pinecone caerá aquí
-        print(f"\n❌ ERROR al configurar el agente RAG: {e}")
+    # os.walk recorre el directorio de forma recursiva
+    for root, dirs, files in os.walk(DATA_PATH):
+        for file_name in files:
+            if file_name.endswith(".pdf"):
+                file_path = os.path.join(root, file_name)
+                print(f"Cargando archivo: {file_path}")
+                
+                # --- Lógica de Extracción de Metadatos por Carpeta ---
+                
+                # Obtenemos la ruta relativa desde DATA_PATH
+                relative_path = os.path.relpath(file_path, DATA_PATH)
+                
+                # Dividimos la ruta en segmentos
+                path_parts = relative_path.split(os.sep)
+                
+                # Asignamos Bloque y Tema basándonos en la estructura de carpetas
+                # Ejemplo: AGMN ASTURIAS/PARTE ESPECIFICA/PESCA/TEMA.pdf
+                
+                # El Bloque Principal es el primer directorio
+                bloque_principal = path_parts[0] if len(path_parts) > 1 else 'General'
+                
+                # El Tema será el resto de la ruta (ej: PARTE ESPECIFICA/PESCA/TEMA.pdf)
+                tema_completo = os.sep.join(path_parts[1:])
+                
+                # 1. Cargar documento
+                loader = PyPDFLoader(file_path)
+                data = loader.load()
+                
+                # 2. Asignar metadatos a cada página
+                for doc in data:
+                    doc.metadata['bloque'] = bloque_principal
+                    doc.metadata['tema'] = tema_completo
+                    doc.metadata['source'] = file_path   
+                
+                documents.extend(data)
+
+    if not documents:
+        print(f"❌ No se encontraron documentos en {DATA_PATH}. ¿Has creado la carpeta y puesto PDFs dentro?")
         return None
 
-# Inicializa el agente globalmente. Si falla, QA_AGENT será None.
-QA_AGENT = setup_rag_agent()
+    # Separador de texto para dividir los documentos en fragmentos manejables (chunks)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200, # Solapamiento para mantener el contexto
+        length_function=len,
+        is_separator_regex=False,
+    )
 
-# --- 3. FUNCIÓN DE CONSULTA REUTILIZABLE PARA FLASK ---
+    # 3. Dividir los documentos
+    print(f"Dividiendo {len(documents)} documentos en fragmentos...")
+    chunks = text_splitter.split_documents(documents)
+    print(f"Total de fragmentos (chunks) creados: {len(chunks)}")
+    return chunks
 
-def get_rag_response(query: str):
-    """
-    Función principal que las rutas de Flask importarán para obtener una respuesta RAG.
-    Devuelve la respuesta del Agente y las fuentes citadas.
-    """
-    if not QA_AGENT:
-        return {
-            "result": "Error: El Agente RAG no se pudo inicializar. Revisa la configuración del servidor y los permisos de GCP.",
-            "sources": []
-        }
-    
+# --- 3. CREACIÓN DE EMBEDDINGS Y SUBIDA A PINECONE ---
+
+def ingest_to_pinecone(chunks):
+    # Inicializa el modelo de embeddings de Vertex AI 
+    print("Inicializando modelo de Embeddings de Vertex AI...")
+    embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004")
+
+    # Ingestar los documentos a Pinecone
+    print(f"Conectando al índice de Pinecone: {INDEX_NAME}...")
     try:
-        # Ejecutar la cadena RAG
-        response = QA_AGENT.invoke({"query": query})
-        
-        # Extraer fuentes citadas
-        sources = set([doc.metadata.get('source', 'Fuente Desconocida') for doc in response.get('source_documents', [])])
-        
-        return {
-            "result": response.get('result', 'No se pudo generar una respuesta.'),
-            "sources": list(sources)
-        }
-        
+        Pinecone.from_documents(
+            chunks, 
+            embeddings_model, 
+            index_name=INDEX_NAME
+        )
+        print("\n✨✨✨ Ingesta completada con éxito. Los documentos están vectorizados en Pinecone. ✨✨✨")
     except Exception as e:
-        print(f"Error durante la consulta RAG: {e}")
-        return {
-            "result": "Error interno del Agente al procesar la consulta. (Verifica si el error 403 persiste)",
-            "sources": []
-        }
+        print(f"\n❌ ERROR durante la ingesta a Pinecone: {e}")
+        print("Verifica que tu índice esté activo y las claves de Pinecone sean correctas.")
 
-# --- 4. EJECUCIÓN (Modo de prueba en terminal) ---
-if __name__ == "__main__":
-    if QA_AGENT:
-        print("\n--- Modo de Prueba RAG (Escribe 'salir' para terminar) ---")
-        while True:
-            query = input("Tú: ")
-            if query.lower() == 'salir':
-                break
-            
-            print("Agente: Pensando...")
-            
-            result = get_rag_response(query)
-            
-            print("\nAgente:", result['result'])
-            if result['sources']:
-                print(f"\n[Fuentes del Temario: {', '.join(result['sources'])}]")
-            print("-" * 20)
-            
-    # Limpiamos el archivo temporal (solo si se está ejecutando el script directamente)
+
+# --- 4. FUNCIÓN PRINCIPAL ---
+
+def main():
+    print("--- INICIANDO PROCESO DE INGESTA DE DATOS RAG ---")
+    
+    # 1. Procesar documentos
+    processed_chunks = process_documents()
+    
+    if processed_chunks:
+        # 2. Subir a Pinecone
+        ingest_to_pinecone(processed_chunks)
+
+    # Limpiamos el archivo temporal solo si estamos en un entorno de desarrollo local
     temp_key_path = "gcp_service_account_key.json"
     if os.path.exists(temp_key_path):
         os.remove(temp_key_path)
+
+if __name__ == "__main__":
+    main()
