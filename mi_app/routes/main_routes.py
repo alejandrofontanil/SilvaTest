@@ -797,3 +797,4 @@ def api_rendimiento_bloques():
     labels = [stat.nombre for stat in stats_bloques_sorted]
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
+    
