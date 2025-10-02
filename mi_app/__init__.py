@@ -42,6 +42,13 @@ def create_app():
     # --- CONFIGURACIÓN DE LA APP ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+
+    # >>> MODIFICACIÓN CLAVE AQUÍ: FORZAR URL PÚBLICA DE CODESPACES <<<
+    # Esto asegura que url_for(_external=True) genere la URL correcta 
+    # (https://...codespace-5000.app.github.dev) en lugar de localhost:5000.
+    CODESPACE_URL = 'fuzzy-space-computing-machine-wr44wjx46497f5ggp-5000.app.github.dev'
+    app.config['SERVER_NAME'] = CODESPACE_URL
+    # >>> FIN DE LA MODIFICACIÓN CLAVE <<<
     
     # Configuración de la Base de Datos
     basedir = os.path.abspath(os.path.dirname(__file__))
@@ -101,4 +108,3 @@ def create_app():
             return render_template('errors/500.html'), 500
             
     return app
-
