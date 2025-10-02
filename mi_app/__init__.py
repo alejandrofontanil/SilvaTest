@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_migrate import Migrate
-from authlib.integrations.flask_client import OAuth
 import os
 import cloudinary
 from flask_wtf.csrf import CSRFProtect
@@ -14,7 +13,7 @@ from dotenv import load_dotenv
 # Cargar las variables de entorno desde .env
 load_dotenv()
 
-# Configuración para los nombres de las constraints de la BBDD (soluciona errores de migración)
+# Configuración para los nombres de las constraints de la BBDD
 naming_convention = {
     "ix": 'ix_%(column_0_label)s',
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -30,7 +29,6 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 mail = Mail()
 migrate = Migrate()
-oauth = OAuth()
 csrf = CSRFProtect()
 
 @login_manager.user_loader
@@ -51,19 +49,13 @@ def create_app():
     if db_uri and db_uri.startswith("postgres://"):
         db_uri = db_uri.replace("postgres://", "postgresql://", 1)
     
-    # Si DATABASE_URL no está en .env, usa sqlite local por defecto
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///' + os.path.join(basedir, 'site.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Configuración de ReCAPTCHA (si lo usas)
-    app.config['RECAPTCHA_PUBLIC_KEY'] = os.environ.get('RECAPTCHA_PUBLIC_KEY')
-    app.config['RECAPTCHA_PRIVATE_KEY'] = os.environ.get('RECAPTCHA_PRIVATE_KEY')
-
     # Configuración de Flask-Mail para envío de correos
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-    app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
@@ -72,18 +64,8 @@ def create_app():
     bcrypt.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    migrate.init_app(app, db, render_as_batch=True) # render_as_batch es importante para SQLite
-    oauth.init_app(app)
+    migrate.init_app(app, db, render_as_batch=True)
     csrf.init_app(app)
-
-    # --- REGISTRO DE GOOGLE OAUTH (VERSIÓN FINAL Y RECOMENDADA) ---
-    oauth.register(
-        name='google',
-        client_id=os.environ.get('GOOGLE_CLIENT_ID'),
-        client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={'scope': 'openid email profile'}
-    )
     
     # --- CONFIGURACIÓN DE CLOUDINARY ---
     cloudinary.config(
