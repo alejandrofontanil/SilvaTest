@@ -6,7 +6,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_pinecone import Pinecone
-from urllib.parse import urlparse # Importación necesaria para manejar rutas de documentos
+from urllib.parse import urlparse 
 
 # --- 1. CONFIGURACIÓN INICIAL ---
 # Carga las variables de entorno del archivo .env
@@ -30,11 +30,13 @@ try:
     if GOOGLE_CREDS_JSON:
         creds_info = json.loads(GOOGLE_CREDS_JSON)
         temp_key_path = "gcp_service_account_key.json"
-        # Esto es solo necesario en entornos locales como Codespaces, no en Render
-        # Lo mantenemos para desarrollo, pero lo borraremos al final.
-        if not os.path.exists(temp_key_path) and 'private_key' in creds_info:
-            with open(temp_key_path, "w") as f:
-                json.dump(creds_info, f)
+        
+        # Corregido: Forzar la carga de credenciales para Codespaces
+        # Si el archivo JSON existe O si la clave privada está en el JSON
+        if os.path.exists(temp_key_path) or 'private_key' in creds_info:
+            if not os.path.exists(temp_key_path) and 'private_key' in creds_info:
+                with open(temp_key_path, "w") as f:
+                    json.dump(creds_info, f)
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_key_path
     
     # Inicializa Vertex AI
@@ -42,6 +44,7 @@ try:
     print("✅ Vertex AI inicializado y autenticado con éxito.")
 
 except Exception as e:
+    # Capturamos errores de autenticación comunes de Codespaces/GCP
     print(f"Error al inicializar Vertex AI o al autenticar: {e}")
     print("Asegúrate de que GOOGLE_CREDS_JSON está bien formateado y los permisos IAM son correctos.")
     exit()
@@ -61,8 +64,7 @@ def process_documents():
                 file_path = os.path.join(root, file_name)
                 print(f"Cargando archivo: {file_path}")
                 
-                # Extraer metadatos basados en la ruta de las carpetas
-                # Ejemplo de path: documentos_para_ia/AGMN ASTURIAS/PARTE ESPECIFICA/TEMA 7. LEY DE PESCA.pdf
+                # --- Lógica de Extracción de Metadatos por Carpeta ---
                 
                 # Obtenemos la ruta relativa desde DATA_PATH
                 relative_path = os.path.relpath(file_path, DATA_PATH)
@@ -70,10 +72,13 @@ def process_documents():
                 # Dividimos la ruta en segmentos
                 path_parts = relative_path.split(os.sep)
                 
-                # Asignamos Bloque y Tema basándonos en los últimos dos o tres segmentos de la ruta
+                # Asignamos Bloque y Tema basándonos en la estructura de carpetas
+                # Ejemplo: AGMN ASTURIAS/PARTE ESPECIFICA/PESCA/TEMA.pdf
+                
+                # El Bloque Principal es el primer directorio
                 bloque_principal = path_parts[0] if len(path_parts) > 1 else 'General'
                 
-                # El tema será el archivo o la ruta desde el bloque principal
+                # El Tema será el resto de la ruta (ej: PARTE ESPECIFICA/PESCA/TEMA.pdf)
                 tema_completo = os.sep.join(path_parts[1:])
                 
                 # 1. Cargar documento
@@ -83,8 +88,8 @@ def process_documents():
                 # 2. Asignar metadatos a cada página
                 for doc in data:
                     doc.metadata['bloque'] = bloque_principal
-                    doc.metadata['tema'] = tema_completo # Esto es Tema/Subtema/Archivo
-                    doc.metadata['source'] = file_path   # Usar la ruta local para la fuente
+                    doc.metadata['tema'] = tema_completo
+                    doc.metadata['source'] = file_path   
                 
                 documents.extend(data)
 
