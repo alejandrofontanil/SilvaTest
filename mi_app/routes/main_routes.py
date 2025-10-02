@@ -22,11 +22,8 @@ from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
 
-# --- IMPORTACIONES PARA RAG ---
-from langchain_google_vertexai import VertexAIEmbeddings, VertexAI
-from langchain_pinecone import PineconeVectorStore
-from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
+# --- IMPORTACIÓN CRÍTICA PARA RAG ---
+from mi_app.ask_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
 main_bp = Blueprint('main', __name__)
@@ -614,6 +611,39 @@ def api_calendario_actividad():
     return jsonify([{'date': r.dia.strftime('%Y-%m-%d'), 'value': r.cantidad} for r in resultados_por_dia])
 
 # --- RUTAS DE IA ---
+
+# --- NUEVA RUTA PARA EL AGENTE RAG ---
+@main_bp.route('/api/consulta-rag', methods=['POST'])
+@login_required
+def api_consulta_rag():
+    if not current_user.tiene_acceso_ia:
+        return jsonify({'error': 'Acceso denegado. Función premium.'}), 403
+    
+    data = request.get_json()
+    user_message = data.get('message')
+    
+    if not user_message:
+        return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
+    
+    # Llama a la función de consulta RAG en ask_agent.py
+    try:
+        response_data = get_rag_response(user_message)
+        
+        if "Error" in response_data['result']:
+            # Manejar errores de inicialización o consulta del agente
+            return jsonify({'response': response_data['result'], 'sources': []}), 500
+        
+        return jsonify({
+            'response': response_data['result'],
+            'sources': response_data['sources']
+        })
+        
+    except Exception as e:
+        print(f"Error al procesar la consulta RAG en Flask: {e}")
+        return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': []}), 500
+
+# --- FIN NUEVA RUTA RAG ---
+
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
