@@ -20,7 +20,8 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario 
-# CORRECCIÓN DE IMPORTACIÓN CRÍTICA: La importación debe ser absoluta (mi_app.ask_agent)
+
+# CORRECCIÓN DE IMPORTACIÓN CRÍTICA: Se usa la importación ABSOLUTA para Render
 from mi_app.ask_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
@@ -706,7 +707,7 @@ def explicar_respuesta_ia():
             prompt_parts.append("Explica por qué es correcta, aportando un dato extra o consejo.")
     try:
         model = GenerativeModel("gemini-1.0-pro")
-        response = model.generate_content(prompt)
+        response = model.generate_content("\n".join(prompt_parts))
         return jsonify({'explicacion': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Vertex AI: {e}")
@@ -727,7 +728,7 @@ def generar_plan_ia():
     ]
     try:
         model = GenerativeModel("gemini-1.0-pro")
-        response = model.generate_content(prompt)
+        response = model.generate_content("\n".join(prompt_parts))
         return jsonify({'plan': response.text})
     except Exception as e:
         print(f"Error al llamar a la API de Vertex AI: {e}")
