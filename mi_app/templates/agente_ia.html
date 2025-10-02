@@ -78,7 +78,7 @@
             <div id="chat-container" class="shadow-lg">
                 <div id="chat-messages">
                     <div class="agent-message chat-message">
-                        ¡Hola, {{ current_user.nombre.split()[0] }}! Soy tu Asistente RAG. ¿Qué dice el temario sobre la **Ley de Pesca** hoy?
+                        ¡Soy **Silva**, tu Asistente de Estudio IA! Pregúntame sobre tu temario de **{{ current_user.objetivo_principal.nombre if current_user.objetivo_principal else 'Oposiciones' }}** (Ley de Pesca, etc.). Estoy listo para ayudarte a optimizar tu estudio.
                     </div>
                 </div>
                 <div id="chat-input-container">
