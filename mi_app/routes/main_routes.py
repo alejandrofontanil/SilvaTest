@@ -21,7 +21,13 @@ from flask_wtf import FlaskForm
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
-# --- FIN: IMPORTACIONES ---
+
+# --- IMPORTACIONES PARA RAG ---
+from langchain_google_vertexai import VertexAIEmbeddings, VertexAI
+from langchain_pinecone import PineconeVectorStore
+from langchain.chains.question_answering import load_qa_chain
+from langchain.prompts import PromptTemplate
+# --- FIN IMPORTACIONES ---
 
 main_bp = Blueprint('main', __name__)
 

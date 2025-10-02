@@ -1,90 +1,94 @@
 import os
-import PyPDF2
+import json
+import vertexai
 from dotenv import load_dotenv
-import pinecone
-import google.generativeai as genai
-import time
-import traceback
-from pinecone import Pinecone, ServerlessSpec
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_google_vertexai import VertexAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone as PineconeClient, ServerlessSpec
+from google.oauth2 import service_account
 
-print("Cargando configuración...")
+# --- CONFIGURACIÓN ---
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
 
-print("Conectando a Pinecone...")
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-INDEX_NAME = "silvatest-temario"
+# --- INICIO DEL CAMBIO: Carga explícita de credenciales ---
+try:
+    GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
+    GCP_REGION = os.getenv('GCP_REGION')
+    creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
 
-if INDEX_NAME not in pc.list_indexes().names():
-    print(f"Creando índice serverless '{INDEX_NAME}'...")
-    pc.create_index(name=INDEX_NAME, dimension=768, metric='cosine', spec=ServerlessSpec(cloud='aws', region='us-east-1'))
-    time.sleep(10)
-else:
-    print(f"El índice '{INDEX_NAME}' ya existe.")
+    if not all([GCP_PROJECT_ID, GCP_REGION, creds_json_str]):
+        raise ValueError("Faltan variables de entorno de Google Cloud (GCP_PROJECT_ID, GCP_REGION, GOOGLE_CREDS_JSON)")
 
-index = pc.Index(INDEX_NAME)
+    creds_info = json.loads(creds_json_str)
+    credentials = service_account.Credentials.from_service_account_info(creds_info)
+    
+    vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
+    print("✅ Vertex AI inicializado correctamente.")
+except Exception as e:
+    print(f"🔥 Error inicializando Vertex AI o cargando credenciales: {e}")
+    exit()
+# --- FIN DEL CAMBIO ---
 
-def get_pdf_text(pdf_path):
-    text = ""
-    try:
-        with open(pdf_path, 'rb') as pdf_file:
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            for page in pdf_reader.pages:
-                text += page.extract_text() or ""
-    except Exception as e:
-        print(f"Error al leer el PDF {pdf_path}: {e}")
-    return text
+DOCUMENTS_PATH = "documentos_para_ia/"
+PINECONE_INDEX_NAME = "silvatest-rag"
+EMBEDDING_DIMENSION = 768
 
-def get_text_chunks(text, chunk_size=1500, chunk_overlap=200):
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - chunk_overlap
-    return chunks
+def ingest_docs():
+    print("Inicializando Pinecone...")
+    pc = PineconeClient(api_key=os.environ.get("PINECONE_API_KEY"))
 
-def get_embedding(text):
-    try:
-        time.sleep(1)
-        result = genai.embed_content(
-            model="models/text-embedding-004", # <-- CAMBIO AQUÍ
-            content=text,
-            task_type="RETRIEVAL_DOCUMENT"
+    if PINECONE_INDEX_NAME not in pc.list_indexes().names():
+        print(f"El índice '{PINECONE_INDEX_NAME}' no existe. Creándolo ahora...")
+        pc.create_index(
+            name=PINECONE_INDEX_NAME,
+            dimension=EMBEDDING_DIMENSION,
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region="us-east-1")
         )
-        return result['embedding']
-    except Exception as e:
-        print(f"Error al obtener embedding: {e}")
-        return None
+        print("Índice creado con éxito.")
+    else:
+        print(f"El índice '{PINECONE_INDEX_NAME}' ya existe.")
 
-def main():
-    docs_folder = "documentos_para_ia"
-    if not os.path.exists(docs_folder) or not os.listdir(docs_folder):
-        print(f"La carpeta '{docs_folder}' está vacía o no existe.")
+    print(f"Cargando documentos desde la carpeta: {DOCUMENTS_PATH}")
+    documents = []
+    for file in os.listdir(DOCUMENTS_PATH):
+        if file.lower().endswith('.pdf'):
+            pdf_path = os.path.join(DOCUMENTS_PATH, file)
+            loader = PyPDFLoader(pdf_path)
+            documents.extend(loader.load())
+    
+    if not documents:
+        print("❌ No se encontraron documentos PDF para procesar. Saliendo.")
         return
 
-    for filename in os.listdir(docs_folder):
-        if filename.lower().endswith(".pdf"):
-            print(f"\n--- Procesando archivo: {filename} ---")
-            text = get_pdf_text(os.path.join(docs_folder, filename))
-            if not text: continue
-            chunks = get_text_chunks(text)
-            vectors_to_upsert = []
-            for i, chunk in enumerate(chunks):
-                print(f"  - Generando vector para el trozo {i+1}/{len(chunks)}...")
-                embedding = get_embedding(chunk)
-                if embedding:
-                    vectors_to_upsert.append((f"{filename}-chunk-{i}", embedding, {'text': chunk, 'source': filename}))
-            if vectors_to_upsert:
-                print(f"Subiendo {len(vectors_to_upsert)} vectores a Pinecone...")
-                index.upsert(vectors=vectors_to_upsert, batch_size=100)
-    print("\n--- ¡Proceso de ingesta completado! ---")
-    print(f"Total de vectores en el índice: {index.describe_index_stats()['total_vector_count']}")
+    print(f"Se cargaron {len(documents)} páginas de los documentos.")
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+    docs_split = text_splitter.split_documents(documents)
+    print(f"Documentos divididos en {len(docs_split)} trozos.")
+
+    print("Creando embeddings con 'text-embedding-004' y subiendo a Pinecone...")
+    
+    # --- INICIO DEL CAMBIO: Pasar credenciales a LangChain ---
+    embeddings = VertexAIEmbeddings(
+        model_name="text-embedding-004",
+        project=GCP_PROJECT_ID,
+        credentials=credentials
+    )
+    # --- FIN DEL CAMBIO ---
+    
+    PineconeVectorStore.from_documents(
+        docs_split,
+        embeddings,
+        index_name=PINECONE_INDEX_NAME
+    )
+    
+    print("🚀 ¡Proceso completado! Tus documentos ya están en Pinecone.")
+    
+    index = pc.Index(PINECONE_INDEX_NAME)
+    print(f"Estadísticas del índice: {index.describe_index_stats()}")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"\n--- Error crítico ---: {e}")
-        traceback.print_exc()
+    ingest_docs()

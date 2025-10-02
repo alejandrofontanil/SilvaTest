@@ -9,6 +9,10 @@ import cloudinary
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
 from sqlalchemy import MetaData
+from dotenv import load_dotenv
+
+# Cargar las variables de entorno desde .env
+load_dotenv()
 
 # Configuración para los nombres de las constraints de la BBDD (soluciona errores de migración)
 naming_convention = {
@@ -46,6 +50,8 @@ def create_app():
     db_uri = os.environ.get('DATABASE_URL')
     if db_uri and db_uri.startswith("postgres://"):
         db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+    
+    # Si DATABASE_URL no está en .env, usa sqlite local por defecto
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///' + os.path.join(basedir, 'site.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -70,7 +76,7 @@ def create_app():
     oauth.init_app(app)
     csrf.init_app(app)
 
-    # --- REGISTRO DE GOOGLE OAUTH ---
+    # --- REGISTRO DE GOOGLE OAUTH (VERSIÓN FINAL Y RECOMENDADA) ---
     oauth.register(
         name='google',
         client_id=os.environ.get('GOOGLE_CLIENT_ID'),
@@ -113,3 +119,4 @@ def create_app():
             return render_template('errors/500.html'), 500
             
     return app
+
