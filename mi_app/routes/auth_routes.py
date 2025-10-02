@@ -13,6 +13,11 @@ auth_bp = Blueprint('auth', __name__,
                     template_folder='../templates/auth',
                     url_prefix='/auth')
 
+# >>> SOLUCIÓN CODESPACES: Forzamos la URL pública para el redirect de Google OAuth <<<
+# ESTA URL DEBE COINCIDIR EXACTAMENTE con la que registraste en Google Cloud Console.
+CODESPACE_HOST = 'https://fuzzy-space-computing-machine-wr44wjx46497f5ggp-5000.app.github.dev'
+
+
 def is_safe_url(target):
     if not target:
         return True
@@ -76,12 +81,18 @@ def logout():
     flash('Has cerrado la sesión con éxito.', 'success')
     return redirect(url_for('main.home'))
 
-# --- INICIO: NUEVA LÓGICA MANUAL PARA GOOGLE OAUTH ---
+# --- INICIO: LÓGICA MANUAL PARA GOOGLE OAUTH CORREGIDA ---
 
 @auth_bp.route('/login/google')
 def google_login():
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-    REDIRECT_URI = url_for('auth.google_callback', _external=True)
+    
+    # CONSTRUCCIÓN MANUAL de la URL de redirección con el host de Codespaces
+    REDIRECT_URI = f'{CODESPACE_HOST}/auth/login/google/callback'
+    
+    # Guardamos el host en la sesión (por si acaso), aunque no es estrictamente necesario aquí
+    # ya que CODESPACE_HOST es una constante global.
+    session['codespace_host'] = CODESPACE_HOST 
     
     # Construir la URL de autorización de Google manualmente
     authorization_url = (
@@ -96,13 +107,19 @@ def google_login():
 @auth_bp.route('/login/google/callback')
 def google_callback():
     code = request.args.get('code')
+    
+    # Recuperamos la URL de redirección para usarla en el intercambio de tokens
+    REDIRECT_URI = f'{CODESPACE_HOST}/auth/login/google/callback'
+    
+    # Limpiamos la sesión
+    session.pop('codespace_host', None)
+    
     if not code:
         flash('Error de autenticación. No se recibió el código de autorización.', 'danger')
         return redirect(url_for('auth.login'))
 
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-    REDIRECT_URI = url_for('auth.google_callback', _external=True)
 
     # Intercambiar el código por un token de acceso
     token_url = 'https://oauth2.googleapis.com/token'
@@ -110,14 +127,16 @@ def google_callback():
         'code': code,
         'client_id': GOOGLE_CLIENT_ID,
         'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': REDIRECT_URI,
+        'redirect_uri': REDIRECT_URI, # Usamos la URI forzada
         'grant_type': 'authorization_code'
     }
     token_response = requests.post(token_url, data=token_data)
     token_json = token_response.json()
 
     if 'access_token' not in token_json:
-        flash('No se pudo obtener el token de acceso de Google.', 'danger')
+        # Aquí también puede fallar si la REDIRECT_URI no coincide
+        print(f"Error al obtener token: {token_json}")
+        flash('No se pudo obtener el token de acceso de Google. Revisa tus claves y que la URI de redirección coincida.', 'danger')
         return redirect(url_for('auth.login'))
 
     # Usar el token para obtener la información del usuario
@@ -136,7 +155,7 @@ def google_callback():
         usuario = Usuario(
             email=user_info['email'],
             nombre=user_info.get('name', 'Usuario de Google'),
-            password_hash='OAUTH_NO_PASSWORD'  # Contraseña no necesaria
+            password_hash='OAUTH_NO_PASSWORD'   # Contraseña no necesaria
         )
         db.session.add(usuario)
         db.session.commit()
@@ -157,7 +176,7 @@ def google_callback():
     flash('¡Has iniciado sesión con éxito con tu cuenta de Google!', 'success')
     return redirect(url_for('main.home'))
 
-# --- FIN: NUEVA LÓGICA MANUAL ---
+# --- FIN: LÓGICA MANUAL PARA GOOGLE OAUTH CORREGIDA ---
 
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_request():
@@ -209,4 +228,3 @@ def marcar_tour_visto():
     current_user.ha_visto_tour = True
     db.session.commit()
     return '', 204
-
