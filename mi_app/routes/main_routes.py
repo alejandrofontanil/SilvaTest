@@ -22,7 +22,8 @@ from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario 
 
 # CORRECCIÓN DE IMPORTACIÓN CRÍTICA: Se usa la importación ABSOLUTA para Render
-from mi_app.ask_agent import get_rag_response
+# CAMBIADO: Se importa get_rag_response del nuevo archivo rag_agent.py
+from mi_app.rag_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
 # Definición de coste: 100 tokens es una estimación segura para una consulta RAG simple
@@ -167,13 +168,13 @@ def home():
                 }
 
     return render_template('home.html',
-                           convocatorias=convocatorias,
-                           ultimo_resultado=ultimo_resultado,
-                           ultimas_favoritas=ultimas_favoritas,
-                           stats_tests_mensual=stats_tests_mensual,
-                           stats_clave=stats_clave,
-                           progreso_objetivo=progreso_objetivo,
-                           modules={'datetime': datetime, 'hoy': date.today()})
+                            convocatorias=convocatorias,
+                            ultimo_resultado=ultimo_resultado,
+                            ultimas_favoritas=ultimas_favoritas,
+                            stats_tests_mensual=stats_tests_mensual,
+                            stats_clave=stats_clave,
+                            progreso_objetivo=progreso_objetivo,
+                            modules={'datetime': datetime, 'hoy': date.today()})
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
@@ -631,13 +632,14 @@ def api_consulta_rag():
 
     data = request.get_json()
     user_message = data.get('message')
-    
+    response_mode = data.get('mode', 'formal') # Obtener el modo del JSON, por defecto "formal"
+
     if not user_message:
         return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
     
     # 2. Llama a la función de consulta RAG
     try:
-        response_data = get_rag_response(user_message)
+        response_data = get_rag_response(user_message, mode=response_mode)
         
         if "Error" in response_data['result']:
             # Si hay un error interno del Agente (ej: fallo de conexión a Gemini), no descontamos el token.
@@ -797,4 +799,3 @@ def api_rendimiento_bloques():
     labels = [stat.nombre for stat in stats_bloques_sorted]
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
-    
