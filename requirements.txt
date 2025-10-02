@@ -33,3 +33,4 @@ langchain-google-vertexai
 langchain-pinecone
 langchain-community
 langchain
+PyPDF2 
