@@ -23,7 +23,8 @@ from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, Resul
 from mi_app.forms import FiltroCuentaForm, ObjetivoForm, DashboardPreferencesForm, ObjetivoFechaForm
 
 # --- IMPORTACIÓN CRÍTICA PARA RAG ---
-from mi_app.ask_agent import get_rag_response
+# CORRECCIÓN: Se usa la importación relativa (..) asumiendo que ask_agent.py está en mi_app/
+from ..ask_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
 main_bp = Blueprint('main', __name__)
