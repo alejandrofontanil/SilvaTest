@@ -23,7 +23,7 @@ naming_convention = {
 }
 metadata = MetaData(naming_convention=naming_convention)
 
-# Inicialización de las extensiones de Flask
+# Inicialización de las extensiones de Flask (SIN OAUTH)
 db = SQLAlchemy(metadata=metadata)
 bcrypt = Bcrypt()
 login_manager = LoginManager()
@@ -52,7 +52,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///' + os.path.join(basedir, 'site.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Configuración de Flask-Mail para envío de correos
+    # Configuración de Flask-Mail
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'

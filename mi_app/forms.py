@@ -1,4 +1,4 @@
-from flask_wtf import FlaskForm, RecaptchaField
+from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SubmitField, TextAreaField, RadioField, SelectField, BooleanField, IntegerField, SelectMultipleField, DateField
 from wtforms.widgets import ListWidget, CheckboxInput
@@ -86,7 +86,7 @@ class RegistrationForm(FlaskForm):
         validators=[DataRequired(message="Por favor, selecciona tu objetivo.")]
     )
 
-    recaptcha = RecaptchaField()
+    # recaptcha = RecaptchaField()  # <-- LÍNEA COMENTADA PARA EVITAR EL ERROR
     submit = SubmitField('Crear Cuenta')
 
     def validate_email(self, email):
@@ -144,15 +144,33 @@ class DashboardPreferencesForm(FlaskForm):
     mostrar_calendario_actividad = BooleanField('Mostrar calendario de actividad', default=True)
     submit = SubmitField('Guardar Preferencias del Panel')
 
-# --- INICIO: NUEVO FORMULARIO PARA SUBIR DOCUMENTOS DE CONTEXTO ---
 class UploadContextoForm(FlaskForm):
     documento = FileField('Documento de Contexto (PDF o TXT)', validators=[
         FileRequired(),
         FileAllowed(['pdf', 'txt'], '¡Solo se permiten archivos PDF y TXT!')
     ])
     submit = SubmitField('Subir y Guardar Documento')
-# --- FIN: NUEVO FORMULARIO ---
 
 class ObjetivoFechaForm(FlaskForm):
     objetivo_fecha = DateField('Fecha de tu Examen u Objetivo', format='%Y-%m-%d', validators=[DataRequired()])
     submit = SubmitField('Guardar Fecha')
+
+# --- INICIO: FORMULARIOS AÑADIDOS PARA RESETEAR CONTRASEÑA ---
+
+class RequestResetForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Solicitar Restablecimiento')
+
+    def validate_email(self, email):
+        user = Usuario.query.filter_by(email=email.data.lower()).first()
+        if user is None:
+            # No revelamos si el usuario existe o no por seguridad
+            pass
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('Nueva Contraseña', validators=[DataRequired(), Length(min=8)])
+    confirm_password = PasswordField('Confirmar Nueva Contraseña', validators=[DataRequired(), EqualTo('password', message='Las contraseñas deben coincidir.')])
+    submit = SubmitField('Restablecer Contraseña')
+
+# --- FIN: FORMULARIOS AÑADIDOS ---
+

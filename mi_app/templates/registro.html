@@ -40,6 +40,8 @@
                             {% endif %}
                         </div>
                         
+                        {# --- INICIO: SECCIÓN DE RECAPTCHA COMENTADA --- #}
+                        {#
                         <div class="mb-3 d-flex justify-content-center">
                             {{ form.recaptcha }}
                             {% if form.recaptcha.errors %}
@@ -50,6 +52,8 @@
                                 </div>
                             {% endif %}
                         </div>
+                        #}
+                        {# --- FIN: SECCIÓN DE RECAPTCHA COMENTADA --- #}
                         
                         <div class="d-grid">
                             {{ form.submit(class="btn btn-primary btn-lg") }}
