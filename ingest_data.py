@@ -6,6 +6,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_pinecone import Pinecone
+from urllib.parse import urlparse # Importación necesaria para manejar rutas de documentos
 
 # --- 1. CONFIGURACIÓN INICIAL ---
 # Carga las variables de entorno del archivo .env
@@ -28,11 +29,13 @@ if not all([PINECONE_API_KEY, GCP_PROJECT_ID, GOOGLE_CREDS_JSON]):
 try:
     if GOOGLE_CREDS_JSON:
         creds_info = json.loads(GOOGLE_CREDS_JSON)
-        # Escribe temporalmente el Service Account para autenticación
         temp_key_path = "gcp_service_account_key.json"
-        with open(temp_key_path, "w") as f:
-            json.dump(creds_info, f)
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_key_path
+        # Esto es solo necesario en entornos locales como Codespaces, no en Render
+        # Lo mantenemos para desarrollo, pero lo borraremos al final.
+        if not os.path.exists(temp_key_path) and 'private_key' in creds_info:
+            with open(temp_key_path, "w") as f:
+                json.dump(creds_info, f)
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_key_path
     
     # Inicializa Vertex AI
     aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION)
@@ -40,24 +43,50 @@ try:
 
 except Exception as e:
     print(f"Error al inicializar Vertex AI o al autenticar: {e}")
-    print("Asegúrate de que GOOGLE_CREDS_JSON está bien formateado en .env.")
-    # Si la autenticación falla, salimos.
+    print("Asegúrate de que GOOGLE_CREDS_JSON está bien formateado y los permisos IAM son correctos.")
     exit()
 
 # --- 2. DEFINICIÓN DE FUENTES DE DATOS Y PROCESAMIENTO ---
-# Directorio donde se encuentran los documentos PDF
+# Directorio raíz donde se encuentran los documentos PDF
 DATA_PATH = "documentos_para_ia"
 
-# Función para cargar y procesar documentos
+# Función para cargar y procesar documentos de forma recursiva
 def process_documents():
     documents = []
-    # Carga todos los archivos PDF en el directorio DATA_PATH
-    for file in os.listdir(DATA_PATH):
-        if file.endswith(".pdf"):
-            print(f"Cargando archivo: {file}")
-            loader = PyPDFLoader(os.path.join(DATA_PATH, file))
-            # Carga el documento
-            documents.extend(loader.load()) 
+    
+    # os.walk recorre el directorio de forma recursiva
+    for root, dirs, files in os.walk(DATA_PATH):
+        for file_name in files:
+            if file_name.endswith(".pdf"):
+                file_path = os.path.join(root, file_name)
+                print(f"Cargando archivo: {file_path}")
+                
+                # Extraer metadatos basados en la ruta de las carpetas
+                # Ejemplo de path: documentos_para_ia/AGMN ASTURIAS/PARTE ESPECIFICA/TEMA 7. LEY DE PESCA.pdf
+                
+                # Obtenemos la ruta relativa desde DATA_PATH
+                relative_path = os.path.relpath(file_path, DATA_PATH)
+                
+                # Dividimos la ruta en segmentos
+                path_parts = relative_path.split(os.sep)
+                
+                # Asignamos Bloque y Tema basándonos en los últimos dos o tres segmentos de la ruta
+                bloque_principal = path_parts[0] if len(path_parts) > 1 else 'General'
+                
+                # El tema será el archivo o la ruta desde el bloque principal
+                tema_completo = os.sep.join(path_parts[1:])
+                
+                # 1. Cargar documento
+                loader = PyPDFLoader(file_path)
+                data = loader.load()
+                
+                # 2. Asignar metadatos a cada página
+                for doc in data:
+                    doc.metadata['bloque'] = bloque_principal
+                    doc.metadata['tema'] = tema_completo # Esto es Tema/Subtema/Archivo
+                    doc.metadata['source'] = file_path   # Usar la ruta local para la fuente
+                
+                documents.extend(data)
 
     if not documents:
         print(f"❌ No se encontraron documentos en {DATA_PATH}. ¿Has creado la carpeta y puesto PDFs dentro?")
@@ -71,7 +100,7 @@ def process_documents():
         is_separator_regex=False,
     )
 
-    # Dividir los documentos
+    # 3. Dividir los documentos
     print(f"Dividiendo {len(documents)} documentos en fragmentos...")
     chunks = text_splitter.split_documents(documents)
     print(f"Total de fragmentos (chunks) creados: {len(chunks)}")
@@ -82,14 +111,12 @@ def process_documents():
 def ingest_to_pinecone(chunks):
     # Inicializa el modelo de embeddings de Vertex AI 
     print("Inicializando modelo de Embeddings de Vertex AI...")
-    # Usamos text-embedding-004 por ser el más reciente y robusto
     embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004")
 
     # Ingestar los documentos a Pinecone
     print(f"Conectando al índice de Pinecone: {INDEX_NAME}...")
     try:
-        # Usamos Pinecone.from_documents() sin 'environment' ni 'api_key'.
-        # La conexión se realiza a través de la inicialización implícita de la librería Pinecone.
+        # La clave API ya está disponible en el entorno gracias a Render
         Pinecone.from_documents(
             chunks, 
             embeddings_model, 
@@ -113,7 +140,7 @@ def main():
         # 2. Subir a Pinecone
         ingest_to_pinecone(processed_chunks)
 
-    # Limpiar el archivo temporal del service account
+    # Limpiamos el archivo temporal solo si estamos en un entorno de desarrollo local
     temp_key_path = "gcp_service_account_key.json"
     if os.path.exists(temp_key_path):
         os.remove(temp_key_path)
