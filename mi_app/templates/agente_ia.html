@@ -3,7 +3,39 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Estilos generales del contenedor de chat */
+    /* --- NUEVOS ESTILOS PARA LAYOUT Y PANEL DE FUENTES --- */
+    #study-environment {
+        display: flex;
+        gap: 1.5rem; /* Espacio entre el panel de fuentes y el chat */
+    }
+
+    #sources-panel {
+        flex: 0 0 280px; /* Ancho fijo para el panel de fuentes */
+        background-color: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        height: fit-content; /* Se ajusta al contenido */
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+    
+    #sources-panel h5 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        padding-bottom: 0.75rem;
+    }
+    
+    .source-item {
+        margin-bottom: 0.5rem;
+    }
+
+    #chat-wrapper {
+        flex-grow: 1; /* El chat ocupa el resto del espacio */
+    }
+
+    /* Estilos generales del contenedor de chat (ya los tenías) */
     #chat-container {
         display: flex;
         flex-direction: column;
@@ -22,12 +54,12 @@
         flex-direction: column;
     }
     .chat-message {
-        max-width: 80%;
+        max-width: 85%;
         padding: 0.75rem 1.25rem;
         border-radius: 1.25rem;
         margin-bottom: 1rem;
         line-height: 1.5;
-        white-space: pre-wrap;
+        word-wrap: break-word;
     }
     .user-message {
         background-color: var(--bs-primary);
@@ -42,88 +74,102 @@
         border-bottom-left-radius: 0.25rem;
     }
     .thinking-indicator {
-        display: block;
+        display: flex;
+        align-items: center;
         align-self: flex-start;
         font-style: italic;
         color: var(--bs-secondary-color);
-        animation: pulse 1s infinite alternate;
     }
-    @keyframes pulse {
-        from { opacity: 0.6; }
-        to { opacity: 1; }
-    }
+    
     #tokens-display {
         font-size: 0.85rem;
         font-weight: 600;
-        padding: 0 1rem 0.5rem 1rem;
-        text-align: right;
     }
 
-    /* --- NUEVOS ESTILOS PARA EL MODO CUADERNO --- */
-    .agent-response-content {
-        line-height: 1.6;
-    }
-    
-    /* Estilo general para los títulos de sección (##) */
+    /* --- ESTILOS PARA EL MODO CUADERNO (ya los tenías) --- */
     .agent-response-content h2 {
         font-size: 1.1rem;
         font-weight: 700;
         margin-top: 1rem;
         padding-bottom: 5px;
-        border-bottom: 1px dashed #ced4da; /* Gris claro de Bootstrap */
+        border-bottom: 1px dashed #ced4da;
     }
-
-    /* Estilo específico para la Nota de Estudio (simulando recuadro o admonition) */
     .agent-response-content .note-box {
-        background-color: #f8f9fa; /* Gris muy claro */
-        border-left: 4px solid #17a2b8; /* Borde Cyan/Info */
+        background-color: #f8f9fa;
+        border-left: 4px solid #17a2b8;
         padding: 10px;
         margin-top: 10px;
         border-radius: 0.5rem;
         font-size: 0.9rem;
     }
+    .agent-response-content strong {
+        font-weight: 700;
+        color: var(--bs-primary);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4" data-aos="fade-up">
+<div class="container-fluid mt-4" data-aos="fade-up">
     <div class="row justify-content-center">
-        <div class="col-lg-10 col-xl-8">
-            <h2 class="text-center mb-2"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA RAG</h2>
+        <div class="col-lg-11 col-xl-10">
+            <h2 class="text-center mb-4"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA RAG</h2>
             
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="form-group d-flex align-items-center">
-                    <label for="response-mode" class="me-2 text-muted fw-bold small">Modo:</label>
-                    <select id="response-mode" class="form-select form-select-sm">
-                        <option value="didactico">📖 Cuaderno de Estudio</option>
-                        <option value="formal">🎯 Respuesta Directa</option>
-                    </select>
-                </div>
-                <p id="tokens-display" class="text-muted mb-0">
-                    Tokens Restantes: <span id="remaining-tokens-value">{{ rag_tokens_restantes|default(0) }}</span>
-                    {% if rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
-                </p>
-            </div>
-            
-            <div id="chat-container" class="shadow-lg">
-                <div id="chat-messages">
-                    <div class="agent-message chat-message">
-                        ¡Soy **Silva**, tu Asistente de Estudio IA! Pregúntame sobre tu temario de **{{ current_user.objetivo_principal.nombre if current_user.objetivo_principal else 'Oposiciones' }}** (Ley de Pesca, etc.). Estoy listo para ayudarte a optimizar tu estudio.
+            <div id="study-environment">
+
+                <aside id="sources-panel" class="shadow-sm">
+                    <h5><i class="bi bi-collection-fill me-2"></i>Temario</h5>
+                    <div id="sources-list">
+                        {% if available_sources %}
+                            {% for source in available_sources %}
+                            <div class="form-check source-item">
+                                <input class="form-check-input source-checkbox" type="checkbox" value="{{ source.path }}" id="source-{{ loop.index }}">
+                                <label class="form-check-label" for="source-{{ loop.index }}">
+                                    {{ source.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small">No hay fuentes cargadas.</p>
+                        {% endif %}
                     </div>
-                </div>
-                
-                <div id="chat-input-container">
-                    <form id="chat-form">
-                        <div class="input-group">
-                            <input type="text" id="user-input" class="form-control form-control-lg" placeholder="Ej: ¿Qué se considera un 'refugio de pesca'?" autocomplete="off" required>
-                            <button class="btn btn-primary" type="submit" id="send-btn">
-                                <i class="bi bi-send-fill"></i>
-                            </button>
+                    <small class="text-muted mt-3 d-block">Selecciona temas para enfocar la búsqueda.</small>
+                </aside>
+
+                <div id="chat-wrapper">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="form-group d-flex align-items-center">
+                            <label for="response-mode" class="me-2 text-muted fw-bold small">Modo:</label>
+                            <select id="response-mode" class="form-select form-select-sm" style="width: auto;">
+                                <option value="didactico">📖 Cuaderno de Estudio</option>
+                                <option value="formal">🎯 Respuesta Directa</option>
+                            </select>
                         </div>
-                        <small id="token-limit-message" class="text-danger mt-2" style="display:none;">
-                            Has agotado tus tokens de IA. Contacta con el administrador para recargar.
-                        </small>
-                    </form>
+                        <p id="tokens-display" class="text-muted mb-0">
+                            Tokens Restantes: <span id="remaining-tokens-value">{{ rag_tokens_restantes|default(0) }}</span>
+                            {% if rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
+                        </p>
+                    </div>
+                    
+                    <div id="chat-container" class="shadow-lg">
+                        <div id="chat-messages">
+                            <div class="agent-message chat-message">
+                                ¡Soy <strong>Silva</strong>, tu Asistente de Estudio IA! Selecciona los temas que quieras repasar en el panel de la izquierda y hazme tu pregunta. ¡Estoy listo para optimizar tu estudio!
+                            </div>
+                        </div>
+                        
+                        <div id="chat-input-container" class="p-3 border-top">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <input type="text" id="user-input" class="form-control form-control-lg" placeholder="Ej: ¿Qué se considera un 'refugio de pesca'?" autocomplete="off" required>
+                                    <button class="btn btn-primary" type="submit" id="send-btn"><i class="bi bi-send-fill"></i></button>
+                                </div>
+                                <small id="token-limit-message" class="text-danger mt-2" style="display:none;">
+                                    Has agotado tus tokens de IA. Contacta con el administrador para recargar.
+                                </small>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -131,154 +177,137 @@
 </div>
 {% endblock %}
 
-
 {% block scripts %}
 {{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const chatForm = document.getElementById('chat-form');
-        const userInput = document.getElementById('user-input');
-        const chatMessages = document.getElementById('chat-messages');
-        const tokensDisplay = document.getElementById('remaining-tokens-value');
-        const limitMessage = document.getElementById('token-limit-message');
-        const modeSelect = document.getElementById('response-mode'); // Nuevo
+document.addEventListener('DOMContentLoaded', function () {
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatMessages = document.getElementById('chat-messages');
+    const tokensDisplay = document.getElementById('remaining-tokens-value');
+    const limitMessage = document.getElementById('token-limit-message');
+    const modeSelect = document.getElementById('response-mode');
+    
+    let currentTokens = parseInt(tokensDisplay.textContent);
+
+    function updateTokenState(remainingTokens) {
+        currentTokens = remainingTokens;
+        tokensDisplay.textContent = currentTokens;
         
-        let currentTokens = parseInt(tokensDisplay.textContent);
+        const isDisabled = currentTokens <= 0;
+        userInput.disabled = isDisabled;
+        document.getElementById('send-btn').disabled = isDisabled;
+        limitMessage.style.display = isDisabled ? 'block' : 'none';
+    }
+    
+    updateTokenState(currentTokens);
 
-        function updateTokenState(remainingTokens) {
-            currentTokens = remainingTokens;
-            tokensDisplay.textContent = currentTokens;
-            
-            const isDisabled = currentTokens <= 0;
-            userInput.disabled = isDisabled;
-            document.getElementById('send-btn').disabled = isDisabled;
-            limitMessage.style.display = isDisabled ? 'block' : 'none';
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Usar una librería como Marked.js es más robusto, pero esta función sigue siendo válida
+    function formatAgentResponse(markdown) {
+        let html = markdown.replace(/## 📖 Concepto Clave/g, '<h2>📖 Concepto Clave</h2>');
+        html = html.replace(/## 🐟 Ejemplo\/Aplicación/g, '<h2>🐟 Ejemplo/Aplicación</h2>');
+        html = html.replace(/## 💡 Nota de Estudio/g, '<div class="note-box">💡 <strong>Nota de Estudio:</strong> ');
+        html = html.replace(/## 📚 Fuentes Legales\/Temario/g, '</div><h2 class="mt-3">📚 Fuentes Legales/Temario</h2>');
+        
+        if (html.includes('<div class="note-box"') && !html.includes('</div>')) {
+            html += '</div>';
+        }
+
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\n/g, '<br>');
+        html = html.replace(/<br>\s*-\s*(.*)/g, '<br>&bull; $1');
+        html = html.replace(/<br>\s*\*\s*(.*)/g, '<br>&bull; $1');
+        
+        return `<div class="agent-response-content">${html}</div>`;
+    }
+
+    function addMessageToChat(sender, content, isThinking = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'agent-message');
+        
+        if (sender === 'user') {
+            messageDiv.textContent = content;
+        } else if (isThinking) {
+            messageDiv.classList.add('thinking-indicator');
+            messageDiv.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...`;
+        } else {
+            messageDiv.innerHTML = formatAgentResponse(content);
         }
         
-        updateTokenState(currentTokens);
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+        return messageDiv;
+    }
 
-        function scrollToBottom() {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+    function updateAgentMessage(element, newMessage) {
+        element.innerHTML = formatAgentResponse(newMessage);
+        element.classList.remove('thinking-indicator');
+        scrollToBottom();
+    }
 
-        // Función de post-procesamiento para Markdown simple y Estilo Notebook
-        function formatAgentResponse(markdown) {
-            // 1. Reemplazar títulos de cuaderno con HTML y emojis (ej: ## 📖 Concepto Clave)
-            let html = markdown.replace(/## 📖 Concepto Clave/g, '<h2>📖 Concepto Clave</h2>');
-            html = html.replace(/## 🐟 Ejemplo\/Aplicación/g, '<h2>🐟 Ejemplo/Aplicación</h2>');
-            html = html.replace(/## 💡 Nota de Estudio/g, '<div class="note-box">💡 **Nota de Estudio:** ');
-            html = html.replace(/## 📚 Fuentes Legales\/Temario/g, '</div><h2 class="mt-4">📚 Fuentes Legales/Temario</h2>');
-            
-            // Cerrar el div del note-box si no se cerró antes de las fuentes
-            if (html.includes('<div class="note-box"') && !html.includes('</div>')) {
-                html += '</div>';
+    chatForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const userMessage = userInput.value.trim();
+        const responseMode = modeSelect.value;
+        
+        // --- ¡NUEVO! OBTENER FUENTES SELECCIONADAS ---
+        const selectedSources = Array.from(document.querySelectorAll('.source-checkbox:checked'))
+                                     .map(checkbox => checkbox.value);
+
+        if (userMessage === '' || currentTokens <= 0) return;
+
+        addMessageToChat('user', userMessage);
+        userInput.value = '';
+        
+        const thinkingMessageElement = addMessageToChat('agent', '', true);
+
+        userInput.disabled = true;
+        document.getElementById('send-btn').disabled = true;
+
+        fetch("{{ url_for('main.api_consulta_rag') }}", { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            // --- ¡NUEVO! ENVIAR FUENTES EN EL BODY ---
+            body: JSON.stringify({ 
+                message: userMessage, 
+                mode: responseMode,
+                selected_sources: selectedSources // La clave debe coincidir con el backend
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { 
+                    throw new Error(err.error || 'Error desconocido del servidor.'); 
+                });
             }
-
-            // 2. Convertir Markdown básico (negritas, listas)
-            // Ya que no tenemos una librería Markdown en el front-end aquí,
-            // usamos la conversión de texto simple. Si usas un conversor, esto es más limpio.
-            // Para mantener la simplicidad: sustituimos **negrita** por <strong>.
-            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            return response.json();
+        })
+        .then(data => {
+            updateAgentMessage(thinkingMessageElement, data.response);
             
-            // Sustituir saltos de línea por <br> para pre-formatear el texto
-            html = html.replace(/\n/g, '<br>');
-            
-            // Reemplazar viñetas (símbolo - o *) por listas desordenadas simples
-            html = html.replace(/<br>\s*-\s*(.*)/g, '<br>&bull; $1');
-            html = html.replace(/<br>\s*\*\s*(.*)/g, '<br>&bull; $1');
-            
-            return `<div class="agent-response-content">${html}</div>`;
-        }
-
-
-        // Función para añadir mensajes y el indicador de pensando
-        let thinkingIndicator = null;
-        function addMessageToChat(sender, content, isThinking = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'agent-message');
-            
-            if (sender === 'user') {
-                messageDiv.textContent = content;
-            } else if (isThinking) {
-                messageDiv.classList.add('thinking-indicator');
-                messageDiv.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...`;
-                thinkingIndicator = messageDiv;
-            } else {
-                messageDiv.innerHTML = formatAgentResponse(content);
+            if (data.remaining_tokens !== undefined) {
+                updateTokenState(data.remaining_tokens);
             }
-            
-            chatMessages.appendChild(messageDiv);
-            scrollToBottom();
-            return messageDiv;
-        }
-
-        // Función para actualizar el mensaje del agente con la respuesta real
-        function updateAgentMessage(element, newMessage, sources) {
-            element.innerHTML = formatAgentResponse(newMessage); // Usar el formato de cuaderno
-            element.classList.remove('thinking-indicator');
-            element.removeAttribute('style'); // Remover animación de pulso si se aplica por CSS
-
-            // NOTA: Las fuentes ya vienen formateadas en el newMessage gracias al Prompt.
-            // Por lo tanto, no necesitamos añadir el sourceDiv aquí, solo asegurarnos de que el HTML se muestre.
-            
-            scrollToBottom();
-        }
-
-        chatForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            const userMessage = userInput.value.trim();
-            const responseMode = modeSelect.value; // Obtener el modo seleccionado
-            
-            if (userMessage === '' || currentTokens <= 0) return;
-
-            addMessageToChat('user', userMessage);
-            userInput.value = '';
-            
-            const thinkingMessageElement = addMessageToChat('agent', '', true); // Mostrar indicador
-
-            // Bloquear entrada mientras se procesa
-            userInput.disabled = true;
-            document.getElementById('send-btn').disabled = true;
-
-            fetch("{{ url_for('main.api_consulta_rag') }}", { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({ message: userMessage, mode: responseMode }) // Enviar el modo
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { 
-                        if (response.status === 403) {
-                            updateTokenState(0);
-                            throw new Error(err.error);
-                        }
-                        throw new Error(err.error || 'Error desconocido del servidor.'); 
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateAgentMessage(thinkingMessageElement, data.response, data.sources);
-                
-                if (data.remaining_tokens !== undefined) {
-                    updateTokenState(data.remaining_tokens);
-                }
-            })
-            .catch(error => {
-                console.error('Error en la consulta RAG:', error);
-                // Asegurarse de que el error se muestra en el elemento del agente
-                updateAgentMessage(thinkingMessageElement, `❌ Lo siento, ha ocurrido un error: ${error.message || 'Verifica la configuración.'}`, []);
-            })
-            .finally(() => {
-                // Desbloquear entrada
-                userInput.disabled = false;
-                document.getElementById('send-btn').disabled = false;
-                userInput.focus();
-            });
+        })
+        .catch(error => {
+            console.error('Error en la consulta RAG:', error);
+            updateAgentMessage(thinkingMessageElement, `❌ Lo siento, ha ocurrido un error: ${error.message}`);
+        })
+        .finally(() => {
+            if(currentTokens > 0) {
+              userInput.disabled = false;
+              document.getElementById('send-btn').disabled = false;
+              userInput.focus();
+            }
         });
     });
+});
 </script>
 {% endblock %}

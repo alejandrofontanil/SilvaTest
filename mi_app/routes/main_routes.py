@@ -4,6 +4,7 @@ import json
 import io
 import requests
 import vertexai
+import re # <--- AÑADIDO: Importación necesaria para la nueva lógica
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
 import PyPDF2
@@ -175,13 +176,13 @@ def home():
                 }
 
     return render_template('home.html',
-                            convocatorias=convocatorias,
-                            ultimo_resultado=ultimo_resultado,
-                            ultimas_favoritas=ultimas_favoritas,
-                            stats_tests_mensual=stats_tests_mensual,
-                            stats_clave=stats_clave,
-                            progreso_objetivo=progreso_objetivo,
-                            modules={'datetime': datetime, 'hoy': date.today()})
+                           convocatorias=convocatorias,
+                           ultimo_resultado=ultimo_resultado,
+                           ultimas_favoritas=ultimas_favoritas,
+                           stats_tests_mensual=stats_tests_mensual,
+                           stats_clave=stats_clave,
+                           progreso_objetivo=progreso_objetivo,
+                           modules={'datetime': datetime, 'hoy': date.today()})
 
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
@@ -210,7 +211,6 @@ def bloque_detalle(bloque_id):
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
-    # Estas líneas ahora funcionarán porque los Forms están importados
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
     dashboard_form = DashboardPreferencesForm()
@@ -624,7 +624,7 @@ def api_calendario_actividad():
 
 # --- RUTAS DE IA ---
 
-# --- NUEVA RUTA PARA EL AGENTE RAG ---
+# --- RUTA DE API PARA CONSULTA RAG (MODIFICADA) ---
 @main_bp.route('/api/consulta-rag', methods=['POST'])
 @login_required
 def api_consulta_rag():
@@ -632,7 +632,6 @@ def api_consulta_rag():
     if not current_user.tiene_acceso_ia:
         return jsonify({'error': 'Acceso denegado. Función premium.'}), 403
     
-    # Costo por consulta RAG (ej: 100 tokens)
     if current_user.rag_tokens_restantes <= 0:
         return jsonify({
             'error': 'Has agotado tus tokens de IA. Contacta con el administrador para recargar.',
@@ -641,24 +640,31 @@ def api_consulta_rag():
 
     data = request.get_json()
     user_message = data.get('message')
-    response_mode = data.get('mode', 'formal') # Obtener el modo del JSON, por defecto "formal"
+    response_mode = data.get('mode', 'formal')
+    
+    # --- ¡NUEVO! OBTENER LAS FUENTES SELECCIONADAS DEL FRONTEND ---
+    selected_sources = data.get('selected_sources')
 
     if not user_message:
         return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
     
-    # 2. Llama a la función de consulta RAG
+    # 2. Llama a la función de consulta RAG, pasando las fuentes seleccionadas
     try:
-        response_data = get_rag_response(user_message, mode=response_mode)
+        # --- ¡MODIFICADO! Se pasa el nuevo argumento 'selected_sources' ---
+        response_data = get_rag_response(
+            query=user_message, 
+            mode=response_mode, 
+            selected_sources=selected_sources
+        )
         
         if "Error" in response_data['result']:
-            # Si hay un error interno del Agente (ej: fallo de conexión a Gemini), no descontamos el token.
             return jsonify({'response': response_data['result'], 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
         
         # 3. Descontar token si la consulta fue exitosa
         current_user.rag_tokens_restantes -= RAG_COST_PER_QUERY
         db.session.commit()
 
-        # 4. Devolver la respuesta junto con el nuevo saldo
+        # 4. Devolver la respuesta
         return jsonify({
             'response': response_data['result'],
             'sources': response_data['sources'],
@@ -666,19 +672,59 @@ def api_consulta_rag():
         })
         
     except Exception as e:
-        # Manejo de error genérico de Flask
         print(f"Error al procesar la consulta RAG en Flask: {e}")
         return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
 
-# --- FIN NUEVA RUTA RAG ---
-
+# --- RUTA DE PÁGINA DEL AGENTE IA (MODIFICADA) ---
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
     if not current_user.tiene_acceso_ia:
         flash('No tienes acceso a esta función premium en este momento.', 'warning')
         return redirect(url_for('main.home'))
-    return render_template('agente_ia.html', title="Asistente de Estudio IA", rag_tokens_restantes=current_user.rag_tokens_restantes)
+
+    # --- ¡NUEVA LÓGICA PARA CARGAR LOS DOCUMENTOS DEL TEMARIO! ---
+    
+    # Función de ayuda para limpiar nombres (evita duplicar código)
+    def clean_source_name_for_display(source_path):
+        cleaned_name = re.sub(r'documentos_para_ia/[^/]+/', '', source_path, count=1)
+        cleaned_name = re.sub(r'\.(pdf|txt)$', '', cleaned_name, flags=re.IGNORECASE)
+        cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
+        return cleaned_name.title()
+
+    available_sources = []
+    # Lista de directorios a escanear (puedes añadir más)
+    # Usa rutas relativas a la raíz de tu proyecto
+    source_directories = [
+        'documentos_para_ia/AGMN ASTURIAS', 
+        'documentos_para_ia/CYL'
+    ]
+
+    for directory in source_directories:
+        # Comprueba si el directorio existe para evitar errores
+        if os.path.isdir(directory):
+            try:
+                # Obtiene la lista de todos los archivos .pdf o .txt
+                all_files = [f for f in os.listdir(directory) if f.lower().endswith(('.pdf', '.txt'))]
+                
+                for filename in all_files:
+                    # Crea la ruta completa del archivo
+                    full_path = os.path.join(directory, filename).replace('\\', '/') # Estandariza a '/'
+                    available_sources.append({
+                        'name': clean_source_name_for_display(full_path), # Nombre limpio para mostrar en la web
+                        'path': full_path  # Ruta completa que usará el filtro de Pinecone
+                    })
+            except Exception as e:
+                print(f"ADVERTENCIA: No se pudo leer el directorio '{directory}': {e}")
+    
+    # Ordena alfabéticamente la lista para una mejor visualización
+    available_sources.sort(key=lambda x: x['name'])
+
+    # Pasa la lista de fuentes a la plantilla para que genere los checkboxes
+    return render_template('agente_ia.html', 
+                           title="Asistente de Estudio IA", 
+                           rag_tokens_restantes=current_user.rag_tokens_restantes,
+                           available_sources=available_sources) # <-- ¡LA VARIABLE CLAVE!
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
