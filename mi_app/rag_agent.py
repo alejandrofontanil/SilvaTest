@@ -17,30 +17,29 @@ INDEX_NAME = "silvatest-rag"
 
 # Variables de Vertex AI
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-GCP_REGION = os.getenv("GCP_REGION")
+# CORRECCIÓN CLAVE: Usamos us-central1 ya que es una región universal para Gemini/Vertex AI.
+GCP_REGION = 'us-central1'
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") # Contiene la clave JSON
 
+# MODELO CLAVE: Usamos gemini-2.5-flash ya que es el modelo más reciente y ágil.
+LLM_MODEL_NAME = "gemini-2.5-flash" 
+
 # --- CONFIGURACIÓN DE CREDENCIALES ---
-# Cargamos las credenciales desde el JSON de servicio
 try:
+    credentials = None
     if GOOGLE_CREDS_JSON:
         creds_info = json.loads(GOOGLE_CREDS_JSON)
         credentials = service_account.Credentials.from_service_account_info(creds_info)
         
-        # Inicializa Vertex AI con las credenciales cargadas
-        aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
-        print("✅ Vertex AI inicializado para el agente RAG.")
-    else:
-        # En caso de que GOOGLE_CREDS_JSON esté vacío (p. ej., en Codespaces en modo simple)
-        aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION) 
+    aiplatform.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
+    print("✅ Vertex AI inicializado para el agente RAG.")
 
 except Exception as e:
     print(f"Error al inicializar Vertex AI en rag_agent.py: {e}")
-    # Nota: No salimos del programa aquí, solo imprimimos el error
 
-# Diccionario de templates de prompts (resto del código de prompts...)
-# ... (debes mantener el código de PROMPT_TEMPLATES aquí) ...
+# Diccionario de templates de prompts (se mantiene igual, pero usa el nuevo modelo)
 PROMPT_TEMPLATES = {
+    # ... (contenido del diccionario PROMPT_TEMPLATES) ...
     "formal": """
         Eres un asistente experto en oposiciones de Agente Medioambiental.
         Responde a la pregunta basándote ÚNICAMENTE en el siguiente contexto, de forma directa y concisa, sin añadir detalles o preámbulos.
@@ -81,31 +80,29 @@ PROMPT_TEMPLATES = {
     """
 }
 
-# La función principal debe recibir las credenciales cargadas:
+# La función principal
 def get_rag_response(query: str, mode: str = "formal"):
     """
     Busca en el índice de Pinecone y genera una respuesta con Vertex AI.
     Permite seleccionar el modo de respuesta (formal o didáctico).
     """
-    # Intentamos cargar las credenciales (que ya deberían estar cargadas globalmente)
     try:
         credentials = service_account.Credentials.from_service_account_info(json.loads(GOOGLE_CREDS_JSON))
     except Exception:
-        # Si falla la carga, asumimos que estamos en un entorno que no usa el JSON o que hay un fallo
         credentials = None 
         
     try:
-        # Inicializa los embeddings y el LLM, pasando las credenciales
+        # Inicializa los embeddings y el LLM, usando el nuevo modelo y pasando las credenciales
         embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004", credentials=credentials)
-        llm = VertexAI(model_name="gemini-1.0-pro", credentials=credentials)
+        llm = VertexAI(model_name=LLM_MODEL_NAME, credentials=credentials) # Usamos LLM_MODEL_NAME
 
-        # Conexión a Pinecone (CORREGIDO: Eliminamos el argumento redundante)
+        # Conexión a Pinecone (ya corregida)
         vectorstore = Pinecone.from_existing_index(
             index_name=INDEX_NAME, 
             embedding=embeddings_model
         )
         
-        # ... (Resto de la lógica de RAG sigue igual) ...
+        # ... (Resto de la lógica de RAG) ...
         retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) 
         
         prompt_template_str = PROMPT_TEMPLATES.get(mode, PROMPT_TEMPLATES["formal"])
@@ -130,8 +127,7 @@ def get_rag_response(query: str, mode: str = "formal"):
 
     except Exception as e:
         print(f"Error en get_rag_response: {e}")
-        # Devolvemos un error amigable en la respuesta
         return {
-            "result": f"Error: No se pudo conectar a Google AI. Asegúrate de que GOOGLE_CREDS_JSON esté configurado correctamente. Detalles: {e}",
+            "result": f"Error: No se pudo conectar a Google AI. Detalles: {e}",
             "sources": []
         }
