@@ -22,7 +22,7 @@ GCP_REGION = 'us-central1'
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") 
 
 # Modelo con enfoque en velocidad y calidad
-LLM_MODEL_NAME = "gemini-2.5-flash" 
+LLM_MODEL_NAME = "gemini-1.5-flash-001" 
 
 # --- CONFIGURACIÓN DE CREDENCIALES ---
 try:
@@ -68,7 +68,8 @@ PROMPT_TEMPLATES = {
             * **## 📖 Concepto Clave:** Define el término principal.
             * **## 🐟 Ejemplo/Aplicación:** Proporciona un ejemplo práctico del temario.
             * **## 💡 Nota de Estudio:** Añade un dato relacionado o una diferencia clave para memorizar.
-        3.  **Fuentes Legales:** Finaliza siempre con una sección `## 📚 Fuentes Legales/Temario` donde **identificas y nombras** el documento o la ley de origen (ej: "Ley 42/2007 de Patrimonio Natural", "Tema 8. Especies de Pesca (nuevo)"). Pide al LLM que identifique el título legal del documento, no el nombre del archivo.
+        3.  **¡IMPORTANTE! No incluyas una sección final sobre "Fuentes" o "Temario".** El sistema lo añadirá automáticamente. Tu respuesta debe terminar con la "Nota de Estudio".
+        4.  **Inicio Directo:** Comienza la respuesta directamente con el saludo o con el primer título `## 📖 Concepto Clave`. No añadas viñetas, guiones (`---`) ni ningún otro separador al principio.
 
         Contexto para el análisis: {context}
 
@@ -149,17 +150,15 @@ def get_rag_response(query: str, mode: str = "formal"):
         # 2. Limpiar los nombres de las fuentes usando la nueva función
         cleaned_sources = sorted(list(set([clean_source_name(doc.metadata.get('source', doc.metadata.get('tema', 'Fuente no identificada'))) for doc in raw_sources])))
         
-        final_result = response.get('result', "No se encontró una respuesta.")
+        final_result = response.get('result', "No se encontró una respuesta.").strip()
         
-        # 3. Si el modo es didáctico o si hay fuentes, adjuntamos la lista limpia
-        # NOTA: En modo didáctico, el prompt ya le pide a Gemini que incorpore el título legal,
-        # pero esto asegura que la lista de temas esté siempre disponible y limpia.
-        if mode == "didactico" and cleaned_sources:
-             final_result += "\n\n" + "## 📚 Fuentes Legales/Temario:\n" + "\n".join([f"- {s}" for s in cleaned_sources])
-        elif cleaned_sources:
-            # En modo formal, simplemente la añadimos al final sin formato notebook
-            final_result += "\n\n[Fuentes consultadas: " + "; ".join(cleaned_sources) + "]"
-
+        # 3. Adjuntar la lista de fuentes (ahora es la única fuente de la verdad)
+        # El LLM ya no la genera, así que evitamos la duplicación.
+        if cleaned_sources:
+            if mode == "didactico":
+                final_result += "\n\n" + "## 📚 Fuentes Legales/Temario\n" + "\n".join([f"- {s}" for s in cleaned_sources])
+            else: # Modo formal
+                final_result += "\n\n[Fuentes consultadas: " + "; ".join(cleaned_sources) + "]"
 
         return {
             "result": final_result,
