@@ -6,9 +6,9 @@ from langchain_google_vertexai import VertexAIEmbeddings, VertexAI
 from langchain_pinecone import Pinecone
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from google.oauth2 import service_account # Necesario para cargar credenciales
+from google.oauth2 import service_account 
 
-# Carga las variables de entorno para que este módulo también las use
+# Carga las variables de entorno
 load_dotenv()
 
 # Variables de Pinecone
@@ -17,11 +17,10 @@ INDEX_NAME = "silvatest-rag"
 
 # Variables de Vertex AI
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-# CORRECCIÓN CLAVE: Usamos us-central1 ya que es una región universal para Gemini/Vertex AI.
-GCP_REGION = 'us-central1'
-GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") # Contiene la clave JSON
+GCP_REGION = 'us-central1' # Región estable para Vertex AI
+GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") 
 
-# MODELO CLAVE: Usamos gemini-2.5-flash ya que es el modelo más reciente y ágil.
+# Modelo con enfoque en velocidad y calidad
 LLM_MODEL_NAME = "gemini-2.5-flash" 
 
 # --- CONFIGURACIÓN DE CREDENCIALES ---
@@ -37,44 +36,42 @@ try:
 except Exception as e:
     print(f"Error al inicializar Vertex AI en rag_agent.py: {e}")
 
-# Diccionario de templates de prompts (se mantiene igual, pero usa el nuevo modelo)
+# Diccionario de templates de prompts con Meta Prompting Potente
 PROMPT_TEMPLATES = {
-    # ... (contenido del diccionario PROMPT_TEMPLATES) ...
     "formal": """
-        Eres un asistente experto en oposiciones de Agente Medioambiental.
-        Responde a la pregunta basándote ÚNICAMENTE en el siguiente contexto, de forma directa y concisa, sin añadir detalles o preámbulos.
-        Si la información no está en el contexto, simplemente di "No se encontró información relevante.".
+        ## 🎯 Meta Prompt: Modo Formal (Precisión Legal)
+
+        Eres un asistente RAG especializado en el temario oficial (Oposición Agente Medioambiental de Castilla y León/Asturias).
+        Tu rol es actuar como un **experto legal y técnico**.
+
+        **REGLAS ESTRICTAS:**
+        1.  **Exclusividad del Contexto:** Responde ÚNICA y EXCLUSIVAMENTE con la información contenida en la sección {context}.
+        2.  **Concisión:** Sé lo más breve y directo posible. Usa una lista si la información lo permite, pero sin preámbulos.
+        3.  **Tono:** Objetivo, técnico y neutro.
 
         Contexto:
         {context}
 
-        Pregunta:
-        {question}
+        Pregunta del usuario: {question}
 
         Respuesta concisa:
     """,
     "didactico": """
-        Eres Silva, un preparador de oposiciones de élite. Tu objetivo es explicar conceptos de forma clara, didáctica y en un tono motivador, como en un cuaderno de estudio.
-        Utiliza el siguiente contexto para responder a la pregunta.
-        Organiza la respuesta con un formato de cuaderno, usando títulos en markdown (##), viñetas y negritas.
-        Siempre comienza con una breve introducción didáctica.
-        Cita las fuentes de donde extraes la información, al final de la respuesta, en una sección separada.
+        ## 🧑‍🏫 Meta Prompt: Modo Didáctico (Tutoría de Oposiciones)
 
-        Ejemplo de formato:
-        ## 📖 Definición
-        Una especie **catádroma** vive en agua dulce, pero migra al mar para reproducirse.
+        Eres Silva, un preparador de oposiciones de élite con una personalidad **motivadora y didáctica**. Tu misión es transformar el contexto en **apuntes de estudio memorables**.
 
-        ## 🐟 Ejemplo
-        La anguila europea es el caso más típico...
+        **REGLAS Y FORMATO (Notebook Style):**
+        1.  **Formato:** Utiliza Markdown enriquecido (##, viñetas, **negritas**) para crear secciones.
+        2.  **Estructura:** La respuesta DEBE contener estas secciones (o las más relevantes):
+            * **## 📖 Concepto Clave:** Define el término principal.
+            * **## 🐟 Ejemplo/Aplicación:** Proporciona un ejemplo práctico del temario.
+            * **## 💡 Nota de Estudio:** Añade un dato relacionado o una diferencia clave para memorizar.
+        3.  **Fuentes Legales:** Finaliza siempre con una sección `## 📚 Fuentes Legales/Temario` donde **identificas y nombras** el documento o la ley de origen (ej: "Ley 42/2007 de Patrimonio Natural", "Tema 8. Especies de Pesca (nuevo)"). No uses nombres de archivo crudos como "documento-1.pdf".
 
-        ## 📚 Fuente principal:
-        - [Fuente 1]
+        Contexto para el análisis: {context}
 
-        Contexto:
-        {context}
-
-        Pregunta:
-        {question}
+        Pregunta del usuario: {question}
 
         Respuesta en formato de estudio:
     """
@@ -92,9 +89,17 @@ def get_rag_response(query: str, mode: str = "formal"):
         credentials = None 
         
     try:
-        # Inicializa los embeddings y el LLM, usando el nuevo modelo y pasando las credenciales
+        # --- AJUSTE DE PARÁMETROS CLAVE ---
+        # Temperatura: Baja (0.3) para máxima precisión y mínima creatividad, ideal para oposiciones.
+        TEMPERATURE = 0.3
+        
+        # Inicializa los embeddings y el LLM, pasando las credenciales
         embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004", credentials=credentials)
-        llm = VertexAI(model_name=LLM_MODEL_NAME, credentials=credentials) # Usamos LLM_MODEL_NAME
+        llm = VertexAI(
+            model_name=LLM_MODEL_NAME, 
+            credentials=credentials,
+            temperature=TEMPERATURE # AÑADIDO: Control de temperatura
+        )
 
         # Conexión a Pinecone (ya corregida)
         vectorstore = Pinecone.from_existing_index(
@@ -102,12 +107,13 @@ def get_rag_response(query: str, mode: str = "formal"):
             embedding=embeddings_model
         )
         
-        # ... (Resto de la lógica de RAG) ...
+        # Retrieval: k=5 para obtener 5 fragmentos, asegurando suficiente contexto.
         retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) 
         
         prompt_template_str = PROMPT_TEMPLATES.get(mode, PROMPT_TEMPLATES["formal"])
         prompt = PromptTemplate(template=prompt_template_str, input_variables=["context", "question"])
 
+        # Creación de la cadena RAG
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
@@ -118,10 +124,20 @@ def get_rag_response(query: str, mode: str = "formal"):
         
         response = qa.invoke({"query": query})
         
-        sources = sorted(list(set([doc.metadata.get('source', 'N/A') for doc in response.get('source_documents', [])])))
+        # La lógica de fuentes se mantiene aquí, pero el PROMPT le indica a Gemini
+        # cómo formatear el nombre de la fuente de manera amigable.
+        sources = sorted(list(set([doc.metadata.get('tema', doc.metadata.get('source', 'Fuente no identificada')) for doc in response.get('source_documents', [])])))
         
+        # Instruir al LLM para que filtre y presente las fuentes de manera amigable
+        # Enviamos las fuentes de vuelta al LLM para que las cite limpiamente dentro del formato.
+        final_result = response.get('result', "No se encontró una respuesta.")
+        
+        # Si el modo es didáctico, adjuntamos la información de la fuente de forma legible
+        if mode == "didactico" and sources:
+             final_result += "\n\n" + "## 📚 Fuentes Legales/Temario:\n" + "\n".join([f"- {s}" for s in sources])
+
         return {
-            "result": response.get('result', "No se encontró una respuesta."),
+            "result": final_result,
             "sources": sources
         }
 
