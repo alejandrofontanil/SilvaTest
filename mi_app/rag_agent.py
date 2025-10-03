@@ -7,6 +7,7 @@ from langchain_pinecone import Pinecone
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from google.oauth2 import service_account 
+import re # Importamos para la limpieza de texto
 
 # Carga las variables de entorno
 load_dotenv()
@@ -17,7 +18,7 @@ INDEX_NAME = "silvatest-rag"
 
 # Variables de Vertex AI
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-GCP_REGION = 'us-central1' # Región estable para Vertex AI
+GCP_REGION = 'us-central1' 
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") 
 
 # Modelo con enfoque en velocidad y calidad
@@ -67,7 +68,7 @@ PROMPT_TEMPLATES = {
             * **## 📖 Concepto Clave:** Define el término principal.
             * **## 🐟 Ejemplo/Aplicación:** Proporciona un ejemplo práctico del temario.
             * **## 💡 Nota de Estudio:** Añade un dato relacionado o una diferencia clave para memorizar.
-        3.  **Fuentes Legales:** Finaliza siempre con una sección `## 📚 Fuentes Legales/Temario` donde **identificas y nombras** el documento o la ley de origen (ej: "Ley 42/2007 de Patrimonio Natural", "Tema 8. Especies de Pesca (nuevo)"). No uses nombres de archivo crudos como "documento-1.pdf".
+        3.  **Fuentes Legales:** Finaliza siempre con una sección `## 📚 Fuentes Legales/Temario` donde **identificas y nombras** el documento o la ley de origen (ej: "Ley 42/2007 de Patrimonio Natural", "Tema 8. Especies de Pesca (nuevo)"). Pide al LLM que identifique el título legal del documento, no el nombre del archivo.
 
         Contexto para el análisis: {context}
 
@@ -76,6 +77,24 @@ PROMPT_TEMPLATES = {
         Respuesta en formato de estudio:
     """
 }
+
+# --- FUNCIÓN DE LIMPIEZA DE FUENTES ---
+def clean_source_name(source_path):
+    """Limpia la ruta del archivo para mostrar un título amigable."""
+    if not isinstance(source_path, str):
+        return 'Fuente no identificada'
+        
+    # 1. Elimina el prefijo del directorio raíz (ej: documentos_para_ia/AGMN ASTURIAS/)
+    cleaned_name = re.sub(r'documentos_para_ia/[^/]+/', '', source_path, count=1)
+    
+    # 2. Elimina la extensión del archivo (.pdf, .txt)
+    cleaned_name = re.sub(r'\.(pdf|txt)$', '', cleaned_name, flags=re.IGNORECASE)
+    
+    # 3. Reemplaza guiones bajos o puntos (si los hay) por espacios y capitaliza
+    cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
+    
+    return cleaned_name.title()
+
 
 # La función principal
 def get_rag_response(query: str, mode: str = "formal"):
@@ -90,11 +109,7 @@ def get_rag_response(query: str, mode: str = "formal"):
         
     try:
         # --- AJUSTE DE PARÁMETROS CLAVE ---
-        # Temperatura: Baja (0.3) para máxima precisión y mínima creatividad, ideal para oposiciones.
         TEMPERATURE = 0.3
-        
-        # AJUSTE RAG: K más pequeño (3 o 4) para forzar la fusión del contexto
-        # con la temperatura baja, mejorando la síntesis y la relevancia.
         RETRIEVAL_K = 3 
         
         # Inicializa los embeddings y el LLM, pasando las credenciales
@@ -102,10 +117,10 @@ def get_rag_response(query: str, mode: str = "formal"):
         llm = VertexAI(
             model_name=LLM_MODEL_NAME, 
             credentials=credentials,
-            temperature=TEMPERATURE # AÑADIDO: Control de temperatura
+            temperature=TEMPERATURE # Control de temperatura
         )
 
-        # Conexión a Pinecone (ya corregida)
+        # Conexión a Pinecone
         vectorstore = Pinecone.from_existing_index(
             index_name=INDEX_NAME, 
             embedding=embeddings_model
@@ -128,21 +143,27 @@ def get_rag_response(query: str, mode: str = "formal"):
         
         response = qa.invoke({"query": query})
         
-        # La lógica de fuentes se mantiene aquí, pero el PROMPT le indica a Gemini
-        # cómo formatear el nombre de la fuente de manera amigable.
-        sources = sorted(list(set([doc.metadata.get('tema', doc.metadata.get('source', 'Fuente no identificada')) for doc in response.get('source_documents', [])])))
+        # 1. Obtener las rutas de las fuentes brutas
+        raw_sources = response.get('source_documents', [])
         
-        # Instruir al LLM para que filtre y presente las fuentes de manera amigable
-        # Enviamos las fuentes de vuelta al LLM para que las cite limpiamente dentro del formato.
+        # 2. Limpiar los nombres de las fuentes usando la nueva función
+        cleaned_sources = sorted(list(set([clean_source_name(doc.metadata.get('source', doc.metadata.get('tema', 'Fuente no identificada'))) for doc in raw_sources])))
+        
         final_result = response.get('result', "No se encontró una respuesta.")
         
-        # Si el modo es didáctico, adjuntamos la información de la fuente de forma legible
-        if mode == "didactico" and sources:
-             final_result += "\n\n" + "## 📚 Fuentes Legales/Temario:\n" + "\n".join([f"- {s}" for s in sources])
+        # 3. Si el modo es didáctico o si hay fuentes, adjuntamos la lista limpia
+        # NOTA: En modo didáctico, el prompt ya le pide a Gemini que incorpore el título legal,
+        # pero esto asegura que la lista de temas esté siempre disponible y limpia.
+        if mode == "didactico" and cleaned_sources:
+             final_result += "\n\n" + "## 📚 Fuentes Legales/Temario:\n" + "\n".join([f"- {s}" for s in cleaned_sources])
+        elif cleaned_sources:
+            # En modo formal, simplemente la añadimos al final sin formato notebook
+            final_result += "\n\n[Fuentes consultadas: " + "; ".join(cleaned_sources) + "]"
+
 
         return {
             "result": final_result,
-            "sources": sources
+            "sources": cleaned_sources
         }
 
     except Exception as e:

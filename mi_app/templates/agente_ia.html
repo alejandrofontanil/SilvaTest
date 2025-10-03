@@ -3,10 +3,11 @@
 {% block styles %}
 {{ super() }}
 <style>
+    /* Estilos generales del contenedor de chat */
     #chat-container {
         display: flex;
         flex-direction: column;
-        height: 75vh; /* Aumentado ligeramente para mejor visualización */
+        height: 75vh;
         max-height: 800px;
         border: 1px solid var(--bs-border-color);
         border-radius: 0.75rem;
@@ -26,7 +27,7 @@
         border-radius: 1.25rem;
         margin-bottom: 1rem;
         line-height: 1.5;
-        white-space: pre-wrap; /* Mantiene saltos de línea y formato Markdown simple */
+        white-space: pre-wrap;
     }
     .user-message {
         background-color: var(--bs-primary);
@@ -39,18 +40,6 @@
         border: 1px solid var(--bs-border-color);
         align-self: flex-start;
         border-bottom-left-radius: 0.25rem;
-    }
-    .source-citation {
-        margin-top: 0.5rem;
-        font-size: 0.75rem;
-        color: var(--bs-secondary-color);
-        border-top: 1px dashed var(--bs-border-color);
-        padding-top: 5px;
-    }
-    #chat-input-container {
-        border-top: 1px solid var(--bs-border-color);
-        padding: 1rem;
-        background-color: var(--bs-body-bg);
     }
     .thinking-indicator {
         display: block;
@@ -69,6 +58,30 @@
         padding: 0 1rem 0.5rem 1rem;
         text-align: right;
     }
+
+    /* --- NUEVOS ESTILOS PARA EL MODO CUADERNO --- */
+    .agent-response-content {
+        line-height: 1.6;
+    }
+    
+    /* Estilo general para los títulos de sección (##) */
+    .agent-response-content h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 1rem;
+        padding-bottom: 5px;
+        border-bottom: 1px dashed #ced4da; /* Gris claro de Bootstrap */
+    }
+
+    /* Estilo específico para la Nota de Estudio (simulando recuadro o admonition) */
+    .agent-response-content .note-box {
+        background-color: #f8f9fa; /* Gris muy claro */
+        border-left: 4px solid #17a2b8; /* Borde Cyan/Info */
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+    }
 </style>
 {% endblock %}
 
@@ -77,18 +90,28 @@
     <div class="row justify-content-center">
         <div class="col-lg-10 col-xl-8">
             <h2 class="text-center mb-2"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA RAG</h2>
-            <p id="tokens-display" class="text-muted">
-                Tokens Restantes: <span id="remaining-tokens-value">{{ current_user.rag_tokens_restantes|default(0) }}</span>
-                {% if current_user.rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
-            </p>
             
-
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-group d-flex align-items-center">
+                    <label for="response-mode" class="me-2 text-muted fw-bold small">Modo:</label>
+                    <select id="response-mode" class="form-select form-select-sm">
+                        <option value="didactico">📖 Cuaderno de Estudio</option>
+                        <option value="formal">🎯 Respuesta Directa</option>
+                    </select>
+                </div>
+                <p id="tokens-display" class="text-muted mb-0">
+                    Tokens Restantes: <span id="remaining-tokens-value">{{ rag_tokens_restantes|default(0) }}</span>
+                    {% if rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
+                </p>
+            </div>
+            
             <div id="chat-container" class="shadow-lg">
                 <div id="chat-messages">
                     <div class="agent-message chat-message">
                         ¡Soy **Silva**, tu Asistente de Estudio IA! Pregúntame sobre tu temario de **{{ current_user.objetivo_principal.nombre if current_user.objetivo_principal else 'Oposiciones' }}** (Ley de Pesca, etc.). Estoy listo para ayudarte a optimizar tu estudio.
                     </div>
                 </div>
+                
                 <div id="chat-input-container">
                     <form id="chat-form">
                         <div class="input-group">
@@ -115,59 +138,73 @@
     document.addEventListener('DOMContentLoaded', function () {
         const chatForm = document.getElementById('chat-form');
         const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
         const chatMessages = document.getElementById('chat-messages');
         const tokensDisplay = document.getElementById('remaining-tokens-value');
         const limitMessage = document.getElementById('token-limit-message');
+        const modeSelect = document.getElementById('response-mode'); // Nuevo
         
-        // Inicializa el saldo de tokens desde la plantilla
         let currentTokens = parseInt(tokensDisplay.textContent);
 
-        // Función para actualizar el estado del formulario y la visualización de tokens
         function updateTokenState(remainingTokens) {
             currentTokens = remainingTokens;
             tokensDisplay.textContent = currentTokens;
             
-            // Lógica de bloqueo
-            if (currentTokens <= 0) {
-                userInput.disabled = true;
-                sendBtn.disabled = true;
-                limitMessage.style.display = 'block';
-            } else {
-                userInput.disabled = false;
-                sendBtn.disabled = false;
-                limitMessage.style.display = 'none';
-            }
+            const isDisabled = currentTokens <= 0;
+            userInput.disabled = isDisabled;
+            document.getElementById('send-btn').disabled = isDisabled;
+            limitMessage.style.display = isDisabled ? 'block' : 'none';
         }
         
-        // Ejecutar al cargar la página para bloquear si el saldo es cero
         updateTokenState(currentTokens);
 
-        // Función auxiliar para desplazarse al final del chat
         function scrollToBottom() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Función para añadir mensajes y el indicador de pensando (mantenida)
-        function addMessageToChat(sender, message, isThinking = false, sources = []) {
+        // Función de post-procesamiento para Markdown simple y Estilo Notebook
+        function formatAgentResponse(markdown) {
+            // 1. Reemplazar títulos de cuaderno con HTML y emojis (ej: ## 📖 Concepto Clave)
+            let html = markdown.replace(/## 📖 Concepto Clave/g, '<h2>📖 Concepto Clave</h2>');
+            html = html.replace(/## 🐟 Ejemplo\/Aplicación/g, '<h2>🐟 Ejemplo/Aplicación</h2>');
+            html = html.replace(/## 💡 Nota de Estudio/g, '<div class="note-box">💡 **Nota de Estudio:** ');
+            html = html.replace(/## 📚 Fuentes Legales\/Temario/g, '</div><h2 class="mt-4">📚 Fuentes Legales/Temario</h2>');
+            
+            // Cerrar el div del note-box si no se cerró antes de las fuentes
+            if (html.includes('<div class="note-box"') && !html.includes('</div>')) {
+                html += '</div>';
+            }
+
+            // 2. Convertir Markdown básico (negritas, listas)
+            // Ya que no tenemos una librería Markdown en el front-end aquí,
+            // usamos la conversión de texto simple. Si usas un conversor, esto es más limpio.
+            // Para mantener la simplicidad: sustituimos **negrita** por <strong>.
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Sustituir saltos de línea por <br> para pre-formatear el texto
+            html = html.replace(/\n/g, '<br>');
+            
+            // Reemplazar viñetas (símbolo - o *) por listas desordenadas simples
+            html = html.replace(/<br>\s*-\s*(.*)/g, '<br>&bull; $1');
+            html = html.replace(/<br>\s*\*\s*(.*)/g, '<br>&bull; $1');
+            
+            return `<div class="agent-response-content">${html}</div>`;
+        }
+
+
+        // Función para añadir mensajes y el indicador de pensando
+        let thinkingIndicator = null;
+        function addMessageToChat(sender, content, isThinking = false) {
             const messageDiv = document.createElement('div');
-            messageDiv.classList.add('chat-message');
+            messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'agent-message');
             
             if (sender === 'user') {
-                messageDiv.classList.add('user-message');
-                messageDiv.textContent = message;
+                messageDiv.textContent = content;
+            } else if (isThinking) {
+                messageDiv.classList.add('thinking-indicator');
+                messageDiv.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...`;
+                thinkingIndicator = messageDiv;
             } else {
-                messageDiv.classList.add('agent-message');
-                messageDiv.innerHTML = message;
-
-                if (isThinking) {
-                    messageDiv.classList.add('thinking-indicator');
-                } else if (sources.length > 0) {
-                    const sourceDiv = document.createElement('div');
-                    sourceDiv.classList.add('source-citation');
-                    sourceDiv.textContent = `Fuentes citadas: ${sources.map(s => s.split('/').pop()).join(', ')}`;
-                    messageDiv.appendChild(sourceDiv);
-                }
+                messageDiv.innerHTML = formatAgentResponse(content);
             }
             
             chatMessages.appendChild(messageDiv);
@@ -175,74 +212,70 @@
             return messageDiv;
         }
 
-        // Función para actualizar el mensaje del agente con la respuesta real (mantenida)
+        // Función para actualizar el mensaje del agente con la respuesta real
         function updateAgentMessage(element, newMessage, sources) {
-            element.innerHTML = newMessage;
+            element.innerHTML = formatAgentResponse(newMessage); // Usar el formato de cuaderno
             element.classList.remove('thinking-indicator');
+            element.removeAttribute('style'); // Remover animación de pulso si se aplica por CSS
 
-            if (sources && sources.length > 0) {
-                const sourceDiv = document.createElement('div');
-                sourceDiv.classList.add('source-citation');
-                sourceDiv.textContent = `Fuentes citadas: ${sources.map(s => s.split('/').pop()).join(', ')}`;
-                element.appendChild(sourceDiv);
-            }
+            // NOTA: Las fuentes ya vienen formateadas en el newMessage gracias al Prompt.
+            // Por lo tanto, no necesitamos añadir el sourceDiv aquí, solo asegurarnos de que el HTML se muestre.
+            
             scrollToBottom();
         }
 
         chatForm.addEventListener('submit', function (event) {
             event.preventDefault();
             const userMessage = userInput.value.trim();
+            const responseMode = modeSelect.value; // Obtener el modo seleccionado
             
-            if (userMessage === '' || currentTokens <= 0) return; // Bloqueo de seguridad JS
+            if (userMessage === '' || currentTokens <= 0) return;
 
-            // 1. Añadir mensaje del usuario
             addMessageToChat('user', userMessage);
             userInput.value = '';
             
-            // 2. Bloquear entrada y mostrar indicador
-            updateTokenState(currentTokens); // Bloquea mientras se procesa
-            const thinkingIndicator = addMessageToChat('agent', '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...', true);
+            const thinkingMessageElement = addMessageToChat('agent', '', true); // Mostrar indicador
 
-            // 3. Enviar a la ruta RAG
+            // Bloquear entrada mientras se procesa
+            userInput.disabled = true;
+            document.getElementById('send-btn').disabled = true;
+
             fetch("{{ url_for('main.api_consulta_rag') }}", { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ message: userMessage })
+                body: JSON.stringify({ message: userMessage, mode: responseMode }) // Enviar el modo
             })
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(err => { 
-                        // Maneja el 403 del backend por saldo agotado
                         if (response.status === 403) {
                             updateTokenState(0);
                             throw new Error(err.error);
                         }
-                        // Otros errores (500)
                         throw new Error(err.error || 'Error desconocido del servidor.'); 
                     });
                 }
                 return response.json();
             })
             .then(data => {
-                // 4. Actualizar con la respuesta RAG y las fuentes
-                updateAgentMessage(thinkingIndicator, data.response, data.sources);
+                updateAgentMessage(thinkingMessageElement, data.response, data.sources);
                 
-                // 5. CRÍTICO: Actualizar saldo de tokens
                 if (data.remaining_tokens !== undefined) {
                     updateTokenState(data.remaining_tokens);
                 }
             })
             .catch(error => {
                 console.error('Error en la consulta RAG:', error);
-                // Mostrar el error directamente al usuario
-                updateAgentMessage(thinkingIndicator, `Lo siento, ha ocurrido un error: ${error.message || 'Verifica la configuración.'}`, []);
+                // Asegurarse de que el error se muestra en el elemento del agente
+                updateAgentMessage(thinkingMessageElement, `❌ Lo siento, ha ocurrido un error: ${error.message || 'Verifica la configuración.'}`, []);
             })
             .finally(() => {
-                // 6. Desbloquear entrada o mantener el bloqueo si los tokens son 0
-                updateTokenState(currentTokens); 
+                // Desbloquear entrada
+                userInput.disabled = false;
+                document.getElementById('send-btn').disabled = false;
                 userInput.focus();
             });
         });
