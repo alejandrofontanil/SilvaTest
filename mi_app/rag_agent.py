@@ -93,6 +93,10 @@ def get_rag_response(query: str, mode: str = "formal"):
         # Temperatura: Baja (0.3) para máxima precisión y mínima creatividad, ideal para oposiciones.
         TEMPERATURE = 0.3
         
+        # AJUSTE RAG: K más pequeño (3 o 4) para forzar la fusión del contexto
+        # con la temperatura baja, mejorando la síntesis y la relevancia.
+        RETRIEVAL_K = 3 
+        
         # Inicializa los embeddings y el LLM, pasando las credenciales
         embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004", credentials=credentials)
         llm = VertexAI(
@@ -107,8 +111,8 @@ def get_rag_response(query: str, mode: str = "formal"):
             embedding=embeddings_model
         )
         
-        # Retrieval: k=5 para obtener 5 fragmentos, asegurando suficiente contexto.
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) 
+        # Retrieval: k=3 para obtener 3 fragmentos, lo más relevante posible.
+        retriever = vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_K}) 
         
         prompt_template_str = PROMPT_TEMPLATES.get(mode, PROMPT_TEMPLATES["formal"])
         prompt = PromptTemplate(template=prompt_template_str, input_variables=["context", "question"])
