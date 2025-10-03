@@ -99,11 +99,10 @@ def get_rag_response(query: str, mode: str = "formal"):
         embeddings_model = VertexAIEmbeddings(model_name="text-embedding-004", credentials=credentials)
         llm = VertexAI(model_name="gemini-1.0-pro", credentials=credentials)
 
-        # Conexión a Pinecone (continúa igual)
+        # Conexión a Pinecone (CORREGIDO: Eliminamos el argumento redundante)
         vectorstore = Pinecone.from_existing_index(
             index_name=INDEX_NAME, 
-            embedding=embeddings_model,
-            pinecone_api_key=PINECONE_API_KEY # Aseguramos que la clave de Pinecone esté disponible
+            embedding=embeddings_model
         )
         
         # ... (Resto de la lógica de RAG sigue igual) ...
