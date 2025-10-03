@@ -13,10 +13,11 @@ auth_bp = Blueprint('auth', __name__,
                     template_folder='../templates/auth',
                     url_prefix='/auth')
 
-# >>> SOLUCIÓN CODESPACES: Forzamos la URL pública para el redirect de Google OAuth <<<
-# ESTA URL DEBE COINCIDIR EXACTAMENTE con la que registraste en Google Cloud Console.
-CODESPACE_HOST = 'https://fuzzy-space-computing-machine-wr44wjx46497f5ggp-5000.app.github.dev'
-
+# --- CONFIGURACIÓN DE REDIRECCIÓN DINÁMICA ---
+# Usamos una variable de entorno OAUTH_HOST para obtener el dominio de producción (Render o dominio custom).
+# Si esa variable no está, usamos una URL de respaldo segura.
+# Esta es la que debe coincidir con la Google Cloud Console.
+OAUTH_HOST = os.environ.get('OAUTH_HOST', 'https://www.silvatest.es')
 
 def is_safe_url(target):
     if not target:
@@ -24,6 +25,8 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+# ... (El resto de tus rutas, como registro, login, logout, etc., permanecen igual) ...
 
 @auth_bp.route('/registro', methods=['GET', 'POST'])
 def registro():
@@ -81,18 +84,22 @@ def logout():
     flash('Has cerrado la sesión con éxito.', 'success')
     return redirect(url_for('main.home'))
 
-# --- INICIO: LÓGICA MANUAL PARA GOOGLE OAUTH CORREGIDA ---
+# --- LÓGICA MANUAL PARA GOOGLE OAUTH CORREGIDA ---
 
 @auth_bp.route('/login/google')
 def google_login():
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     
-    # CONSTRUCCIÓN MANUAL de la URL de redirección con el host de Codespaces
-    REDIRECT_URI = f'{CODESPACE_HOST}/auth/login/google/callback'
-    
-    # Guardamos el host en la sesión (por si acaso), aunque no es estrictamente necesario aquí
-    # ya que CODESPACE_HOST es una constante global.
-    session['codespace_host'] = CODESPACE_HOST 
+    # MODIFICADO: Construimos la URL de redirección usando la variable dinámica OAUTH_HOST
+    # Si la variable de entorno no está, se usa el request.host_url
+    if os.environ.get('FLASK_ENV') == 'development' or 'codespaces' in request.host:
+        # Esto es solo para asegurar que funcione en local o codespaces cuando se necesite
+        host = request.host_url.rstrip('/')
+    else:
+        # En producción (Render), usamos la variable de entorno OAUTH_HOST
+        host = OAUTH_HOST
+
+    REDIRECT_URI = f'{host}/auth/login/google/callback'
     
     # Construir la URL de autorización de Google manualmente
     authorization_url = (
@@ -108,11 +115,13 @@ def google_login():
 def google_callback():
     code = request.args.get('code')
     
-    # Recuperamos la URL de redirección para usarla en el intercambio de tokens
-    REDIRECT_URI = f'{CODESPACE_HOST}/auth/login/google/callback'
+    # MODIFICADO: Obtenemos el host de forma dinámica igual que en google_login
+    if os.environ.get('FLASK_ENV') == 'development' or 'codespaces' in request.host:
+        host = request.host_url.rstrip('/')
+    else:
+        host = OAUTH_HOST
     
-    # Limpiamos la sesión
-    session.pop('codespace_host', None)
+    REDIRECT_URI = f'{host}/auth/login/google/callback'
     
     if not code:
         flash('Error de autenticación. No se recibió el código de autorización.', 'danger')
@@ -127,7 +136,7 @@ def google_callback():
         'code': code,
         'client_id': GOOGLE_CLIENT_ID,
         'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': REDIRECT_URI, # Usamos la URI forzada
+        'redirect_uri': REDIRECT_URI, # Usamos la URI dinámica
         'grant_type': 'authorization_code'
     }
     token_response = requests.post(token_url, data=token_data)
