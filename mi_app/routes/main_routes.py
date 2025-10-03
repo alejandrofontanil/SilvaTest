@@ -21,8 +21,15 @@ from flask_wtf import FlaskForm
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario 
 
+# AÑADIDO: Importar todos los formularios utilizados en esta ruta
+from mi_app.forms import (
+    ObjetivoForm, 
+    FiltroCuentaForm, 
+    DashboardPreferencesForm, 
+    ObjetivoFechaForm
+)
+
 # CORRECCIÓN DE IMPORTACIÓN CRÍTICA: Se usa la importación ABSOLUTA para Render
-# CAMBIADO: Se importa get_rag_response del nuevo archivo rag_agent.py
 from mi_app.rag_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
@@ -203,10 +210,12 @@ def bloque_detalle(bloque_id):
 @main_bp.route('/cuenta', methods=['GET', 'POST'])
 @login_required
 def cuenta():
+    # Estas líneas ahora funcionarán porque los Forms están importados
     form = FiltroCuentaForm()
     objetivo_form = ObjetivoForm()
     dashboard_form = DashboardPreferencesForm()
     objetivo_fecha_form = ObjetivoFechaForm()
+    
     if request.method == 'GET':
         if current_user.objetivo_fecha:
             objetivo_fecha_form.objetivo_fecha.data = current_user.objetivo_fecha
