@@ -97,7 +97,7 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         filter_string = None
         if selected_sources and isinstance(selected_sources, list):
             quoted_sources = [f'"{source}"' for source in selected_sources]
-            filter_string = " OR ".join(f"source:{s}" for s in quoted_sources)
+            filter_string = " OR ".join(f"uri:{s}" for s in quoted_sources)
 
         # Usamos la clase corregida y le pasamos las credenciales
         retriever = VertexAISearchRetriever(
