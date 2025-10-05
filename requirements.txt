@@ -1,13 +1,18 @@
+# --- FLASK & WEB SERVER ---
 Flask==3.0.0
 gunicorn==21.2.0
 python-dotenv==1.0.1
 Werkzeug==3.0.0
+
+# --- DATABASE ---
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.7
 psycopg2-binary
 SQLAlchemy==2.0.23
 alembic==1.13.1
 Mako==1.3.2
+
+# --- FORMS & USER MANAGEMENT ---
 Flask-WTF==1.2.1
 WTForms==3.1.2
 WTForms-SQLAlchemy==0.4.2
@@ -15,23 +20,30 @@ Flask-Login==0.6.3
 Flask-Bcrypt==1.0.1
 bcrypt==4.1.2
 email_validator
+
+# --- LANGCHAIN & GOOGLE CLOUD AI (VERSIÓN CORREGIDA) ---
+google-cloud-aiplatform>=1.38.0
+google-cloud-storage>=2.14.0
+google-cloud-discoveryengine>=0.11.0
+google-generativeai>=0.5.0
+
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langchain-google-vertexai>=2.1.0
+langchain-text-splitters>=0.2.0
+
+# --- GOOGLE (Otras APIs, ej: GSpread) ---
+google-api-python-client
+google-auth-httplib2
+gspread
+oauth2client
+
+# --- OTHER UTILITIES ---
 Flask-Mail==0.9.1
 requests
 python-dateutil
 cloudinary
 pandas
 openpyxl
-google-api-python-client
-google-auth-httplib2
-gspread
-oauth2client
-google-generativeai
-google-cloud-aiplatform>=1.97.0
 pypdf
-pinecone-client>=4.1.0
-langchain-google-vertexai
-langchain-community
-langchain
-PyPDF2 
-google-cloud-discoveryengine
-google-cloud-storage
