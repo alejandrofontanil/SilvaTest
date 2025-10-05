@@ -17,7 +17,7 @@ load_dotenv()
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
-LLM_MODEL_NAME = "gemini-1.5-flash-001"
+LLM_MODEL_NAME = "gemini-1.5-pro-latest"
 PROMPT_TEMPLATES = {
     "formal": """
         ## 🎯 Meta Prompt: Modo Formal (Precisión Legal)
