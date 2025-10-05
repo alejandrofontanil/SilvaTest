@@ -2,11 +2,12 @@
 import os
 import json
 import vertexai
-import re # <--- AÑADIDO: Importación necesaria para la nueva lógica
+import re
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
+from google.cloud import storage # <--- Importación para listar archivos del bucket
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
 from datetime import date, timedelta, datetime
@@ -18,44 +19,41 @@ from flask_wtf import FlaskForm
 
 from mi_app import db
 from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario 
-
-# AÑADIDO: Importar todos los formularios utilizados en esta ruta
-from mi_app.forms import (
-    ObjetivoForm, 
-    FiltroCuentaForm, 
-    DashboardPreferencesForm, 
-    ObjetivoFechaForm
-)
-
-# CORRECCIÓN DE IMPORTACIÓN CRÍTICA: Se usa la importación ABSOLUTA para Render
+from mi_app.forms import ObjetivoForm, FiltroCuentaForm, DashboardPreferencesForm, ObjetivoFechaForm
 from mi_app.rag_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
 
-# Definición de coste: 100 tokens es una estimación segura para una consulta RAG simple
+# Definición de coste
 RAG_COST_PER_QUERY = 100
 
 main_bp = Blueprint('main', __name__)
 
-# --- CONFIGURACIÓN DE VERTEX AI (Se mantiene para explicaciones) ---
+# --- CONFIGURACIÓN DE VERTEX AI (NUEVA VERSIÓN) ---
+SECRET_FILE_PATH = "/etc/secrets/gcp_service_account_key.json"
+credentials = None
 try:
     print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
-    GCP_REGION = os.getenv('GCP_REGION')
-    creds_json_str = os.getenv('GOOGLE_CREDS_JSON')
-    
-    if GCP_PROJECT_ID and GCP_REGION and creds_json_str:
-        creds_info = json.loads(creds_json_str)
+    GCP_REGION = 'europe-west1' # Usamos la región correcta
+
+    if os.path.exists(SECRET_FILE_PATH):
+        credentials = service_account.Credentials.from_service_account_file(SECRET_FILE_PATH)
+        print("✅ Credenciales cargadas desde Secret File para las rutas.")
+    elif os.getenv('GOOGLE_CREDS_JSON'):
+        creds_info = json.loads(os.getenv('GOOGLE_CREDS_JSON'))
         credentials = service_account.Credentials.from_service_account_info(creds_info)
+        print("✅ Credenciales cargadas desde variable de entorno para las rutas.")
+    
+    if credentials and GCP_PROJECT_ID:
         vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION, credentials=credentials)
         print("✅ Vertex AI inicializado con éxito.")
     else:
-        print("❌ ERROR: Faltan variables de entorno de Google Cloud para inicializar Vertex AI.")
+        print("❌ ERROR: No se encontraron credenciales o PROJECT_ID para inicializar Vertex AI.")
 except Exception as e:
     print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
-# --- FIN: CONFIGURACIÓN DE VERTEX AI ---
 
 
-# --- FUNCIONES DE AYUDA (Mantenidas) ---
+# --- FUNCIONES DE AYUDA ---
 def obtener_preguntas_recursivas(tema):
     preguntas = []
     preguntas.extend(tema.preguntas)
@@ -88,30 +86,7 @@ def analizar_rendimiento_usuario(usuario):
 
     return informe
 
-def obtener_contexto_de_tema(tema):
-    tema_actual = tema
-    while tema_actual:
-        if tema_actual.ruta_documento_contexto:
-            try:
-                url = tema_actual.ruta_documento_contexto
-                response = requests.get(url)
-                response.raise_for_status()
-                texto_completo = ""
-                file_stream = io.BytesIO(response.content)
-                if url.lower().endswith('.pdf'):
-                    reader = PyPDF2.PdfReader(file_stream)
-                    for page in reader.pages:
-                        texto_completo += page.extract_text()
-                elif url.lower().endswith('.txt'):
-                    texto_completo = response.text
-                return texto_completo
-            except Exception as e:
-                print(f"Error leyendo el archivo de contexto desde la URL '{tema_actual.ruta_documento_contexto}': {e}")
-                return None
-        tema_actual = tema_actual.parent
-    return None
-
-# --- RUTAS PRINCIPALES DE LA APLICACIÓN (Mantenidas) ---
+# --- RUTAS PRINCIPALES DE LA APLICACIÓN ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -684,7 +659,7 @@ def agente_ia_page():
 
     # --- ¡NUEVA LÓGICA PARA CARGAR LOS DOCUMENTOS DESDE GOOGLE CLOUD STORAGE! ---
     available_sources = []
-    bucket_name = "silvatest-temarios-pdfs" # El nombre de tu bucket
+    bucket_name = "silvatest-prod-temarios" # El nombre de tu bucket
 
     try:
         # Inicializa el cliente de Cloud Storage
