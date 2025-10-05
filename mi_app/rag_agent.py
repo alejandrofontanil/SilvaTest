@@ -93,7 +93,7 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
             credentials=credentials,
             temperature=TEMPERATURE,
             project=GCP_PROJECT_ID,
-            location="europe-west1"
+            location="us-central1"
         )
 
         # Desactivamos filtro por ahora
