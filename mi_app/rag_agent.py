@@ -1,43 +1,29 @@
+# rag_agent.py (VERSIÓN FINAL)
 import os
 import json
 from dotenv import load_dotenv
-from google.cloud import aiplatform
-# LangChain: Corregimos la importación del retriever
-from langchain_google_vertexai import VertexAI
-from langchain_community.retrievers import GoogleVertexAISearchRetriever
+from google.oauth2 import service_account
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from google.oauth2 import service_account
 import re
 
-# Carga las variables de entorno desde el archivo .env
+# LangChain: Importaciones actualizadas para corregir DeprecationWarning
+from langchain_google_vertexai import VertexAI
+from langchain_google_community import VertexAISearchRetriever # <-- Importación corregida
+
+# Carga las variables de entorno
 load_dotenv()
 
-# --- CONFIGURACIÓN DE GOOGLE CLOUD ---
+# --- CONFIGURACIÓN ---
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-# La localización de tu Data Store (normalmente 'global')
 LOCATION = "global"
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
-
-# Modelo LLM a utilizar
 LLM_MODEL_NAME = "gemini-1.5-flash-001"
-
-# --- INICIALIZACIÓN DE SERVICIOS ---
-try:
-    credentials = None
-    if GOOGLE_CREDS_JSON:
-        creds_info = json.loads(GOOGLE_CREDS_JSON)
-        credentials = service_account.Credentials.from_service_account_info(creds_info)
-    
-    # Esta inicialización es útil si usas otros servicios de Vertex AI
-    aiplatform.init(project=GCP_PROJECT_ID, location='europe-west1', credentials=credentials)
-    print("✅ Vertex AI inicializado para el agente RAG.")
-
-except Exception as e:
-    print(f"Error al inicializar Vertex AI en rag_agent.py: {e}")
-
-# --- PLANTILLAS DE PROMPTS ---
+PROMPT_TEMPLATES = {
+    "formal": """...""", # Mantén tus prompts como estaban
+    "didactico": """..."""
+}
 PROMPT_TEMPLATES = {
     "formal": """
         ## 🎯 Meta Prompt: Modo Formal (Precisión Legal)
@@ -70,12 +56,20 @@ PROMPT_TEMPLATES = {
     """
 }
 
-# --- FUNCIÓN DE LIMPIEZA DE FUENTES ---
+
+# --- INICIALIZACIÓN DE CREDENCIALES (FUERA DE LA FUNCIÓN) ---
+credentials = None
+if GOOGLE_CREDS_JSON:
+    try:
+        creds_info = json.loads(GOOGLE_CREDS_JSON)
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        print("✅ Credenciales de Google Cloud cargadas correctamente.")
+    except Exception as e:
+        print(f"❌ ERROR al cargar las credenciales de Google Cloud: {e}")
+
 def clean_source_name(source_path: str) -> str:
-    """Limpia la ruta GCS del archivo para mostrar un título amigable."""
-    if not isinstance(source_path, str):
-        return 'Fuente no identificada'
-    
+    # ... tu función de limpieza sin cambios ...
+    if not isinstance(source_path, str): return 'Fuente no identificada'
     file_name = source_path.split('/')[-1]
     cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE)
     cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
@@ -84,32 +78,33 @@ def clean_source_name(source_path: str) -> str:
 
 # --- FUNCIÓN PRINCIPAL DEL AGENTE RAG ---
 def get_rag_response(query: str, mode: str = "formal", selected_sources: list | None = None):
-    """
-    Busca en Vertex AI Search y genera una respuesta usando LangChain.
-    """
+    # Verificamos que las credenciales se cargaron al inicio
+    if not credentials:
+        return {"result": "Error crítico: Las credenciales de Google Cloud no están configuradas en el servidor.", "sources": []}
+
     try:
         TEMPERATURE = 0.2
         RETRIEVAL_K = 5
 
+        # Pasamos las credenciales explícitamente a cada componente
         llm = VertexAI(
             model_name=LLM_MODEL_NAME,
             credentials=credentials,
-            temperature=TEMPERATURE
+            temperature=TEMPERATURE,
+            project=GCP_PROJECT_ID # Buena práctica añadir el project_id
         )
 
-        # Lógica de filtrado para Vertex AI Search
         filter_string = None
         if selected_sources and isinstance(selected_sources, list):
-            # Formato del filtro: 'source:"gs://bucket/doc1" OR source:"gs://bucket/doc2"'
             quoted_sources = [f'"{source}"' for source in selected_sources]
             filter_string = " OR ".join(f"source:{s}" for s in quoted_sources)
-            print(f"🔎 Búsqueda filtrada activada. Filtro: {filter_string}")
 
-        # Usamos la clase e importación correctas
-        retriever = GoogleVertexAISearchRetriever(
+        # Usamos la clase corregida y le pasamos las credenciales
+        retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
             location=LOCATION,
             data_store_id=DATA_STORE_ID,
+            credentials=credentials, # <-- Muy importante pasar las credenciales aquí
             filter=filter_string,
             max_documents=RETRIEVAL_K,
         )
@@ -117,13 +112,9 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         prompt_template_str = PROMPT_TEMPLATES.get(mode, PROMPT_TEMPLATES["formal"])
         prompt = PromptTemplate(template=prompt_template_str, input_variables=["context", "question"])
 
-        # Usamos la cadena de LangChain que ya tenías
         qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs={"prompt": prompt},
-            return_source_documents=True
+            llm=llm, chain_type="stuff", retriever=retriever,
+            chain_type_kwargs={"prompt": prompt}, return_source_documents=True
         )
         
         response = qa_chain.invoke({"query": query})
@@ -132,21 +123,14 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         cleaned_sources = sorted(list(set([clean_source_name(doc.metadata.get('source', '')) for doc in raw_sources if doc.metadata.get('source')])))
         final_result = response.get('result', "No se encontró una respuesta.").strip()
         
-        # Añadimos las fuentes al final de la respuesta
         if cleaned_sources:
             if mode == "didactico":
                 final_result += "\n\n" + "## 📚 Fuentes Legales/Temario\n" + "\n".join([f"- {s}" for s in cleaned_sources])
             else:
                 final_result += "\n\n[Fuentes consultadas: " + "; ".join(cleaned_sources) + "]"
 
-        return {
-            "result": final_result,
-            "sources": cleaned_sources
-        }
+        return {"result": final_result, "sources": cleaned_sources}
 
     except Exception as e:
         print(f"Error en get_rag_response: {e}")
-        return {
-            "result": f"Error: No se pudo conectar a Google AI. Detalles: {e}",
-            "sources": []
-        }
+        return {"result": f"Error: No se pudo conectar a Google AI. Detalles: {e}", "sources": []}
