@@ -676,6 +676,8 @@ def api_consulta_rag():
         return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
 
 # --- RUTA DE PÁGINA DEL AGENTE IA (MODIFICADA) ---
+from google.cloud import storage # <--- AÑADE ESTA IMPORTACIÓN ARRIBA DEL TODO
+
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
@@ -683,91 +685,78 @@ def agente_ia_page():
         flash('No tienes acceso a esta función premium en este momento.', 'warning')
         return redirect(url_for('main.home'))
 
-    # --- ¡NUEVA LÓGICA PARA CARGAR LOS DOCUMENTOS DEL TEMARIO! ---
-    
-    # Función de ayuda para limpiar nombres (evita duplicar código)
-    def clean_source_name_for_display(source_path):
-        cleaned_name = re.sub(r'documentos_para_ia/[^/]+/', '', source_path, count=1)
-        cleaned_name = re.sub(r'\.(pdf|txt)$', '', cleaned_name, flags=re.IGNORECASE)
-        cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
-        return cleaned_name.title()
-
+    # --- ¡NUEVA LÓGICA PARA CARGAR LOS DOCUMENTOS DESDE GOOGLE CLOUD STORAGE! ---
     available_sources = []
-    # Lista de directorios a escanear (puedes añadir más)
-    # Usa rutas relativas a la raíz de tu proyecto
-    source_directories = [
-        'documentos_para_ia/AGMN ASTURIAS', 
-        'documentos_para_ia/CYL'
-    ]
+    bucket_name = "silvatest-temarios-pdfs" # El nombre de tu bucket
 
-    for directory in source_directories:
-        # Comprueba si el directorio existe para evitar errores
-        if os.path.isdir(directory):
-            try:
-                # Obtiene la lista de todos los archivos .pdf o .txt
-                all_files = [f for f in os.listdir(directory) if f.lower().endswith(('.pdf', '.txt'))]
-                
-                for filename in all_files:
-                    # Crea la ruta completa del archivo
-                    full_path = os.path.join(directory, filename).replace('\\', '/') # Estandariza a '/'
-                    available_sources.append({
-                        'name': clean_source_name_for_display(full_path), # Nombre limpio para mostrar en la web
-                        'path': full_path  # Ruta completa que usará el filtro de Pinecone
-                    })
-            except Exception as e:
-                print(f"ADVERTENCIA: No se pudo leer el directorio '{directory}': {e}")
-    
-    # Ordena alfabéticamente la lista para una mejor visualización
-    available_sources.sort(key=lambda x: x['name'])
+    try:
+        # Inicializa el cliente de Cloud Storage
+        storage_client = storage.Client(credentials=credentials)
+        bucket = storage_client.bucket(bucket_name)
+        blobs = bucket.list_blobs() # Obtiene todos los archivos del bucket
 
-    # Pasa la lista de fuentes a la plantilla para que genere los checkboxes
-    return render_template('agente_ia.html', 
-                           title="Asistente de Estudio IA", 
+        for blob in blobs:
+            # Nos aseguramos de que sean archivos PDF y no carpetas
+            if blob.name.lower().endswith('.pdf'):
+                # La ruta completa que necesita el filtro es gs://bucket/archivo.pdf
+                full_gcs_path = f"gs://{bucket_name}/{blob.name}"
+
+                # Usamos la función de limpieza que ya tienes en rag_agent
+                # (Asegúrate de importarla si la mueves o la usas aquí)
+                # from mi_app.rag_agent import clean_source_name 
+
+                file_name = blob.name.split('/')[-1]
+                cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE)
+                cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip().title()
+
+                available_sources.append({
+                    'name': cleaned_name,  # Nombre limpio para mostrar en la web
+                    'path': full_gcs_path   # Ruta GCS completa que usará el filtro
+                })
+
+        # Ordena alfabéticamente la lista para una mejor visualización
+        available_sources.sort(key=lambda x: x['name'])
+
+    except Exception as e:
+        print(f"ERROR: No se pudo conectar a Google Cloud Storage para listar los archivos: {e}")
+        flash("Error al cargar los documentos del temario. Contacta con el administrador.", "danger")
+
+    return render_template('agente_ia.html',
+                           title="Asistente de Estudio IA",
                            rag_tokens_restantes=current_user.rag_tokens_restantes,
-                           available_sources=available_sources) # <-- ¡LA VARIABLE CLAVE!
+                           available_sources=available_sources) # <-- ¡LA VARIABLE CLAVE AHORA VIENE DE LA NUBE!
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
 def explicar_respuesta_ia():
     if not current_user.tiene_acceso_ia: abort(403)
+
     data = request.get_json()
-    pregunta_id, respuesta_usuario_id = data.get('preguntaId'), data.get('respuestaUsuarioId')
-    if not pregunta_id: return jsonify({'error': 'Falta el ID de la pregunta.'}), 400
+    pregunta_id = data.get('preguntaId')
     pregunta = Pregunta.query.get_or_404(pregunta_id)
-    contexto_documento = obtener_contexto_de_tema(pregunta.tema)
-    bloque = pregunta.tema.bloque
-    personalidad_ia = "un preparador de oposiciones experto" + (f" en {bloque.contexto_ia}" if bloque and hasattr(bloque, 'contexto_ia') and bloque.contexto_ia else "")
-    respuesta_correcta_texto, respuesta_usuario_texto = "", ""
+
+    # Obtenemos el texto de la respuesta correcta
+    respuesta_correcta_texto = ""
     for opcion in pregunta.respuestas:
-        if opcion.es_correcta: respuesta_correcta_texto = opcion.texto
-        if str(opcion.id) == str(respuesta_usuario_id): respuesta_usuario_texto = opcion.texto
-    if contexto_documento:
-        prompt_parts = [
-            f"Actúa como un experto que responde basándose ÚNICA Y EXCLUSIVAMENTE en el siguiente texto:\n\n--- INICIO DEL TEXTO ---\n{contexto_documento}\n--- FIN DEL TEXTO ---\n\n",
-            f"Pregunta: {pregunta.texto}\n",
-            f"Respuesta correcta: **{respuesta_correcta_texto}**\n"
-        ]
-        if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-            prompt_parts.extend([f"El usuario respondió: **{respuesta_usuario_texto}**\n", "Explica por qué la del usuario es incorrecta y la otra es correcta, usando solo la información del texto."])
-        else:
-            prompt_parts.append("Explica por qué esta es la respuesta correcta, usando solo la información del texto.")
-    else:
-        prompt_parts = [
-            f"Actúa como {personalidad_ia}. Tono didáctico y conciso.",
-            "Explica en 2-3 frases el 'porqué' de la respuesta correcta. Usa negritas para conceptos clave.",
-            f"\n**Pregunta:**\n{pregunta.texto}\n",
-            f"La respuesta correcta es: **{respuesta_correcta_texto}**."
-        ]
-        if respuesta_usuario_texto and respuesta_usuario_texto != respuesta_correcta_texto:
-            prompt_parts.extend([f"La respuesta marcada fue: **{respuesta_usuario_texto}**.", "Explica el razonamiento de la respuesta correcta y por qué la marcada es incorrecta."])
-        else:
-            prompt_parts.append("Explica por qué es correcta, aportando un dato extra o consejo.")
+        if opcion.es_correcta:
+            respuesta_correcta_texto = opcion.texto
+            break
+
+    # 1. Creamos una pregunta específica para el agente RAG
+    query = f"""
+    Explica de forma didáctica y concisa por qué la respuesta correcta a la pregunta '{pregunta.texto}' es '{respuesta_correcta_texto}'.
+    Basa tu explicación únicamente en el temario oficial.
+    """
+
     try:
-        model = GenerativeModel("gemini-1.0-pro")
-        response = model.generate_content("\n".join(prompt_parts))
-        return jsonify({'explicacion': response.text})
+        # 2. Llamamos a la misma función RAG que usa el chatbot
+        response_data = get_rag_response(query=query, mode="didactico")
+
+        # 3. Devolvemos directamente la explicación generada
+        return jsonify({'explicacion': response_data['result']})
+
     except Exception as e:
-        print(f"Error al llamar a la API de Vertex AI: {e}")
+        print(f"Error al llamar al agente RAG para explicar respuesta: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación.'}), 500
 
 @main_bp.route('/api/generar-plan-ia', methods=['POST'])

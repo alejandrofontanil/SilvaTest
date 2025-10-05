@@ -30,8 +30,8 @@ google-cloud-aiplatform>=1.97.0
 pypdf
 pinecone-client>=4.1.0
 langchain-google-vertexai
-langchain-pinecone
 langchain-community
 langchain
 PyPDF2 
 google-cloud-discoveryengine
+google-cloud-storage
