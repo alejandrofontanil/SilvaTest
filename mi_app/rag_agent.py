@@ -16,7 +16,7 @@ load_dotenv()
 # --- CONFIGURACIÓN ---
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
-LLM_MODEL_NAME = "gemini-1.0-pro"
+LLM_MODEL_NAME = "text-bison@001"
 
 PROMPT_TEMPLATES = {
     "formal": """

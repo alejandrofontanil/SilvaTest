@@ -648,8 +648,6 @@ def api_consulta_rag():
         return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
 
 # --- RUTA DE PÁGINA DEL AGENTE IA (MODIFICADA) ---
-from google.cloud import storage # <--- AÑADE ESTA IMPORTACIÓN ARRIBA DEL TODO
-
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
@@ -672,10 +670,6 @@ def agente_ia_page():
             if blob.name.lower().endswith('.pdf'):
                 # La ruta completa que necesita el filtro es gs://bucket/archivo.pdf
                 full_gcs_path = f"gs://{bucket_name}/{blob.name}"
-
-                # Usamos la función de limpieza que ya tienes en rag_agent
-                # (Asegúrate de importarla si la mueves o la usas aquí)
-                # from mi_app.rag_agent import clean_source_name 
 
                 file_name = blob.name.split('/')[-1]
                 cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE)
