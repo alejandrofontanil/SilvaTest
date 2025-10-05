@@ -1,4 +1,3 @@
-# rag_agent.py (VERSIÓN FINAL)
 import os
 import json
 from dotenv import load_dotenv
@@ -7,23 +6,18 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 import re
 
-# LangChain: Importaciones actualizadas para corregir DeprecationWarning
+# LangChain: Importaciones actualizadas
 from langchain_google_vertexai import VertexAI
-from langchain_google_community import VertexAISearchRetriever # <-- Importación corregida
+from langchain_google_community import VertexAISearchRetriever
 
 # Carga las variables de entorno
 load_dotenv()
 
 # --- CONFIGURACIÓN ---
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = "global"
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
 LLM_MODEL_NAME = "gemini-1.5-flash-001"
-PROMPT_TEMPLATES = {
-    "formal": """...""", # Mantén tus prompts como estaban
-    "didactico": """..."""
-}
 PROMPT_TEMPLATES = {
     "formal": """
         ## 🎯 Meta Prompt: Modo Formal (Precisión Legal)
@@ -56,8 +50,7 @@ PROMPT_TEMPLATES = {
     """
 }
 
-
-# --- INICIALIZACIÓN DE CREDENCIALES (FUERA DE LA FUNCIÓN) ---
+# --- INICIALIZACIÓN DE CREDENCIALES ---
 credentials = None
 if GOOGLE_CREDS_JSON:
     try:
@@ -67,18 +60,16 @@ if GOOGLE_CREDS_JSON:
     except Exception as e:
         print(f"❌ ERROR al cargar las credenciales de Google Cloud: {e}")
 
+# --- FUNCIÓN DE LIMPIEZA DE FUENTES ---
 def clean_source_name(source_path: str) -> str:
-    # ... tu función de limpieza sin cambios ...
     if not isinstance(source_path, str): return 'Fuente no identificada'
     file_name = source_path.split('/')[-1]
     cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE)
     cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
     return cleaned_name.title()
 
-
 # --- FUNCIÓN PRINCIPAL DEL AGENTE RAG ---
 def get_rag_response(query: str, mode: str = "formal", selected_sources: list | None = None):
-    # Verificamos que las credenciales se cargaron al inicio
     if not credentials:
         return {"result": "Error crítico: Las credenciales de Google Cloud no están configuradas en el servidor.", "sources": []}
 
@@ -86,24 +77,25 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         TEMPERATURE = 0.2
         RETRIEVAL_K = 5
 
-        # Pasamos las credenciales explícitamente a cada componente
+        # CORRECCIÓN 1: Especificamos la región correcta para el modelo
         llm = VertexAI(
             model_name=LLM_MODEL_NAME,
             credentials=credentials,
             temperature=TEMPERATURE,
-            project=GCP_PROJECT_ID # Buena práctica añadir el project_id
+            project=GCP_PROJECT_ID,
+            location="europe-west1"  # <-- ARREGLADO
         )
 
         filter_string = None
         if selected_sources and isinstance(selected_sources, list):
             quoted_sources = [f'"{source}"' for source in selected_sources]
-            filter_string = " OR ".join(f"uri:{s}" for s in quoted_sources)
+            # CORRECCIÓN 2: Usamos el nombre de campo correcto para el filtro
+            filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources) # <-- ARREGLADO
 
-        # Usamos la clase corregida y le pasamos las credenciales
         retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
             data_store_id=DATA_STORE_ID,
-            credentials=credentials, # <-- Muy importante pasar las credenciales aquí
+            credentials=credentials,
             filter=filter_string,
             max_documents=RETRIEVAL_K,
         )
