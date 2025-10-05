@@ -1,13 +1,10 @@
 # --- INICIO: IMPORTACIONES COMPLETAS ---
 import os
 import json
-import io
-import requests
 import vertexai
 import re # <--- AÑADIDO: Importación necesaria para la nueva lógica
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
-import PyPDF2
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory, current_app
 from flask_login import login_required, current_user
