@@ -16,7 +16,9 @@ load_dotenv()
 # --- CONFIGURACIÓN ---
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
-LLM_MODEL_NAME = "text-bison@001"
+
+# ✅ Usa un modelo Gemini soportado en lugar de text-bison
+LLM_MODEL_NAME = "gemini-1.5-pro"   # Alternativa rápida: "gemini-1.5-flash"
 
 PROMPT_TEMPLATES = {
     "formal": """
@@ -50,7 +52,7 @@ PROMPT_TEMPLATES = {
     """
 }
 
-# --- INICIALIZACIÓN DE CREDENCIALES (NUEVA VERSIÓN) ---
+# --- INICIALIZACIÓN DE CREDENCIALES ---
 SECRET_FILE_PATH = "/etc/secrets/gcp_service_account_key.json"
 credentials = None
 try:
@@ -58,7 +60,6 @@ try:
         credentials = service_account.Credentials.from_service_account_file(SECRET_FILE_PATH)
         print("✅ Credenciales de Google Cloud cargadas desde Secret File.")
     else:
-        # Lógica para desarrollo local, leyendo la variable de entorno
         GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
         if GOOGLE_CREDS_JSON:
             creds_info = json.loads(GOOGLE_CREDS_JSON)
@@ -77,7 +78,7 @@ def clean_source_name(source_path: str) -> str:
     cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
     return cleaned_name.title()
 
-# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG (VERSIÓN DE DEPURACIÓN) ---
+# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG ---
 def get_rag_response(query: str, mode: str = "formal", selected_sources: list | None = None):
     if not credentials:
         return {"result": "Error crítico: Las credenciales de Google Cloud no están configuradas en el servidor.", "sources": []}
@@ -86,6 +87,7 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         TEMPERATURE = 0.2
         RETRIEVAL_K = 5
 
+        # ✅ Usa Gemini en Vertex AI
         llm = VertexAI(
             model_name=LLM_MODEL_NAME,
             credentials=credentials,
@@ -94,11 +96,8 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
             location="europe-west1"
         )
 
-        # --- CAMBIO TEMPORAL: Desactivamos el filtro para que la consulta funcione ---
+        # Desactivamos filtro por ahora
         filter_string = None
-        # if selected_sources and isinstance(selected_sources, list):
-        #     quoted_sources = [f'"{source}"' for source in selected_sources]
-        #     filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources)
 
         retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
@@ -120,7 +119,6 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         
         raw_sources = response.get('source_documents', [])
 
-        # --- DIAGNÓSTICO: Imprimimos los metadatos en los logs ---
         if raw_sources:
             print("--- METADATOS DEL PRIMER DOCUMENTO ENCONTRADO ---")
             print(raw_sources[0].metadata)
