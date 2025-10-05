@@ -34,7 +34,7 @@ credentials = None
 try:
     print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
-    GCP_REGION = 'europe-west1' # Usamos la región correcta
+    GCP_REGION = 'us-central1' # Usamos la región correcta
 
     if os.path.exists(SECRET_FILE_PATH):
         credentials = service_account.Credentials.from_service_account_file(SECRET_FILE_PATH)
