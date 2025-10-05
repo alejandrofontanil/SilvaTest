@@ -16,7 +16,7 @@ load_dotenv()
 # --- CONFIGURACIÓN ---
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 DATA_STORE_ID = os.getenv("GCP_DATA_STORE_ID")
-LLM_MODEL_NAME = "gemini-1.5-flash-latest" # Usamos el modelo recomendado para producción
+LLM_MODEL_NAME = "gemini-1.5-flash-latest"
 
 PROMPT_TEMPLATES = {
     "formal": """
@@ -50,7 +50,6 @@ PROMPT_TEMPLATES = {
     """
 }
 
-
 # --- INICIALIZACIÓN DE CREDENCIALES (NUEVA VERSIÓN) ---
 SECRET_FILE_PATH = "/etc/secrets/gcp_service_account_key.json"
 credentials = None
@@ -78,7 +77,7 @@ def clean_source_name(source_path: str) -> str:
     cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
     return cleaned_name.title()
 
-# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG ---
+# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG (VERSIÓN DE DEPURACIÓN) ---
 def get_rag_response(query: str, mode: str = "formal", selected_sources: list | None = None):
     if not credentials:
         return {"result": "Error crítico: Las credenciales de Google Cloud no están configuradas en el servidor.", "sources": []}
@@ -95,11 +94,11 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
             location="europe-west1"
         )
 
+        # --- CAMBIO TEMPORAL: Desactivamos el filtro para que la consulta funcione ---
         filter_string = None
-        if selected_sources and isinstance(selected_sources, list):
-            quoted_sources = [f'"{source}"' for source in selected_sources]
-            # Usaremos "gcs_uri" que es el campo más probable. Si no, lo veremos en los logs.
-            filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources)
+        # if selected_sources and isinstance(selected_sources, list):
+        #     quoted_sources = [f'"{source}"' for source in selected_sources]
+        #     filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources)
 
         retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
@@ -120,13 +119,17 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         response = qa_chain.invoke({"query": query})
         
         raw_sources = response.get('source_documents', [])
+
+        # --- DIAGNÓSTICO: Imprimimos los metadatos en los logs ---
+        if raw_sources:
+            print("--- METADATOS DEL PRIMER DOCUMENTO ENCONTRADO ---")
+            print(raw_sources[0].metadata)
+            print("-------------------------------------------------")
         
-        # Adaptamos la limpieza de fuentes para que sea más robusta
         cleaned_sources = []
         if raw_sources:
             for doc in raw_sources:
-                # El retriever de Vertex AI Search guarda la ruta en 'source'
-                source_uri = doc.metadata.get('source') 
+                source_uri = doc.metadata.get('source')
                 if source_uri:
                     cleaned_sources.append(clean_source_name(source_uri))
         cleaned_sources = sorted(list(set(cleaned_sources)))
