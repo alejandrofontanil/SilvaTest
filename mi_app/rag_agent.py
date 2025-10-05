@@ -68,7 +68,7 @@ def clean_source_name(source_path: str) -> str:
     cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip()
     return cleaned_name.title()
 
-# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG ---
+# --- FUNCIÓN PRINCIPAL DEL AGENTE RAG (VERSIÓN DE DEPURACIÓN) ---
 def get_rag_response(query: str, mode: str = "formal", selected_sources: list | None = None):
     if not credentials:
         return {"result": "Error crítico: Las credenciales de Google Cloud no están configuradas en el servidor.", "sources": []}
@@ -77,20 +77,19 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         TEMPERATURE = 0.2
         RETRIEVAL_K = 5
 
-        # CORRECCIÓN 1: Especificamos la región correcta para el modelo
         llm = VertexAI(
             model_name=LLM_MODEL_NAME,
             credentials=credentials,
             temperature=TEMPERATURE,
             project=GCP_PROJECT_ID,
-            location="europe-west1"  # <-- ARREGLADO
+            location="europe-west1"
         )
 
+        # --- CAMBIO TEMPORAL: Desactivamos el filtro para que la consulta funcione ---
         filter_string = None
-        if selected_sources and isinstance(selected_sources, list):
-            quoted_sources = [f'"{source}"' for source in selected_sources]
-            # CORRECCIÓN 2: Usamos el nombre de campo correcto para el filtro
-            filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources) # <-- ARREGLADO
+        # if selected_sources and isinstance(selected_sources, list):
+        #     quoted_sources = [f'"{source}"' for source in selected_sources]
+        #     filter_string = " OR ".join(f"gcs_uri:{s}" for s in quoted_sources)
 
         retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
@@ -111,7 +110,15 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         response = qa_chain.invoke({"query": query})
         
         raw_sources = response.get('source_documents', [])
-        cleaned_sources = sorted(list(set([clean_source_name(doc.metadata.get('source', '')) for doc in raw_sources if doc.metadata.get('source')])))
+
+        # --- DIAGNÓSTICO: Imprimimos los metadatos en los logs ---
+        if raw_sources:
+            print("--- METADATOS DEL PRIMER DOCUMENTO ENCONTRADO ---")
+            print(raw_sources[0].metadata)
+            print("-------------------------------------------------")
+        
+        # OJO: La siguiente línea puede fallar si 'source' no existe, lo adaptaremos después
+        cleaned_sources = sorted(list(set([clean_source_name(doc.metadata.get('source', doc.metadata.get('gcs_uri', ''))) for doc in raw_sources])))
         final_result = response.get('result', "No se encontró una respuesta.").strip()
         
         if cleaned_sources:
