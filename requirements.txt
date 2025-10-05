@@ -34,3 +34,4 @@ langchain-pinecone
 langchain-community
 langchain
 PyPDF2 
+google-cloud-discoveryengine
