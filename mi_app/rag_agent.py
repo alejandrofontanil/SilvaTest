@@ -2,8 +2,9 @@ import os
 import json
 from dotenv import load_dotenv
 from google.cloud import aiplatform
-# LangChain: Importamos el retriever de Vertex AI Search y el LLM de Vertex
-from langchain_google_vertexai import VertexAI, VertexAISearchRetriever
+# LangChain: Corregimos la importación del retriever
+from langchain_google_vertexai import VertexAI
+from langchain_community.retrievers import GoogleVertexAISearchRetriever
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from google.oauth2 import service_account
@@ -104,8 +105,8 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
             filter_string = " OR ".join(f"source:{s}" for s in quoted_sources)
             print(f"🔎 Búsqueda filtrada activada. Filtro: {filter_string}")
 
-        # Reemplazamos Pinecone por el retriever de Vertex AI Search
-        retriever = VertexAISearchRetriever(
+        # Usamos la clase e importación correctas
+        retriever = GoogleVertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
             location=LOCATION,
             data_store_id=DATA_STORE_ID,
