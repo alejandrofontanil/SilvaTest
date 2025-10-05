@@ -102,7 +102,6 @@ def get_rag_response(query: str, mode: str = "formal", selected_sources: list | 
         # Usamos la clase corregida y le pasamos las credenciales
         retriever = VertexAISearchRetriever(
             project_id=GCP_PROJECT_ID,
-            location=LOCATION,
             data_store_id=DATA_STORE_ID,
             credentials=credentials, # <-- Muy importante pasar las credenciales aquí
             filter=filter_string,
