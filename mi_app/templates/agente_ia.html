@@ -1,370 +1,150 @@
-{% extends "base.html" %}
+// mi_app/static/js/agente_ia.js
 
-{% block styles %}
-{{ super() }}
-<style>
-    /* --- NUEVOS ESTILOS PARA LAYOUT Y PANEL DE FUENTES --- */
-    #study-environment {
-        display: flex;
-        gap: 1.5rem; /* Espacio entre el panel de fuentes y el chat */
-    }
+document.addEventListener('DOMContentLoaded', function() {
 
-    #sources-panel {
-        flex: 0 0 280px; /* Ancho fijo para el panel de fuentes */
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.75rem;
-        padding: 1.25rem;
-        height: fit-content; /* Se ajusta al contenido */
-        max-height: 75vh;
-        overflow-y: auto;
-    }
+    // --- 1. REFERENCIAS A ELEMENTOS DEL DOM ---
+    const sourceItems = document.querySelectorAll('.source-item');
+    const pdfViewer = document.getElementById('pdf-viewer');
+    const viewerPlaceholder = document.getElementById('viewer-placeholder');
     
-    #sources-panel h5 {
-        font-weight: 700;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-        padding-bottom: 0.75rem;
-    }
-    
-    .source-item {
-        margin-bottom: 0.5rem;
-    }
-
-    #chat-wrapper {
-        flex-grow: 1; /* El chat ocupa el resto del espacio */
-    }
-
-    /* Estilos generales del contenedor de chat (ya los tenías) */
-    #chat-container {
-        display: flex;
-        flex-direction: column;
-        height: 75vh;
-        max-height: 800px;
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.75rem;
-        overflow: hidden;
-        background-color: var(--bs-light-bg-subtle);
-    }
-    #chat-messages {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-    }
-    .chat-message {
-        max-width: 85%;
-        padding: 0.75rem 1.25rem;
-        border-radius: 1.25rem;
-        margin-bottom: 1rem;
-        line-height: 1.5;
-        word-wrap: break-word;
-    }
-    .user-message {
-        background-color: var(--bs-primary);
-        color: var(--bs-btn-color, #FFFFFF);
-        align-self: flex-end;
-        border-bottom-right-radius: 0.25rem;
-    }
-    .agent-message {
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        align-self: flex-start;
-        border-bottom-left-radius: 0.25rem;
-    }
-    .thinking-indicator {
-        display: flex;
-        align-items: center;
-        align-self: flex-start;
-        font-style: italic;
-        color: var(--bs-secondary-color);
-    }
-    
-    /* --- CAMBIO: MEJORA DE ESTILOS PARA LA PANTALLA DE TOKENS --- */
-    #tokens-display {
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid var(--bs-border-color);
-        white-space: nowrap;
-    }
-
-    /* Colores del recuadro de tokens según el estado */
-    .tokens-ok {
-        background-color: var(--bs-success-bg-subtle);
-        border-color: var(--bs-success-border-subtle);
-    }
-
-    .tokens-warning {
-        background-color: var(--bs-warning-bg-subtle);
-        border-color: var(--bs-warning-border-subtle);
-    }
-
-    .tokens-danger {
-        background-color: var(--bs-danger-bg-subtle);
-        border-color: var(--bs-danger-border-subtle);
-    }
-
-    /* Estilo para resaltar el nombre de SilvIA */
-    .resaltado-silvia {
-        color: var(--bs-primary);
-        background-color: var(--bs-body-bg);
-        padding: 0.1rem 0.4rem;
-        border-radius: 0.25rem;
-        font-weight: bold;
-    }
-    
-    /* --- ESTILOS PARA EL MODO CUADERNO (ya los tenías) --- */
-    .agent-response-content h2 {
-        font-size: 1.1rem;
-        font-weight: 700;
-        margin-top: 1rem;
-        padding-bottom: 5px;
-        border-bottom: 1px dashed #ced4da;
-    }
-    .agent-response-content .note-box {
-        background-color: #f8f9fa;
-        border-left: 4px solid #17a2b8;
-        padding: 10px;
-        margin-top: 10px;
-        border-radius: 0.5rem;
-        font-size: 0.9rem;
-    }
-    .agent-response-content strong {
-        font-weight: 700;
-        color: var(--bs-primary);
-    }
-    
-    /* --- MEDIA QUERY: AJUSTES PARA PANTALLAS PEQUEÑAS (MÓVILES) --- */
-    @media (max-width: 992px) {
-        #study-environment {
-            flex-direction: column;
-            gap: 1rem;
-        }
-        #sources-panel {
-            flex: auto;
-            max-height: 50vh;
-        }
-        .container-fluid .row {
-            padding: 0 1rem;
-        }
-        .d-flex.justify-content-between {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid mt-4" data-aos="fade-up">
-    <div class="row justify-content-center">
-        <div class="col-lg-11 col-xl-10">
-            <h2 class="text-center mb-4"><i class="bi bi-robot me-2"></i>Asistente de Estudio SilvIA</h2>
-            
-            <div id="study-environment">
-
-                <aside id="sources-panel" class="shadow-sm">
-                    <h5><i class="bi bi-collection-fill me-2"></i>Temario</h5>
-                    <div id="sources-list">
-                        {% if available_sources %}
-                            {% for source in available_sources %}
-                            <div class="form-check source-item">
-                                <input class="form-check-input source-checkbox" type="checkbox" value="{{ source.path }}" id="source-{{ loop.index }}">
-                                <label class="form-check-label" for="source-{{ loop.index }}">
-                                    {{ source.name }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-muted small">No hay fuentes cargadas.</p>
-                        {% endif %}
-                    </div>
-                    <small class="text-muted mt-3 d-block">Selecciona temas para enfocar la búsqueda.</small>
-                </aside>
-
-                <div id="chat-wrapper">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="form-group d-flex align-items-center">
-                            <label for="response-mode" class="me-2 text-muted fw-bold small">Modo:</label>
-                            <select id="response-mode" class="form-select form-select-sm" style="width: auto;">
-                                <option value="didactico">📖 Cuaderno de Estudio</option>
-                                <option value="formal">🎯 Respuesta Directa</option>
-                            </select>
-                        </div>
-                        <div id="tokens-display" class="d-flex align-items-center mb-0">
-                            Tokens Restantes: <span id="remaining-tokens-value" class="ms-1 fw-bold">{{ rag_tokens_restantes|default(0) }}</span>
-                            {% if rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
-                        </div>
-                    </div>
-                    
-                    <div id="chat-container" class="shadow-lg">
-                        <div id="chat-messages">
-                            <div class="agent-message chat-message">
-                                ¡Soy <span class="resaltado-silvia">SilvIA</span>, tu Asistente de Estudio IA! Selecciona los temas que quieras repasar en el panel de la izquierda y hazme tu pregunta. ¡Estoy listo para optimizar tu estudio!
-                            </div>
-                        </div>
-                        
-                        <div id="chat-input-container" class="p-3 border-top">
-                            <form id="chat-form">
-                                <div class="input-group">
-                                    <input type="text" id="user-input" class="form-control form-control-lg" placeholder="Ej: ¿Qué se considera un 'refugio de pesca'?" autocomplete="off" required>
-                                    <button class="btn btn-primary" type="submit" id="send-btn"><i class="bi bi-send-fill"></i></button>
-                                </div>
-                                <small id="token-limit-message" class="text-danger mt-2" style="display:none;">
-                                    Has agotado tus tokens de IA. Contacta con el administrador para recargar.
-                                </small>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
-    const chatMessages = document.getElementById('chat-messages');
+    const sendButton = document.getElementById('send-btn');
+    const chatHistory = document.getElementById('chat-history');
+    
     const tokensDisplay = document.getElementById('remaining-tokens-value');
-    const tokensDisplayContainer = document.getElementById('tokens-display'); // Nuevo elemento
-    const limitMessage = document.getElementById('token-limit-message');
-    const modeSelect = document.getElementById('response-mode');
     
-    let currentTokens = parseInt(tokensDisplay.textContent);
+    // --- 2. CONFIGURACIÓN DE PDF.js ---
+    const { pdfjsLib } = globalThis;
+    if (pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://mozilla.github.io/pdf.js/build/pdf.worker.mjs`;
+    } else {
+        console.error("PDF.js no está cargado.");
+        return;
+    }
 
-    function updateTokenState(remainingTokens) {
-        currentTokens = remainingTokens;
-        tokensDisplay.textContent = currentTokens;
-        
-        const isDisabled = currentTokens <= 0;
-        userInput.disabled = isDisabled;
-        document.getElementById('send-btn').disabled = isDisabled;
-        limitMessage.style.display = isDisabled ? 'block' : 'none';
+    // --- 3. FUNCIÓN PARA CARGAR Y RENDERIZAR EL PDF ---
+    async function loadPdf(pdfUrl) {
+        pdfViewer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                <div class="spinner-border me-3" role="status"></div>
+                <strong>Cargando documento...</strong>
+            </div>`;
+        viewerPlaceholder.style.display = 'none';
+        pdfViewer.style.display = 'block';
 
-        // Lógica para cambiar el color del recuadro de tokens
-        tokensDisplayContainer.classList.remove('tokens-ok', 'tokens-warning', 'tokens-danger');
-        if (currentTokens > 15000) {
-            tokensDisplayContainer.classList.add('tokens-ok');
-        } else if (currentTokens > 5000) {
-            tokensDisplayContainer.classList.add('tokens-warning');
-        } else {
-            tokensDisplayContainer.classList.add('tokens-danger');
+        try {
+            const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+            pdfViewer.innerHTML = ''; 
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.75 });
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                pdfViewer.appendChild(canvas);
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+            }
+        } catch (error) {
+            console.error('Error al cargar el PDF:', error);
+            pdfViewer.innerHTML = '<div class="alert alert-danger m-3">Error al cargar el documento. Asegúrate de que es públicamente accesible.</div>';
         }
     }
-    
-    updateTokenState(currentTokens);
 
+    // --- 4. EVENT LISTENERS PARA LA LISTA DE TEMAS ---
+    sourceItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            sourceItems.forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+
+            const gcsPath = this.dataset.path;
+            const publicUrl = `https://storage.googleapis.com/${gcsPath.substring(5)}`;
+            loadPdf(publicUrl);
+        });
+    });
+
+    // --- 5. LÓGICA DEL CHAT ---
     function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function formatAgentResponse(markdown) {
-        let html = markdown.replace(/## 📖 Concepto Clave/g, '<h2>📖 Concepto Clave</h2>');
-        html = html.replace(/## 🐟 Ejemplo\/Aplicación/g, '<h2>🐟 Ejemplo/Aplicación</h2>');
-        html = html.replace(/## 💡 Nota de Estudio/g, '<div class="note-box">💡 <strong>Nota de Estudio:</strong> ');
-        html = html.replace(/## 📚 Fuentes Legales\/Temario/g, '</div><h2 class="mt-3">📚 Fuentes Legales/Temario</h2>');
-        
-        if (html.includes('<div class="note-box"') && !html.includes('</div>')) {
-            html += '</div>';
-        }
-        
-        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/\n/g, '<br>');
-        html = html.replace(/<br>\s*-\s*(.*)/g, '<br>&bull; $1');
-        html = html.replace(/<br>\s*\*\s*(.*)/g, '<br>&bull; $1');
-        
-        return `<div class="agent-response-content">${html}</div>`;
+        chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 
     function addMessageToChat(sender, content, isThinking = false) {
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'agent-message');
+        messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'bot-message');
         
         if (sender === 'user') {
             messageDiv.textContent = content;
         } else if (isThinking) {
-            messageDiv.classList.add('thinking-indicator');
-            messageDiv.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Consultando el Temario...`;
+            messageDiv.innerHTML = `<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div><span>Consultando...</span></div>`;
         } else {
-            messageDiv.innerHTML = formatAgentResponse(content);
+            // Usamos la librería 'marked' si está disponible para renderizar Markdown
+            messageDiv.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : content.replace(/\n/g, '<br>');
         }
         
-        chatMessages.appendChild(messageDiv);
+        chatHistory.appendChild(messageDiv);
         scrollToBottom();
         return messageDiv;
     }
 
-    function updateAgentMessage(element, newMessage) {
-        element.innerHTML = formatAgentResponse(newMessage);
-        element.classList.remove('thinking-indicator');
-        scrollToBottom();
-    }
+    if (chatForm) {
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userMessage = userInput.value.trim();
+            if (!userMessage) return;
 
-    chatForm.addEventListener('submit', function (event) {
-        event.preventDefault();
-        const userMessage = userInput.value.trim();
-        const responseMode = modeSelect.value;
-        
-        const selectedSources = Array.from(document.querySelectorAll('.source-checkbox:checked'))
-                                         .map(checkbox => checkbox.value);
-
-        if (userMessage === '' || currentTokens <= 0) return;
-
-        addMessageToChat('user', userMessage);
-        userInput.value = '';
-        
-        const thinkingMessageElement = addMessageToChat('agent', '', true);
-
-        userInput.disabled = true;
-        document.getElementById('send-btn').disabled = true;
-
-        fetch("{{ url_for('main.api_consulta_rag') }}", { 
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({ 
-                message: userMessage, 
-                mode: responseMode,
-                selected_sources: selectedSources
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { 
-                    throw new Error(err.error || 'Error desconocido del servidor.'); 
-                });
+            // En el nuevo diseño, el filtro son los documentos ACTIVOS en el panel izquierdo
+            const activeSource = document.querySelector('.source-item.active');
+            let selectedSources = [];
+            if(activeSource) {
+                selectedSources.push(activeSource.dataset.path);
             }
-            return response.json();
-        })
-        .then(data => {
-            updateAgentMessage(thinkingMessageElement, data.response);
+
+            addMessageToChat('user', userMessage);
+            userInput.value = '';
             
-            if (data.remaining_tokens !== undefined) {
-                updateTokenState(data.remaining_tokens);
-            }
-        })
-        .catch(error => {
-            console.error('Error en la consulta RAG:', error);
-            updateAgentMessage(thinkingMessageElement, `❌ Lo siento, ha ocurrido un error: ${error.message}`);
-        })
-        .finally(() => {
-            if(currentTokens > 0) {
-              userInput.disabled = false;
-              document.getElementById('send-btn').disabled = false;
-              userInput.focus();
-            }
+            const thinkingMessage = addMessageToChat('bot', '', true);
+
+            fetch("{{ url_for('main.api_consulta_rag') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ 
+                    message: userMessage, 
+                    mode: "didactico", // O el modo que prefieras
+                    selected_sources: selectedSources // Enviamos solo la fuente activa
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Si el servidor devuelve un error, lo intentamos leer como JSON
+                    return response.json().then(err => { 
+                        throw new Error(err.error || 'Error desconocido del servidor.'); 
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                thinkingMessage.remove(); // Quitamos el "Consultando..."
+                addMessageToChat('bot', data.response);
+                
+                if (data.remaining_tokens !== undefined) {
+                    tokensDisplay.textContent = data.remaining_tokens;
+                }
+            })
+            .catch(error => {
+                console.error('Error en la consulta RAG:', error);
+                thinkingMessage.remove();
+                addMessageToChat('bot', `❌ Lo siento, ha ocurrido un error: ${error.message}`);
+            });
         });
-    });
+    }
 });
-</script>
-{% endblock %}
