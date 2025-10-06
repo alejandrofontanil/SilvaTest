@@ -221,7 +221,31 @@
           color: var(--bs-body-bg) !important;
       }
       /* --- FIN ESTILOS AGREGADOS --- */
-    </style>
+
+      
+      /* --- AJUSTES DE COLOR PARA MODO OSCURO EN AGENTE IA --- */
+      [data-bs-theme="dark"] .source-item.list-group-item-action {
+          background-color: transparent;
+          color: var(--bs-body-color);
+      }
+
+      [data-bs-theme="dark"] .source-item.list-group-item-action:hover {
+          background-color: rgba(255, 255, 255, 0.05); /* Un hover muy sutil */
+      }
+
+      [data-bs-theme="dark"] .source-item.list-group-item-action.active {
+          background-color: var(--bs-primary);
+          color: #1F1F1F; /* Texto oscuro para que contraste con el azul claro */
+          border-color: var(--bs-primary);
+      }
+
+      [data-bs-theme="dark"] #user-input.form-control {
+          background-color: var(--bs-light-bg-subtle);
+          color: var(--bs-body-color);
+          border-color: var(--bs-border-color);
+      }
+      /* --- FIN DE AJUSTES --- */
+      </style>
     {% block styles %}{% endblock %}
   </head>
   <body class="d-flex flex-column min-vh-100">
@@ -255,28 +279,28 @@
             </ul>
             <ul class="navbar-nav ms-auto align-items-center">
                 {% if current_user.is_authenticated %}
-                    
-                    {% if not current_user.es_admin %}
-                    <li class="nav-item">
-                        <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
-                            <i class="bi bi-compass"></i> Visita Guiada
-                        </a>
-                    </li>
-                    {% endif %}
+                  
+                  {% if not current_user.es_admin %}
+                  <li class="nav-item">
+                      <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
+                          <i class="bi bi-compass"></i> Visita Guiada
+                      </a>
+                  </li>
+                  {% endif %}
 
-                    <li class="nav-item">
-                        <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
-                            <i class="bi bi-robot me-1"></i> Agente IA
-                            <span class="badge rounded-pill bg-warning text-dark ms-1 ia-pro-badge">PRO</span>
-                        </a>
-                    </li>
-                    <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+                  <li class="nav-item">
+                      <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
+                          <i class="bi bi-robot me-1"></i> Agente IA
+                          <span class="badge rounded-pill bg-warning text-dark ms-1 ia-pro-badge">PRO</span>
+                      </a>
+                  </li>
+                  <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
                 
                 {% else %}
-                    
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
+                  
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
                 
                 {% endif %}
                 <li class="nav-item">
@@ -350,10 +374,19 @@
         </div>
     </div>
 
+    <div id="ios-install-prompt" class="p-3 text-center">
+        <div class="d-flex justify-content-between align-items-center">
+            <p class="mb-0 me-3">¡Instala SilvaTest en tu pantalla de inicio para una mejor experiencia!</p>
+            <button id="close-ios-prompt" type="button" class="btn-close" aria-label="Cerrar"></button>
+        </div>
+        <small class="d-block mt-2">Toca el icono de Compartir <i class="bi bi-box-arrow-up"></i> y luego "Añadir a pantalla de inicio".</small>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
     <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ia-disclaimer.js') }}"></script>
     
     <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
     
@@ -385,7 +418,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register("/sw.js")
+          navigator.serviceWorker.register("{{ url_for('main.sw') }}")
             .then(registration => console.log('Service Worker registrado con éxito:', registration))
             .catch(error => console.log('Fallo en el registro del Service Worker:', error));
         });
@@ -418,7 +451,7 @@
                                 },
                                 {
                                     title: '¡Todo listo para empezar!',
-                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.'
+                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.',
                                     showCancelButton: true,
                                     confirmButtonText: '<i class="bi bi-compass-fill"></i> Hacer un Tour Rápido',
                                     cancelButtonText: 'Empezar a practicar',
@@ -515,48 +548,42 @@
                 });
             }
 
-            document.addEventListener('DOMContentLoaded', function() {
-                if (localStorage.getItem('focusMode') === 'true') {
-                    body.classList.add('focus-mode');
-                }
+            // Mantenemos la lógica para restaurar el estado al cargar la página.
+            // No es necesario DOMContentLoaded aquí ya que está al final del body.
+            if (localStorage.getItem('focusMode') === 'true') {
+                body.classList.add('focus-mode');
+            }
 
-                const endTime = localStorage.getItem('pomodoroEndTime');
-                if (endTime && Date.now() < parseInt(endTime)) {
-                    runPomodoroTick();
-                } else {
-                    stopPomodoro();
-                }
-            });
+            const endTime = localStorage.getItem('pomodoroEndTime');
+            if (endTime && Date.now() < parseInt(endTime)) {
+                runPomodoroTick();
+            } else {
+                stopPomodoro();
+            }
         })();
 
         (function() {
-            // Función para detectar si es un dispositivo iOS (iPhone, iPad, iPod)
             function isIOS() {
                 return /iPhone|iPad|iPod/i.test(navigator.userAgent);
             }
 
-            // Función para detectar si la app ya está en modo "instalado" (standalone)
             function isInStandaloneMode() {
                 return ('standalone' in window.navigator) && (window.navigator.standalone);
             }
 
-            // Solo muestra el aviso si es iOS, no está ya instalada, y no ha sido descartada antes
             if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
                 
                 const promptElement = document.getElementById('ios-install-prompt');
                 const closeButton = document.getElementById('close-ios-prompt');
 
                 if (promptElement && closeButton) {
-                    // Espera 5 segundos antes de mostrar el aviso
                     setTimeout(function() {
                         promptElement.classList.add('show');
                     }, 5000);
 
-                    // Lógica para cerrar el aviso y recordarlo
                     closeButton.addEventListener('click', function() {
                         promptElement.classList.remove('show');
                         localStorage.setItem('iosInstallPromptDismissed', 'true');
-                        // Añadido para que la transición de salida funcione
                         setTimeout(() => { promptElement.style.display = 'none'; }, 300);
                     });
                 }
