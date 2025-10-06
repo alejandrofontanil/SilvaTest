@@ -10,6 +10,15 @@
         overflow-x: auto;
         padding-bottom: 15px;
     }
+    /* Estilos para centrar el texto dentro de las tarjetas vacías */
+    .card-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        height: 100%;
+        min-height: 250px; /* Asegura un tamaño mínimo para la tarjeta */
+    }
     @media (max-width: 576px) {
         .ch-subdomain-cell {
             width: 10px !important;
@@ -60,7 +69,6 @@
                                 {% set color_clase = 'text-bg-warning' %}
                             {% else %}
                                 {% set color_clase = 'text-white' %}
-                                {# Calculamos la claridad del verde. 7.0 -> 45% (claro), 10.0 -> 30% (oscuro) #}
                                 {% set lightness = 45 - (((nota - 7) / 3) * 15) %}
                                 {% set color_style = 'style="background-color: hsl(145, 63%, ' ~ lightness|round(2) ~ '%);"' %}
                             {% endif %}
@@ -80,7 +88,13 @@
                 <div class="card-body p-4">
                     <h5 class="card-title text-muted mb-3">Evolución de Notas (Últimos 30 días)</h5>
                     <div style="height: 300px;">
-                        <canvas id="evolucionNotasChart"></canvas>
+                        {% if stats_clave.total_tests > 0 %}
+                            <canvas id="evolucionNotasChart"></canvas>
+                        {% else %}
+                            <div class="card-placeholder text-muted">
+                                <p><i class="bi bi-info-circle-fill me-2"></i>Realiza tests para ver tu evolución aquí.</p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -91,10 +105,24 @@
         <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
             <div class="card h-100 shadow-sm">
                 <div class="card-body p-4">
-                    {# --- CAMBIO: Título del gráfico --- #}
-                    <h5 class="card-title text-muted mb-3">Rendimiento por Bloques (Objetivo)</h5>
+                    <h5 class="card-title text-muted mb-3">
+                        Rendimiento por Bloques
+                        {% if current_user.objetivo_principal %}
+                            <br><small class="text-secondary fw-bold">{{ current_user.objetivo_principal.nombre }}</small>
+                        {% endif %}
+                    </h5>
                     <div style="height: 300px;">
-                        <canvas id="rendimientoTemasChart"></canvas>
+                        {% if stats_clave.total_tests > 0 and current_user.objetivo_principal %}
+                            <canvas id="rendimientoTemasChart"></canvas>
+                        {% else %}
+                            <div class="card-placeholder text-muted">
+                                <p>
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Completa tests en tu convocatoria<br>
+                                    objetivo para ver este gráfico.
+                                </p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -132,7 +160,6 @@
         </div>
         {% endif %}
         
-        {# --- CAMBIO: Tarjeta de cuenta atrás actualizada --- #}
         {% if current_user.objetivo_fecha %}
         <div class="col-lg-6 mb-4" data-aos="fade-up" data-aos-delay="400">
             <div class="card shadow-sm h-100">
