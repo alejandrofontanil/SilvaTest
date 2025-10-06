@@ -156,6 +156,7 @@ def home():
                            progreso_objetivo=progreso_objetivo,
                            modules={'datetime': datetime, 'hoy': date.today()})
 
+
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
 def convocatoria_detalle(convocatoria_id):
@@ -549,7 +550,7 @@ def offline():
 # --- RUTAS DE API PARA GRÁFICOS ---
 @main_bp.route('/api/evolucion-notas')
 @login_required
-def api_evolucion_notas():
+def api_evolucion-notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
     resultados_periodo = ResultadoTest.query.filter(ResultadoTest.autor == current_user, ResultadoTest.fecha >= fecha_inicio).order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(list)
@@ -596,19 +597,14 @@ def api_calendario_actividad():
 
 # --- RUTAS DE IA ---
 
-# --- RUTA DE API PARA CONSULTA RAG (MODIFICADA) ---
 @main_bp.route('/api/consulta-rag', methods=['POST'])
 @login_required
 def api_consulta_rag():
-    # 1. Verificación de acceso y tokens
     if not current_user.tiene_acceso_ia:
         return jsonify({'error': 'Acceso denegado. Función premium.'}), 403
     
     if current_user.rag_tokens_restantes <= 0:
-        return jsonify({
-            'error': 'Has agotado tus tokens de IA. Contacta con el administrador para recargar.',
-            'remaining_tokens': 0
-        }), 403
+        return jsonify({'error': 'Has agotado tus tokens de IA.'}), 403
 
     data = request.get_json()
     user_message = data.get('message')
@@ -626,8 +622,8 @@ def api_consulta_rag():
             selected_sources=selected_sources
         )
         
-        if "Error" in response_data['result']:
-            return jsonify({'response': response_data['result'], 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
+        if "Error" in response_data.get('result', ''):
+            return jsonify({'response': response_data['result'], 'sources': []}), 500
         
         current_user.rag_tokens_restantes -= RAG_COST_PER_QUERY
         db.session.commit()
@@ -637,12 +633,11 @@ def api_consulta_rag():
             'sources': response_data['sources'],
             'remaining_tokens': current_user.rag_tokens_restantes
         })
-        
     except Exception as e:
         print(f"Error al procesar la consulta RAG en Flask: {e}")
-        return jsonify({'response': 'Error interno del servidor al consultar el agente.', 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
+        return jsonify({'response': 'Error interno del servidor al consultar el agente.'}), 500
 
-# --- RUTA DE PÁGINA DEL AGENTE IA (MODIFICADA) ---
+
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
@@ -655,14 +650,13 @@ def agente_ia_page():
     bucket_name = "silvatest-prod-temarios"
 
     try:
-        # Añadimos un manejo de errores específico para la inicialización del cliente
         try:
             storage_client = storage.Client(credentials=credentials, project=GCP_PROJECT_ID)
             bucket = storage_client.bucket(bucket_name)
             blobs = bucket.list_blobs()
         except Exception as e:
             print(f"ERROR CRÍTICO: No se pudo inicializar el cliente de GCS o el bucket. ¿Permisos IAM?: {e}")
-            raise # Lanzamos la excepción para que el bloque exterior la capture
+            raise
 
         for blob in blobs:
             if blob.name.lower().endswith(('.pdf', '.txt')):
@@ -702,7 +696,7 @@ def explicar_respuesta_ia():
     data = request.get_json()
     pregunta_id = data.get('preguntaId')
     pregunta = Pregunta.query.get_or_404(pregunta_id)
-
+    
     respuesta_correcta_texto = ""
     for opcion in pregunta.respuestas:
         if opcion.es_correcta:
