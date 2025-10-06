@@ -1,5 +1,5 @@
 from flask_login import UserMixin
-from datetime import datetime, date # <-- AÑADIDO: 'date' para el nuevo modelo
+from datetime import datetime, date
 from . import db, bcrypt
 from werkzeug.utils import cached_property
 from itsdangerous import URLSafeTimedSerializer as Serializer
@@ -36,11 +36,9 @@ class Usuario(db.Model, UserMixin):
     
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    # --- INICIO: NUEVOS CAMPOS PARA PLAN FÍSICO ---
     plan_fisico_actual_id = db.Column(db.Integer, db.ForeignKey('plan_fisico.id'), nullable=True)
     plan_fisico_actual = db.relationship('PlanFisico', foreign_keys=[plan_fisico_actual_id])
     registros_entrenamiento = db.relationship('RegistroEntrenamiento', backref='usuario', lazy='dynamic', cascade="all, delete-orphan")
-    # --- FIN: NUEVOS CAMPOS ---
     
     objetivo_principal = db.relationship('Convocatoria', foreign_keys=[objetivo_principal_id])
     resultados = db.relationship('ResultadoTest', backref='autor', lazy=True, cascade="all, delete-orphan")
@@ -92,7 +90,6 @@ class Usuario(db.Model, UserMixin):
             return None
         return Usuario.query.get(user_id)
 
-# ... (Tus modelos Convocatoria, Bloque, Tema, Nota, Pregunta, Respuesta, ResultadoTest y RespuestaUsuario se mantienen igual) ...
 class Convocatoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True)
@@ -113,39 +110,67 @@ class Bloque(db.Model):
 class Tema(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
-    # ... resto de campos ...
+    posicion = db.Column(db.Integer, nullable=False, default=0)
+    bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
+    es_simulacro = db.Column(db.Boolean, default=False, nullable=False)
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
-    # ... resto de relaciones ...
-
-class Nota(db.Model):
-    # ... tu modelo Nota sin cambios ...
-    pass
+    resultados = db.relationship('ResultadoTest', backref='tema', lazy=True)
 
 class Pregunta(db.Model):
-    # ... tu modelo Pregunta sin cambios ...
-    pass
+    id = db.Column(db.Integer, primary_key=True)
+    texto = db.Column(db.Text, nullable=False)
+    posicion = db.Column(db.Integer, default=0, nullable=False)
+    retroalimentacion = db.Column(db.Text, nullable=True)
+    necesita_revision = db.Column(db.Boolean, default=False)
+    tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=False)
+    tipo_pregunta = db.Column(db.String(50), nullable=False, default='opcion_multiple')
+    respuesta_correcta_texto = db.Column(db.Text, nullable=True)
+    respuestas = db.relationship('Respuesta', backref='pregunta', lazy=True, cascade="all, delete-orphan")
 
 class Respuesta(db.Model):
-    # ... tu modelo Respuesta sin cambios ...
-    pass
+    id = db.Column(db.Integer, primary_key=True)
+    texto = db.Column(db.Text, nullable=False)
+    es_correcta = db.Column(db.Boolean, nullable=False, default=False)
+    pregunta_id = db.Column(db.Integer, db.ForeignKey('pregunta.id'), nullable=False)
 
 class ResultadoTest(db.Model):
-    # ... tu modelo ResultadoTest sin cambios ...
-    pass
+    id = db.Column(db.Integer, primary_key=True)
+    nota = db.Column(db.Float, nullable=False)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
+    respuestas_usuario = db.relationship('RespuestaUsuario', backref='resultado_test', lazy='dynamic', cascade="all, delete-orphan")
 
 class RespuestaUsuario(db.Model):
-    # ... tu modelo RespuestaUsuario sin cambios ...
-    pass
+    id = db.Column(db.Integer, primary_key=True)
+    es_correcta = db.Column(db.Boolean, nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    pregunta_id = db.Column(db.Integer, db.ForeignKey('pregunta.id'), nullable=False)
+    respuesta_seleccionada_id = db.Column(db.Integer, db.ForeignKey('respuesta.id'), nullable=True)
+    respuesta_texto_usuario = db.Column(db.Text, nullable=True)
+    resultado_test_id = db.Column(db.Integer, db.ForeignKey('resultado_test.id'), nullable=False)
+    pregunta = db.relationship('Pregunta')
+    respuesta_seleccionada = db.relationship('Respuesta')
 
+# --- MODELO CORREGIDO ---
+class Nota(db.Model):
+    __tablename__ = 'nota'
+    id = db.Column(db.Integer, primary_key=True) # <-- CLAVE PRIMARIA AÑADIDA
+    contenido = db.Column(db.Text, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
+    # Relaciones
+    usuario = db.relationship('Usuario', backref=db.backref('notas', cascade="all, delete-orphan"))
+    tema = db.relationship('Tema', backref=db.backref('notas', cascade="all, delete-orphan"))
 
-# --- INICIO: NUEVOS MODELOS PARA PREPARACIÓN FÍSICA ---
-
+# --- MODELOS PARA PREPARACIÓN FÍSICA ---
 class PlanFisico(db.Model):
     __tablename__ = 'plan_fisico'
     id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), unique=True, nullable=False) # ej: "Plan Base", "Plan Exigente"
-    
+    nombre = db.Column(db.String(100), unique=True, nullable=False)
     semanas = db.relationship('SemanaPlan', backref='plan', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -156,15 +181,12 @@ class SemanaPlan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     plan_id = db.Column(db.Integer, db.ForeignKey('plan_fisico.id'), nullable=False)
     numero_semana = db.Column(db.Integer, nullable=False)
-    
-    # Campos de tu Excel
     progreso_pct = db.Column(db.Float)
     dia1_desc = db.Column(db.String(200))
     dia2_desc = db.Column(db.String(200))
     sensacion = db.Column(db.String(200))
     carga_semanal_km = db.Column(db.Float)
     zona_ritmo = db.Column(db.String(100))
-
     registros = db.relationship('RegistroEntrenamiento', backref='semana', lazy=True)
 
     def __repr__(self):
@@ -175,7 +197,6 @@ class RegistroEntrenamiento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     semana_id = db.Column(db.Integer, db.ForeignKey('semana_plan.id'), nullable=False)
-    
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     dia_entreno = db.Column(db.Integer, nullable=False) # 1 para Día 1, 2 para Día 2
     km_realizados = db.Column(db.Float)
@@ -184,5 +205,3 @@ class RegistroEntrenamiento(db.Model):
 
     def __repr__(self):
         return f'<Registro del Usuario {self.usuario_id} para la Semana {self.semana_id}>'
-
-# --- FIN: NUEVOS MODELOS ---
