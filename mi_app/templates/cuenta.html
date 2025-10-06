@@ -2,367 +2,370 @@
 
 {% block content %}
 <div class="row g-4">
-    <div class="col-lg-3">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0">Panel de Estudiante</h5>
-            </div>
-            <div class="list-group list-group-flush" id="panel-menu" role="tablist">
-                
-                <a id="evolucion-link" class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
-                    <i class="bi bi-graph-up-arrow me-2"></i>Evolución
-                </a>
-                <a id="estadisticas-link" class="list-group-item list-group-item-action {% if active_tab == 'stats' %}active{% endif %}" data-bs-toggle="list" href="#estadisticas-detalladas" role="tab">
-                    <i class="bi bi-pie-chart-fill me-2"></i>Estadísticas
-                </a>
-                <a id="historial-link" class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
-                    <i class="bi bi-list-task me-2"></i>Historial Detallado
-                </a>
-                
-                <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
-                <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
-                <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
+    <div class="col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">Panel de Estudiante</h5>
+            </div>
+            <div class="list-group list-group-flush" id="panel-menu" role="tablist">
+                
+                <a id="evolucion-link" class="list-group-item list-group-item-action {% if active_tab == 'evolucion' %}active{% endif %}" data-bs-toggle="list" href="#evolucion" role="tab">
+                    <i class="bi bi-graph-up-arrow me-2"></i>Evolución
+                </a>
+                <a id="estadisticas-link" class="list-group-item list-group-item-action {% if active_tab == 'stats' %}active{% endif %}" data-bs-toggle="list" href="#estadisticas-detalladas" role="tab">
+                    <i class="bi bi-pie-chart-fill me-2"></i>Estadísticas
+                </a>
+                <a id="historial-link" class="list-group-item list-group-item-action {% if active_tab == 'historial' %}active{% endif %}" data-bs-toggle="list" href="#historial" role="tab">
+                    <i class="bi bi-list-task me-2"></i>Historial Detallado
+                </a>
+                
+                <a id="repasar-fallos-link" href="{{ url_for('main.repaso_global') }}" class="list-group-item list-group-item-action"><i class="bi bi-recycle me-2"></i>Repasar Fallos</a>
+                <a id="preguntas-favoritas-link" href="{{ url_for('main.preguntas_favoritas') }}" class="list-group-item list-group-item-action"><i class="bi bi-star-fill me-2"></i>Preguntas Favoritas</a>
+                <a id="generador-tests-link" href="{{ url_for('main.generador_simulacro') }}" class="list-group-item list-group-item-action"><i class="bi bi-tools me-2"></i>Generador de Tests</a>
 
-                                <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
-                    <i class="bi bi-robot me-2"></i>SilvIA - Analizador <span class="badge bg-primary ms-1">Nuevo</span>
-                </a>
+                <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
+                    <i class="bi bi-robot me-2"></i>SilvIA - Analizador <span class="badge bg-primary ms-1">Nuevo</span>
+                </a>
 
-                <a id="personalizar-link" class="list-group-item list-group-item-action {% if active_tab == 'personalizar' %}active{% endif %}" data-bs-toggle="list" href="#personalizar" role="tab">
-                    <i class="bi bi-sliders me-2"></i>Ajustes y Preferencias
-                </a>
-            </div>
-        </div>
-    </div>
+                <a id="personalizar-link" class="list-group-item list-group-item-action {% if active_tab == 'personalizar' %}active{% endif %}" data-bs-toggle="list" href="#personalizar" role="tab">
+                    <i class="bi bi-sliders me-2"></i>Ajustes y Preferencias
+                </a>
+            </div>
+        </div>
+    </div>
 
-    <div class="col-lg-9">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">Mi Progreso</h1>
-            <button id="iniciar-tour-cuenta" class="btn btn-sm btn-info text-white">
-                <i class="bi bi-compass-fill"></i> Hacer un Tour
-            </button>
-        </div>
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 mb-0">Mi Progreso</h1>
+            <button id="iniciar-tour-cuenta" class="btn btn-sm btn-info text-white">
+                <i class="bi bi-compass-fill"></i> Hacer un Tour
+            </button>
+        </div>
 
-        <div class="card shadow-sm mb-4 filtro-convocatoria">
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('main.cuenta') }}" class="row g-3 align-items-end">
-                    {{ form.hidden_tag() }}
-                    <div class="col-md">
-                        {{ form.convocatoria.label(class="form-label fw-bold") }}
-                        {{ form.convocatoria(class="form-select") }}
-                    </div>
-                    <div class="col-md-auto">
-                        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <div class="card shadow-sm mb-4 filtro-convocatoria">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.cuenta') }}" class="row g-3 align-items-end">
+                    {{ form.hidden_tag() }}
+                    <div class="col-md">
+                        {{ form.convocatoria.label(class="form-label fw-bold") }}
+                        {{ form.convocatoria(class="form-select") }}
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-        <div class="tab-content">
-            <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
-                <div class="card shadow-sm">
-                    <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
-                    <div class="card-body">
-                        {% if datos_grafico and labels_grafico %}
-                            <canvas id="graficoNotas" style="min-height: 300px;"></canvas>
-                        {% else %}
-                            <p class="text-center text-muted p-4">No hay datos de tests para mostrar en la convocatoria seleccionada.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+        <div class="tab-content">
+            <div class="tab-pane fade {% if active_tab == 'evolucion' %}show active{% endif %}" id="evolucion" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header"><h3 class="h5 mb-0">Evolución de Notas (Media por Día)</h3></div>
+                    <div class="card-body">
+                        {% if datos_grafico and labels_grafico %}
+                            <canvas id="graficoNotas" style="min-height: 300px;"></canvas>
+                        {% else %}
+                            <p class="text-center text-muted p-4">No hay datos de tests para mostrar en la convocatoria seleccionada.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
-            <div class="tab-pane fade {% if active_tab == 'stats' %}show active{% endif %}" id="estadisticas-detalladas" role="tabpanel">
-                <div class="card shadow-sm">
-                    <div class="card-header"><h3 class="h5 mb-0">Estadísticas de Rendimiento</h3></div>
-                    <div class="card-body">
-                        <p class="card-subtitle mb-4 text-muted">Aquí puedes ver tu rendimiento por cada bloque y tema para identificar tus puntos débiles.</p>
-                        <h5>Rendimiento por Bloque</h5>
-                        {% if stats_bloques %}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Bloque</th>
-                                        <th class="text-center">Aciertos / Totales</th>
-                                        <th style="width: 35%;">Porcentaje de Acierto</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for stat in stats_bloques %}
-                                    <tr>
-                                        <td class="fw-bold">{{ stat.nombre }}</td>
-                                        <td class="text-center">{{ stat.aciertos }} / {{ stat.total }}</td>
-                                        <td>
-                                            <div class="progress" role="progressbar" aria-valuenow="{{ stat.porcentaje }}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
-                                                <div class="progress-bar bg-success fw-bold" style="width: {{ stat.porcentaje }}%">{{ stat.porcentaje }}%</div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-muted">No hay datos para mostrar estadísticas por bloque.</p>
-                        {% endif %}
-                        <hr class="my-4">
-                        <h5 class="mt-3">Rendimiento por Tema</h5>
-                        {% if stats_temas %}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Tema</th>
-                                        <th class="text-center">Aciertos / Totales</th>
-                                        <th style="width: 35%;">Porcentaje de Acierto</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for stat in stats_temas %}
-                                    <tr>
-                                        <td class="fw-bold">{{ stat.nombre }}</td>
-                                        <td class="text-center">{{ stat.aciertos }} / {{ stat.total }}</td>
-                                        <td>
-                                            <div class="progress" role="progressbar" aria-valuenow="{{ stat.porcentaje }}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
-                                                <div class="progress-bar bg-primary fw-bold" style="width: {{ stat.porcentaje }}%">{{ stat.porcentaje }}%</div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                       <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+            <div class="tab-pane fade {% if active_tab == 'stats' %}show active{% endif %}" id="estadisticas-detalladas" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header"><h3 class="h5 mb-0">Estadísticas de Rendimiento</h3></div>
+                    <div class="card-body">
+                        <p class="card-subtitle mb-4 text-muted">Aquí puedes ver tu rendimiento por cada bloque y tema para identificar tus puntos débiles.</p>
+                        <h5>Rendimiento por Bloque</h5>
+                        {% if stats_bloques %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Bloque</th>
+                                        <th class="text-center">Aciertos / Totales</th>
+                                        <th style="width: 35%;">Porcentaje de Acierto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in stats_bloques %}
+                                    <tr>
+                                        <td class="fw-bold">{{ stat.nombre }}</td>
+                                        <td class="text-center">{{ stat.aciertos }} / {{ stat.total }}</td>
+                                        <td>
+                                            <div class="progress" role="progressbar" aria-valuenow="{{ stat.porcentaje }}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
+                                                <div class="progress-bar bg-success fw-bold" style="width: {{ stat.porcentaje }}%">{{ stat.porcentaje }}%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No hay datos para mostrar estadísticas por bloque.</p>
+                        {% endif %}
+                        <hr class="my-4">
+                        <h5 class="mt-3">Rendimiento por Tema</h5>
+                        {% if stats_temas %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Tema</th>
+                                        <th class="text-center">Aciertos / Totales</th>
+                                        <th style="width: 35%;">Porcentaje de Acierto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in stats_temas %}
+                                    <tr>
+                                        <td class="fw-bold">{{ stat.nombre }}</td>
+                                        <td class="text-center">{{ stat.aciertos }} / {{ stat.total }}</td>
+                                        <td>
+                                            <div class="progress" role="progressbar" aria-valuenow="{{ stat.porcentaje }}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
+                                                <div class="progress-bar bg-primary fw-bold" style="width: {{ stat.porcentaje }}%">{{ stat.porcentaje }}%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                       <p class="text-muted">No hay datos para mostrar estadísticas por tema.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
-            <div class="tab-pane fade {% if active_tab == 'historial' %}show active{% endif %}" id="historial" role="tabpanel">
-                <div class="card shadow-sm">
-                    <div class="card-header"><h3 class="h5 mb-0">Historial de Tests</h3></div>
-                    <div class="card-body">
-                        {% if resultados %}
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Tema</th>
-                                        <th>Nota</th>
-                                        <th>Fecha</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for resultado in resultados %}
-                                    <tr>
-                                        <td>
-                                            <span class="fw-bold">{{ resultado.tema.nombre }}</span><br>
-                                            <small class="text-muted">{{ resultado.tema.bloque.convocatoria.nombre }} > {{ resultado.tema.bloque.nombre }}</small>
-                                        </td>
-                                        <td>
-                                            <span class="badge fs-6 {% if resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">
-                                                {{ "%.2f"|format(resultado.nota) }}
-                                            </span>
-                                        </td>
-                                        <td><small>{{ resultado.fecha.strftime('%d/%m/%Y') }}</small></td>
-                                        <td>
-                                            <a href="{{ url_for('main.repaso_test', resultado_id=resultado.id) }}" class="btn btn-sm btn-outline-secondary">Ver Repaso</a>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-center text-muted p-4">Aún no has completado ningún test en la convocatoria seleccionada.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+            <div class="tab-pane fade {% if active_tab == 'historial' %}show active{% endif %}" id="historial" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header"><h3 class="h5 mb-0">Historial de Tests</h3></div>
+                    <div class="card-body">
+                        {% if resultados %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Tema</th>
+                                        <th>Nota</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for resultado in resultados %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-bold">{{ resultado.tema.nombre }}</span><br>
+                                            <small class="text-muted">{{ resultado.tema.bloque.convocatoria.nombre }} > {{ resultado.tema.bloque.nombre }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge fs-6 {% if resultado.nota >= 5 %} text-bg-success {% else %} text-bg-danger {% endif %}">
+                                                {{ "%.2f"|format(resultado.nota) }}
+                                            </span>
+                                        </td>
+                                        <td><small>{{ resultado.fecha.strftime('%d/%m/%Y') }}</small></td>
+                                        <td>
+                                            <a href="{{ url_for('main.repaso_test', resultado_id=resultado.id) }}" class="btn btn-sm btn-outline-secondary">Ver Repaso</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted p-4">Aún no has completado ningún test en la convocatoria seleccionada.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
-            <div class="tab-pane fade {% if active_tab == 'analizador' %}show active{% endif %}" id="analizador" role="tabpanel">
-                {% if current_user.tiene_acceso_ia %}
-                <div class="card shadow-sm text-center">
-                                        <div class="card-header"><h3 class="h5 mb-0">SilvIA - Analizador Inteligente</h3></div>
-                    <div class="card-body p-4 p-lg-5">
-                        <i class="bi bi-robot" style="font-size: 4rem; color: var(--bs-primary);"></i>
-                        <h4 class="card-title mt-3">Tu Entrenador Personal IA</h4>
-                        <p class="card-text text-muted lead">Pulsa el botón para que analice tus fallos, detecte patrones y te genere un plan de estudio personalizado para los próximos días.</p>
-                        
-                        <button id="btn-generar-plan" class="btn btn-primary btn-lg mt-3">
-                            <i class="bi bi-magic me-2"></i>Generar mi Plan de Estudio
-                        </button>
+            <div class="tab-pane fade {% if active_tab == 'analizador' %}show active{% endif %}" id="analizador" role="tabpanel">
+                {% if current_user.tiene_acceso_ia %}
+                <div class="card shadow-sm text-center">
+                    <div class="card-header"><h3 class="h5 mb-0">SilvIA - Analizador Inteligente</h3></div>
+                    <div class="card-body p-4 p-lg-5">
+                        <i class="bi bi-robot" style="font-size: 4rem; color: var(--bs-primary);"></i>
+                        <h4 class="card-title mt-3">Tu Entrenador Personal IA</h4>
+                        <p class="card-text text-muted lead">Pulsa el botón para que analice tus fallos, detecte patrones y te genere un plan de estudio personalizado para los próximos días.</p>
+                        
+                        <button id="btn-generar-plan" class="btn btn-primary btn-lg mt-3">
+                            <i class="bi bi-magic me-2"></i>Generar mi Plan de Estudio
+                        </button>
 
-                        <div id="resultado-plan-ia" class="mt-4 text-start" style="display: none;">
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="card shadow-sm text-center">
-                                        <div class="card-header"><h3 class="h5 mb-0">SilvIA - Analizador Inteligente</h3></div>
-                    <div class="card-body p-4 p-lg-5">
-                        <i class="bi bi-lock-fill" style="font-size: 4rem; color: var(--bs-secondary);"></i>
-                        <h4 class="card-title mt-3">Desbloquea tu Entrenador Personal IA</h4>
-                        <p class="card-text text-muted lead">Esta función premium analiza tus fallos para detectar patrones y debilidades ocultas, dándote un plan de estudio personalizado para que optimices tu tiempo.</p>
-                        <div class="alert alert-warning mt-4" role="alert">
-                            <i class="bi bi-gem me-2"></i> <strong>Función Premium</strong>. Contacta con el administrador para activarla.
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
+                        <div id="resultado-plan-ia" class="mt-4 text-start" style="display: none;">
+                            </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card shadow-sm text-center">
+                    <div class="card-header"><h3 class="h5 mb-0">SilvIA - Analizador Inteligente</h3></div>
+                    <div class="card-body p-4 p-lg-5">
+                        <i class="bi bi-lock-fill" style="font-size: 4rem; color: var(--bs-secondary);"></i>
+                        <h4 class="card-title mt-3">Desbloquea tu Entrenador Personal IA</h4>
+                        <p class="card-text text-muted lead">Esta función premium analiza tus fallos para detectar patrones y debilidades ocultas, dándote un plan de estudio personalizado para que optimices tu tiempo.</p>
+                        <div class="alert alert-warning mt-4" role="alert">
+                            <i class="bi bi-gem me-2"></i> <strong>Función Premium</strong>. Contacta con el administrador para activarla.
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
 
-            <div class="tab-pane fade {% if active_tab == 'personalizar' %}show active{% endif %}" id="personalizar" role="tabpanel">
-                
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header"><h5 class="mb-0">Personalizar Panel de Inicio</h5></div>
-                    <div class="card-body">
-                        <p class="card-subtitle mb-4 text-muted">Selecciona los módulos que quieres ver en tu página de inicio.</p>
-                        <form method="POST" action="{{ url_for('main.guardar_preferencias_dashboard') }}">
-                            {{ dashboard_form.hidden_tag() }}
-                            <div class="form-check form-switch mb-2">
-                                {{ dashboard_form.mostrar_grafico_evolucion(class="form-check-input") }}
-                                {{ dashboard_form.mostrar_grafico_evolucion.label(class="form-check-label") }}
-                            </div>
-                            <div class="form-check form-switch mb-2">
-                                {{ dashboard_form.mostrar_rendimiento_bloque(class="form-check-input") }}
-                                {{ dashboard_form.mostrar_rendimiento_bloque.label(class="form-check-label") }}
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                {{ dashboard_form.mostrar_calendario_actividad(class="form-check-input") }}
-                                {{ dashboard_form.mostrar_calendario_actividad.label(class="form-check-label") }}
-                            </div>
-                            {{ dashboard_form.submit(class="btn btn-primary") }}
-                        </form>
-                    </div>
-                </div>
+            <div class="tab-pane fade {% if active_tab == 'personalizar' %}show active{% endif %}" id="personalizar" role="tabpanel">
+                
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h5 class="mb-0">Personalizar Panel de Inicio</h5></div>
+                    <div class="card-body">
+                        <p class="card-subtitle mb-4 text-muted">Selecciona los módulos que quieres ver en tu página de inicio.</p>
+                        <form method="POST" action="{{ url_for('main.guardar_preferencias_dashboard') }}">
+                            {{ dashboard_form.hidden_tag() }}
+                            <div class="form-check form-switch mb-2">
+                                {{ dashboard_form.mostrar_grafico_evolucion(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_grafico_evolucion.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ dashboard_form.mostrar_rendimiento_bloque(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_rendimiento_bloque.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                {{ dashboard_form.mostrar_calendario_actividad(class="form-check-input") }}
+                                {{ dashboard_form.mostrar_calendario_actividad.label(class="form-check-label") }}
+                            </div>
+                            {{ dashboard_form.submit(class="btn btn-primary") }}
+                        </form>
+                    </div>
+                </div>
 
-                <div class="card shadow-sm mt-4 border-danger zona-peligro">
-                    <div class="card-header bg-danger text-white"><h5 class="mb-0">Zona de Peligro</h5></div>
-                    <div class="card-body">
-                        <p>Esta acción es irreversible. Se borrará todo tu historial de tests y estadísticas.</p>
-                        <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Vas a borrar todo tu progreso de forma permanente. ¿Estás seguro?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Resetear mis estadísticas</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                <div class="card shadow-sm mt-4 border-danger zona-peligro">
+                    <div class="card-header bg-danger text-white"><h5 class="mb-0">Zona de Peligro</h5></div>
+                    <div class="card-body">
+                        <p>Esta acción es irreversible. Se borrará todo tu historial de tests y estadísticas.</p>
+                        <form method="POST" action="{{ url_for('main.resetear_estadisticas') }}" onsubmit="return confirm('¡ATENCIÓN! Vas a borrar todo tu progreso de forma permanente. ¿Estás seguro?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Resetear mis estadísticas</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('graficoNotas')) {
-            const ctx = document.getElementById('graficoNotas').getContext('2d');
-            const labels = {{ labels_grafico|tojson }};
-            const data = {{ datos_grafico|tojson }};
-            const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-            const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
-            const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
-            const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-            new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
-        }
-    
-        const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
-        if(form){
-            form.addEventListener('submit', function(e){
-                const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
-                if(activeTabEl){
-                    const tabId = activeTabEl.getAttribute('href').substring(1);
-                    let urlTab = 'evolucion';
-                    if(tabId.includes('estadisticas')){
-                        urlTab = 'stats';
-                    } else if(tabId.includes('historial')){
-                        urlTab = 'historial';
-                    } else if(tabId.includes('analizador')){
-                        urlTab = 'analizador';
-                    } else if(tabId.includes('personalizar')){
-                        urlTab = 'personalizar';
-                    }
-    
-                    let tabInput = form.querySelector('input[name="tab"]');
-                    if(!tabInput){
-                        tabInput = document.createElement('input');
-                        tabInput.type = 'hidden';
-                        tabInput.name = 'tab';
-                        form.appendChild(tabInput);
-                    }
-                    tabInput.value = urlTab;
-                }
-            });
-        }
-        
-        // ===== INICIO: SCRIPT PARA EL ANALIZADOR INTELIGENTE =====
-        const btnGenerarPlan = document.getElementById('btn-generar-plan');
-        const resultadoContainer = document.getElementById('resultado-plan-ia');
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('graficoNotas')) {
+            const ctx = document.getElementById('graficoNotas').getContext('2d');
+            const labels = {{ labels_grafico|tojson }};
+            const data = {{ datos_grafico|tojson }};
+            const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+            const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
+            const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
+            new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Nota obtenida', data: data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto } }, x: { ticks: { color: colorTexto } } }, plugins: { legend: { labels: { color: colorTexto } } } } });
+        }
+    
+        const form = document.querySelector('form[action="{{ url_for('main.cuenta') }}"]');
+        if(form){
+            form.addEventListener('submit', function(e){
+                const activeTabEl = document.querySelector('#panel-menu .list-group-item.active');
+                if(activeTabEl){
+                    const tabId = activeTabEl.getAttribute('href').substring(1);
+                    let urlTab = 'evolucion';
+                    if(tabId.includes('estadisticas')){
+                        urlTab = 'stats';
+                    } else if(tabId.includes('historial')){
+                        urlTab = 'historial';
+                    } else if(tabId.includes('analizador')){
+                        urlTab = 'analizador';
+                    } else if(tabId.includes('personalizar')){
+                        urlTab = 'personalizar';
+                    }
+    
+                    let tabInput = form.querySelector('input[name="tab"]');
+                    if(!tabInput){
+                        tabInput = document.createElement('input');
+                        tabInput.type = 'hidden';
+                        tabInput.name = 'tab';
+                        form.appendChild(tabInput);
+                    }
+                    tabInput.value = urlTab;
+                }
+            });
+        }
+        
+        // ===== INICIO: SCRIPT PARA EL ANALIZADOR INTELIGENTE =====
+        const btnGenerarPlan = document.getElementById('btn-generar-plan');
+        const resultadoContainer = document.getElementById('resultado-plan-ia');
 
-        if (btnGenerarPlan) {
-            btnGenerarPlan.addEventListener('click', function() {
-                // 1. Mostrar estado de carga
-                resultadoContainer.style.display = 'block';
-                resultadoContainer.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-center p-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <strong class="ms-3">Tu Entrenador IA está analizando tu rendimiento...</strong>
-                    </div>`;
-                this.disabled = true;
+        if (btnGenerarPlan) {
+            btnGenerarPlan.addEventListener('click', function() {
+                // 1. Mostrar estado de carga
+                resultadoContainer.style.display = 'block';
+                resultadoContainer.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <strong class="ms-3">Tu Entrenador IA está analizando tu rendimiento...</strong>
+                    </div>`;
+                this.disabled = true;
 
-                // 2. Llamar a la API
-                const csrfToken = '{{ csrf_token() }}';
-                fetch("{{ url_for('main.generar_plan_ia') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw err; });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // 3. Mostrar el plan generado
-                    const planHtml = marked.parse(data.plan);
-                    resultadoContainer.innerHTML = `
-                        <div class="card">
-                            <div class="card-header bg-success-subtle">
-                                <h5 class="mb-0"><i class="bi bi-check2-circle me-2"></i>Aquí tienes tu plan de choque:</h5>
-                            </div>
-                            <div class="card-body">
-                                ${planHtml}
-                            </div>
-                        </div>`;
-                })
-                .catch(error => {
-                    // 4. Mostrar mensajes de error
-                    const mensajeError = error.error || 'Ocurrió un error inesperado. Inténtalo de nuevo.';
-                    resultadoContainer.innerHTML = `<div class="alert alert-danger mb-0">${mensajeError}</div>`;
-                })
-                .finally(() => {
-                    // 5. Reactivar el botón
-                    btnGenerarPlan.disabled = false;
-                });
-            });
-        }
-    });
-    </script>
+                // 2. Llamar a la API
+                const csrfToken = '{{ csrf_token() }}';
+                fetch("{{ url_for('main.generar_plan_ia') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw err; });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 3. Mostrar el plan generado
+                    const planHtml = marked.parse(data.plan);
+                    resultadoContainer.innerHTML = `
+                        <div class="card">
+                            <div class="card-header bg-success-subtle">
+                                <h5 class="mb-0"><i class="bi bi-check2-circle me-2"></i>Aquí tienes tu plan de choque:</h5>
+                            </div>
+                            <div class="card-body">
+                                ${planHtml}
+                            </div>
+                        </div>`;
+                })
+                .catch(error => {
+                    // 4. Mostrar mensajes de error
+                    const mensajeError = error.error || 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+                    resultadoContainer.innerHTML = `<div class="alert alert-danger mb-0">${mensajeError}</div>`;
+                })
+                .finally(() => {
+                    // 5. Reactivar el botón
+                    btnGenerarPlan.disabled = false;
+                });
+            });
+        }
+    });
+    </script>
 
-    {% if iniciar_tour_automaticamente %}
-    <script>
-        window.addEventListener('load', function() {
-            iniciarTourCuenta();
-        });
-    </script>
-    {% endif %}
+    {% if iniciar_tour_automaticamente %}
+    <script>
+        window.addEventListener('load', function() {
+            iniciarTourCuenta();
+        });
+    </script>
+    {% endif %}
 {% endblock %}
