@@ -94,7 +94,7 @@
                                 {% set lightness = 45 - (((nota - 7) / 3) * 15) %}
                                 {% set color_style = 'style="background-color: hsl(145, 63%, ' ~ lightness|round(2) ~ '%);"' %}
                             {% endif %}
-
+                            
                             <div class="card p-2 rounded-3 mx-auto border-0 {{ text_clase }}" {{ color_style|safe }} style="max-width: 150px;">
                                 <p class="display-5 fw-bold mb-0">{{ "%.2f"|format(nota) }}</p>
                             </div>
@@ -230,10 +230,10 @@
                     {% endif %}
 
                 </div>
+                </div>
             </div>
+            {% endif %}
         </div>
-        {% endif %}
-    </div>
 
 {% endif %}
 
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 const colorBordeGrafico = esModoOscuro ? '#8AB4F8' : '#2E7D32';
                 const colorFondoGrafico = esModoOscuro ? 'rgba(138, 180, 248, 0.2)' : 'rgba(46, 125, 50, 0.2)';
-                new Chart(chartEvolucionCanvas, {
+                new Chart(ctx, {
                     type: 'line', data: { labels: data.labels, datasets: [{ label: 'Nota Media Diaria', data: data.data, fill: true, borderColor: colorBordeGrafico, backgroundColor: colorFondoGrafico, tension: 0.3, pointBackgroundColor: colorBordeGrafico, pointRadius: 4 }] },
                     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10, ticks: { color: colorTexto }, grid: { color: colorGrid } }, x: { ticks: { color: colorTexto }, grid: { color: colorGrid } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'Nota media: ' + context.parsed.y; } } } } }
                 });
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ctx.fillText("objetivo para ver este gráfico.", chartRendimientoCanvas.width / 2, chartRendimientoCanvas.height / 2 + 10);
                     return;
                 }
-                new Chart(chartRendimientoCanvas, {
+                new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: data.labels,
