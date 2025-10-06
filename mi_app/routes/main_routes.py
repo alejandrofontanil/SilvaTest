@@ -5,7 +5,7 @@ import vertexai
 import re
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
-from google.cloud import storage # <--- Importación para listar archivos del bucket
+from google.cloud import storage
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, session, send_from_directory
 from flask_login import login_required, current_user
@@ -34,7 +34,7 @@ credentials = None
 try:
     print("--- INICIANDO CONFIGURACIÓN DE VERTEX AI ---")
     GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
-    GCP_REGION = 'us-central1' # Usamos la región correcta
+    GCP_REGION = 'europe-west1'
 
     if os.path.exists(SECRET_FILE_PATH):
         credentials = service_account.Credentials.from_service_account_file(SECRET_FILE_PATH)
@@ -589,7 +589,7 @@ def api_calendario_actividad():
     fecha_fin = datetime.utcnow().date()
     fecha_inicio = fecha_fin - relativedelta(months=meses_a_mostrar)
     resultados_por_dia = db.session.query(func.date(ResultadoTest.fecha).label('dia'), func.count(ResultadoTest.id).label('cantidad')).filter(
-        ResultadoTest.usuario_id == current_user.id,
+        RespuestaUsuario.usuario_id == current_user.id,
         func.date(ResultadoTest.fecha).between(fecha_inicio, fecha_fin)
     ).group_by('dia').all()
     return jsonify([{'date': r.dia.strftime('%Y-%m-%d'), 'value': r.cantidad} for r in resultados_por_dia])
@@ -614,15 +614,12 @@ def api_consulta_rag():
     user_message = data.get('message')
     response_mode = data.get('mode', 'formal')
     
-    # --- ¡NUEVO! OBTENER LAS FUENTES SELECCIONADAS DEL FRONTEND ---
     selected_sources = data.get('selected_sources')
 
     if not user_message:
         return jsonify({'error': 'No se recibió ningún mensaje.'}), 400
     
-    # 2. Llama a la función de consulta RAG, pasando las fuentes seleccionadas
     try:
-        # --- ¡MODIFICADO! Se pasa el nuevo argumento 'selected_sources' ---
         response_data = get_rag_response(
             query=user_message, 
             mode=response_mode, 
@@ -632,11 +629,9 @@ def api_consulta_rag():
         if "Error" in response_data['result']:
             return jsonify({'response': response_data['result'], 'sources': [], 'remaining_tokens': current_user.rag_tokens_restantes}), 500
         
-        # 3. Descontar token si la consulta fue exitosa
         current_user.rag_tokens_restantes -= RAG_COST_PER_QUERY
         db.session.commit()
 
-        # 4. Devolver la respuesta
         return jsonify({
             'response': response_data['result'],
             'sources': response_data['sources'],
@@ -660,15 +655,12 @@ def agente_ia_page():
     bucket_name = "silvatest-prod-temarios" # El nombre de tu bucket
 
     try:
-        # Inicializa el cliente de Cloud Storage
-        storage_client = storage.Client(credentials=credentials)
+        storage_client = storage.Client(credentials=credentials, project=GCP_PROJECT_ID)
         bucket = storage_client.bucket(bucket_name)
-        blobs = bucket.list_blobs() # Obtiene todos los archivos del bucket
+        blobs = bucket.list_blobs()
 
         for blob in blobs:
-            # Nos aseguramos de que sean archivos PDF y no carpetas
             if blob.name.lower().endswith('.pdf'):
-                # La ruta completa que necesita el filtro es gs://bucket/archivo.pdf
                 full_gcs_path = f"gs://{bucket_name}/{blob.name}"
 
                 file_name = blob.name.split('/')[-1]
@@ -676,11 +668,10 @@ def agente_ia_page():
                 cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip().title()
 
                 available_sources.append({
-                    'name': cleaned_name,  # Nombre limpio para mostrar en la web
-                    'path': full_gcs_path   # Ruta GCS completa que usará el filtro
+                    'name': cleaned_name,
+                    'path': full_gcs_path
                 })
 
-        # Ordena alfabéticamente la lista para una mejor visualización
         available_sources.sort(key=lambda x: x['name'])
 
     except Exception as e:
@@ -690,7 +681,7 @@ def agente_ia_page():
     return render_template('agente_ia.html',
                            title="Asistente de Estudio IA",
                            rag_tokens_restantes=current_user.rag_tokens_restantes,
-                           available_sources=available_sources) # <-- ¡LA VARIABLE CLAVE AHORA VIENE DE LA NUBE!
+                           available_sources=available_sources)
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
@@ -701,26 +692,19 @@ def explicar_respuesta_ia():
     pregunta_id = data.get('preguntaId')
     pregunta = Pregunta.query.get_or_404(pregunta_id)
 
-    # Obtenemos el texto de la respuesta correcta
     respuesta_correcta_texto = ""
     for opcion in pregunta.respuestas:
         if opcion.es_correcta:
             respuesta_correcta_texto = opcion.texto
             break
 
-    # 1. Creamos una pregunta específica para el agente RAG
     query = f"""
     Explica de forma didáctica y concisa por qué la respuesta correcta a la pregunta '{pregunta.texto}' es '{respuesta_correcta_texto}'.
     Basa tu explicación únicamente en el temario oficial.
     """
-
     try:
-        # 2. Llamamos a la misma función RAG que usa el chatbot
         response_data = get_rag_response(query=query, mode="didactico")
-
-        # 3. Devolvemos directamente la explicación generada
         return jsonify({'explicacion': response_data['result']})
-
     except Exception as e:
         print(f"Error al llamar al agente RAG para explicar respuesta: {e}")
         return jsonify({'error': 'Hubo un problema al generar la explicación.'}), 500
