@@ -3,28 +3,20 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
     <title>{% if title %}{{ title }} - {% endif %}SilvaTest</title>
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
-    
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#4B5320" />
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
-
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <style>
       :root {
         --bs-body-bg: #F8F9FA;
@@ -48,7 +40,6 @@
         --bs-light-bg-subtle: #2A2A2E;
         --bs-btn-color: #1F1F1F;
       }
-      
       /* --- INICIO DE NUESTROS CAMBIOS --- */
       /* 1. MEJORA DE CONTRASTE PARA TARJETAS EN MODO CLARO */
       [data-bs-theme="light"] .card {
@@ -67,7 +58,6 @@
           text-align: center;
       }
       /* --- FIN DE NUESTROS CAMBIOS --- */
-
       body {
         font-family: 'Lato', sans-serif;
         font-size: 1.1rem;
@@ -134,13 +124,11 @@
           70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
       }
-      
       .focus-mode .navbar,
       .focus-mode footer,
       .focus-mode .footer-border {
           display: none !important;
       }
-      
       .focus-mode main.container {
           padding-top: 0;
           margin-top: 0;
@@ -156,7 +144,6 @@
       .focus-mode #exit-focus-btn {
           display: block;
       }
-
       #pomodoro-timer {
         display: none;
         position: fixed;
@@ -174,7 +161,6 @@
       .focus-mode #pomodoro-timer {
         display: block;
       }
-
       @media (max-width: 768px) {
           .shepherd-element {
               position: fixed !important;
@@ -190,7 +176,6 @@
               display: none !important;
           }
       }
-      
       #ios-install-prompt {
         display: none;
         position: fixed;
@@ -208,7 +193,6 @@
       #ios-install-prompt.show {
         transform: translateY(0);
       }
-
       /* --- ESTILOS AGREGADOS PARA EL BOTÓN IA (FUNCIÓN PREMIUM) --- */
       .btn-ia-pro {
           background-color: var(--bs-primary);
@@ -219,13 +203,11 @@
           transition: all 0.3s ease;
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
-      
       .btn-ia-pro:hover {
           background-color: #2da16b;
           box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
           transform: translateY(-2px);
       }
-      
       .ia-pro-badge {
           font-size: 0.6rem;
           font-weight: 800;
@@ -239,14 +221,11 @@
     {% block styles %}{% endblock %}
   </head>
   <body class="d-flex flex-column min-vh-100">
-
     <div id="pomodoro-timer">20:00</div>
-    
     <button id="exit-focus-btn" class="btn btn-light btn-lg" title="Salir del Modo Concentración">
       <i class="bi bi-box-arrow-in-up-right"></i>
       <span class="d-none d-sm-inline"> Salir del Modo Concentración</span>
     </button>
-
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
           <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
@@ -269,7 +248,6 @@
             </ul>
             <ul class="navbar-nav ms-auto align-items-center">
                 {% if current_user.is_authenticated %}
-                    
                     {% if not current_user.es_admin %}
                     <li class="nav-item">
                         <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
@@ -277,7 +255,6 @@
                         </a>
                     </li>
                     {% endif %}
-
                     <li class="nav-item">
                         <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
                             <i class="bi bi-robot me-1"></i> Agente IA
@@ -286,12 +263,9 @@
                     </li>
                     <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
-                
                 {% else %}
-                    
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
-                
                 {% endif %}
                 <li class="nav-item">
                     <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">
@@ -305,7 +279,6 @@
           </div>
         </div>
     </nav>
-
     <main class="container mt-4" data-aos="fade-up" data-aos-delay="100">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -319,10 +292,8 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-
         {% block content %}{% endblock %}
     </main>
-
     <footer class="container mt-auto py-4">
         <ul class="nav justify-content-center border-top pt-3 mb-3">
             <li class="nav-item"><a href="{{ url_for('main.home') }}" class="nav-link px-2 text-body-secondary">Home</a></li>
@@ -331,26 +302,12 @@
         </ul>
         <p class="text-center text-body-secondary">© 2025 SilvaTest</p>
     </footer>
-
-
     <div class="footer-border">
         <svg width="100%" height="100%" viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M-5 65 C 40 20 80 90 150 70 C 220 50 280 95 320 45 C 330 20 350 25 360 50 C 370 75 390 90 440 70 C 490 50 530 85 590 65 C 650 45 690 90 760 70 C 830 50 870 95 940 75 C 970 65 990 90 1040 70 C 1050 65 1055 60 1060 62 C 1075 70 1090 50 1130 85 C 1190 65 1250 45 1290 90 1360 70 C 1410 55 1430 80 1445 65" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M-5 78 C 30 40 70 95 140 75 C 210 55 270 100 310 55 C 320 30 340 35 350 60 C 360 85 380 95 430 75 C 480 55 520 90 580 70 C 640 50 680 95 750 75 C 820 55 860 100 930 80 C 960 70 980 95 1030 75 C 1040 70 1045 65 1050 67 C 1065 75 1080 55 1120 90 C 1180 70 1240 50 1280 95 1350 75 C 1400 60 1420 85 1445 78" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
         </svg>
     </div>
-
-    <div id="ios-install-prompt" class="p-3">
-        <div class="d-flex align-items-center">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="50" height="50" class="me-3">
-            <div class="flex-grow-1">
-                <p class="fw-bold mb-1">Instala SilvaTest en tu dispositivo</p>
-                <p class="small mb-0">Toca el icono <i class="bi bi-box-arrow-up"></i> y luego "Añadir a la pantalla de inicio".</p>
-            </div>
-            <button type="button" id="close-ios-prompt" class="btn-close ms-2" aria-label="Cerrar"></button>
-        </div>
-    </div>
-    
     <div class="modal fade" id="iaDisclaimerModal" tabindex="-1" aria-labelledby="iaDisclaimerModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -374,14 +331,11 @@
             </div>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
     <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
-    
     <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
-    
     {% block scripts %}
     <script>
       (function() {
@@ -406,7 +360,6 @@
         applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
       })();
     </script>
-    
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -416,7 +369,6 @@
         });
       }
     </script>
-
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -425,7 +377,6 @@
                         document.addEventListener('DOMContentLoaded', function() {
                             const tourUrl = "{{ url_for('main.cuenta', tour='true') }}";
                             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                            
                             Swal.mixin({
                                 confirmButtonText: 'Siguiente &rarr;',
                                 progressSteps: ['1', '2', '3']
@@ -443,7 +394,7 @@
                                 },
                                 {
                                     title: '¡Todo listo para empezar!',
-                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.',
+                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.'
                                     showCancelButton: true,
                                     confirmButtonText: '<i class="bi bi-compass-fill"></i> Hacer un Tour Rápido',
                                     cancelButtonText: 'Empezar a practicar',
@@ -467,7 +418,6 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-
     <script>
         (function() {
             const focusBtn = document.getElementById('focus-mode-btn');
@@ -475,7 +425,6 @@
             const body = document.body;
             const timerDisplay = document.getElementById('pomodoro-timer');
             let pomodoroInterval;
-
             function stopPomodoro() {
                 clearInterval(pomodoroInterval);
                 localStorage.removeItem('pomodoroEndTime');
@@ -483,7 +432,6 @@
                     timerDisplay.textContent = '20:00';
                 }
             }
-            
             function runPomodoroTick() {
                 clearInterval(pomodoroInterval);
                 pomodoroInterval = setInterval(() => {
@@ -492,7 +440,6 @@
                         clearInterval(pomodoroInterval);
                         return;
                     }
-
                     const remainingTime = parseInt(endTime) - Date.now();
                     if (remainingTime < 0) {
                         stopPomodoro();
@@ -508,23 +455,19 @@
                         }
                         return;
                     }
-
                     const minutes = Math.floor((remainingTime / 1000) / 60);
                     let seconds = Math.floor((remainingTime / 1000) % 60);
                     seconds = seconds < 10 ? '0' + seconds : seconds;
-                    
                     if (timerDisplay) {
                         timerDisplay.textContent = `${minutes}:${seconds}`;
                     }
                 }, 1000);
             }
-
             function startPomodoro() {
                 const endTime = Date.now() + 20 * 60 * 1000;
                 localStorage.setItem('pomodoroEndTime', endTime);
                 runPomodoroTick();
             }
-            
             if (focusBtn) {
                 focusBtn.addEventListener('click', function() {
                     localStorage.setItem('focusMode', 'true');
@@ -539,12 +482,10 @@
                     stopPomodoro();
                 });
             }
-
             document.addEventListener('DOMContentLoaded', function() {
                 if (localStorage.getItem('focusMode') === 'true') {
                     body.classList.add('focus-mode');
                 }
-
                 const endTime = localStorage.getItem('pomodoroEndTime');
                 if (endTime && Date.now() < parseInt(endTime)) {
                     runPomodoroTick();
@@ -553,30 +494,24 @@
                 }
             });
         })();
-
         (function() {
             // Función para detectar si es un dispositivo iOS (iPhone, iPad, iPod)
             function isIOS() {
                 return /iPhone|iPad|iPod/i.test(navigator.userAgent);
             }
-
             // Función para detectar si la app ya está en modo "instalado" (standalone)
             function isInStandaloneMode() {
                 return ('standalone' in window.navigator) && (window.navigator.standalone);
             }
-
             // Solo muestra el aviso si es iOS, no está ya instalada, y no ha sido descartada antes
             if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
-                
                 const promptElement = document.getElementById('ios-install-prompt');
                 const closeButton = document.getElementById('close-ios-prompt');
-
                 if (promptElement && closeButton) {
                     // Espera 5 segundos antes de mostrar el aviso
                     setTimeout(function() {
                         promptElement.classList.add('show');
                     }, 5000);
-
                     // Lógica para cerrar el aviso y recordarlo
                     closeButton.addEventListener('click', function() {
                         promptElement.classList.remove('show');
@@ -588,7 +523,6 @@
             }
         })();
     </script>
-    
     {% endblock %}
   </body>
 </html>

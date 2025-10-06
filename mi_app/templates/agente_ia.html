@@ -81,9 +81,15 @@
         color: var(--bs-secondary-color);
     }
     
+    /* --- CAMBIO: MEJORA DE ESTILOS PARA LA PANTALLA DE TOKENS --- */
     #tokens-display {
         font-size: 0.85rem;
         font-weight: 600;
+        background-color: var(--bs-light-bg-subtle);
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--bs-border-color);
+        white-space: nowrap; /* Evita que el texto se parta en varias líneas */
     }
 
     /* --- ESTILOS PARA EL MODO CUADERNO (ya los tenías) --- */
@@ -106,6 +112,25 @@
         font-weight: 700;
         color: var(--bs-primary);
     }
+    
+    /* --- MEDIA QUERY: AJUSTES PARA PANTALLAS PEQUEÑAS (MÓVILES) --- */
+    @media (max-width: 992px) {
+        #study-environment {
+            flex-direction: column; /* Apila los elementos en una columna */
+            gap: 1rem; /* Reduce el espacio entre el panel y el chat */
+        }
+        #sources-panel {
+            flex: auto; /* Permite que ocupe todo el ancho */
+            max-height: 50vh; /* Se ajusta a la mitad de la pantalla para móviles */
+        }
+        .container-fluid .row {
+            padding: 0 1rem; /* Añade un poco de relleno para que el contenido no toque los bordes */
+        }
+        .d-flex.justify-content-between {
+            flex-direction: column; /* Apila el modo y los tokens */
+            align-items: flex-start;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -113,7 +138,7 @@
 <div class="container-fluid mt-4" data-aos="fade-up">
     <div class="row justify-content-center">
         <div class="col-lg-11 col-xl-10">
-            <h2 class="text-center mb-4"><i class="bi bi-robot me-2"></i>Asistente de Estudio IA RAG</h2>
+            <h2 class="text-center mb-4"><i class="bi bi-robot me-2"></i>Asistente de Estudio SilvIA</h2>
             
             <div id="study-environment">
 
@@ -145,16 +170,16 @@
                                 <option value="formal">🎯 Respuesta Directa</option>
                             </select>
                         </div>
-                        <p id="tokens-display" class="text-muted mb-0">
-                            Tokens Restantes: <span id="remaining-tokens-value">{{ rag_tokens_restantes|default(0) }}</span>
+                        <div id="tokens-display" class="d-flex align-items-center mb-0">
+                            Tokens Restantes: <span id="remaining-tokens-value" class="ms-1 fw-bold">{{ rag_tokens_restantes|default(0) }}</span>
                             {% if rag_tokens_restantes < 5000 %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>{% endif %}
-                        </p>
+                        </div>
                     </div>
                     
                     <div id="chat-container" class="shadow-lg">
                         <div id="chat-messages">
                             <div class="agent-message chat-message">
-                                ¡Soy <strong>Silva</strong>, tu Asistente de Estudio IA! Selecciona los temas que quieras repasar en el panel de la izquierda y hazme tu pregunta. ¡Estoy listo para optimizar tu estudio!
+                                ¡Soy <strong>SilvIA</strong>, tu Asistente de Estudio IA! Selecciona los temas que quieras repasar en el panel de la izquierda y hazme tu pregunta. ¡Estoy listo para optimizar tu estudio!
                             </div>
                         </div>
                         
@@ -256,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // --- ¡NUEVO! OBTENER FUENTES SELECCIONADAS ---
         const selectedSources = Array.from(document.querySelectorAll('.source-checkbox:checked'))
-                                     .map(checkbox => checkbox.value);
+                                         .map(checkbox => checkbox.value);
 
         if (userMessage === '' || currentTokens <= 0) return;
 
