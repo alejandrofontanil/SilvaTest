@@ -646,42 +646,15 @@ def api_consulta_rag():
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
-    if not current_user.tiene_acceso_ia:
-        flash('No tienes acceso a esta función premium en este momento.', 'warning')
-        return redirect(url_for('main.home'))
+    # Añadimos un 'print' para ver si esta función llega a ejecutarse
+    print("--- ENTRANDO A LA RUTA /agente-ia (VERSIÓN DE PRUEBA) ---")
 
-    # --- ¡NUEVA LÓGICA PARA CARGAR LOS DOCUMENTOS DESDE GOOGLE CLOUD STORAGE! ---
-    available_sources = []
-    bucket_name = "silvatest-prod-temarios" # El nombre de tu bucket
-
-    try:
-        storage_client = storage.Client(credentials=credentials, project=GCP_PROJECT_ID)
-        bucket = storage_client.bucket(bucket_name)
-        blobs = bucket.list_blobs()
-
-        for blob in blobs:
-            if blob.name.lower().endswith('.pdf'):
-                full_gcs_path = f"gs://{bucket_name}/{blob.name}"
-
-                file_name = blob.name.split('/')[-1]
-                cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE)
-                cleaned_name = cleaned_name.replace('_', ' ').replace('.', ' ').strip().title()
-
-                available_sources.append({
-                    'name': cleaned_name,
-                    'path': full_gcs_path
-                })
-
-        available_sources.sort(key=lambda x: x['name'])
-
-    except Exception as e:
-        print(f"ERROR: No se pudo conectar a Google Cloud Storage para listar los archivos: {e}")
-        flash("Error al cargar los documentos del temario. Contacta con el administrador.", "danger")
-
-    return render_template('agente_ia.html',
-                           title="Asistente de Estudio IA",
+    # De momento, ignoramos la lógica de GCS y solo intentamos renderizar la plantilla.
+    # Pasamos un diccionario vacío a 'grouped_sources' para que el HTML no falle.
+    return render_template('agente_ia.html', 
+                           title="Asistente de Prueba", 
                            rag_tokens_restantes=current_user.rag_tokens_restantes,
-                           available_sources=available_sources)
+                           grouped_sources={})
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
