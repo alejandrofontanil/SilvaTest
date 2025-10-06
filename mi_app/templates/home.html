@@ -10,15 +10,30 @@
         overflow-x: auto;
         padding-bottom: 15px;
     }
+
     /* Estilos para centrar el texto dentro de las tarjetas vacías */
     .card-placeholder {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
         height: 100%;
-        min-height: 250px; /* Asegura un tamaño mínimo para la tarjeta */
+        min-height: 250px;
+        padding: 2rem;
     }
+    
+    .card-placeholder .bi {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+    
+    .card-placeholder p {
+        font-size: 1.1rem;
+        line-height: 1.5;
+    }
+
     @media (max-width: 576px) {
         .ch-subdomain-cell {
             width: 10px !important;
@@ -33,10 +48,11 @@
 
 {# ===== LÓGICA DE VISTAS PARA CADA TIPO DE USUARIO ===== #}
 {% if current_user.is_authenticated and not current_user.es_admin %}
+
     <div class="row g-4 mb-5">
         <div class="col-12">
             {% if not current_user.ha_visto_tour and current_user.objetivo_principal %}
-                <h2 class="mb-1" data-aos="fade-right">¡A por tu objetivo, {{ current_user.nombre.split()[0] }}!</h2>
+                <h2 class="mb-3" data-aos="fade-right">¡A por tu objetivo, {{ current_user.nombre.split()[0] }}!</h2>
                 <p class="fs-4 text-muted" data-aos="fade-right" data-aos-delay="100">Empecemos con tu preparación para: <strong>{{ current_user.objetivo_principal.nombre }}</strong></p>
             {% else %}
                 <h2 class="mb-4" data-aos="fade-right">¡Bienvenido de nuevo, {{ current_user.nombre }}!</h2>
@@ -58,7 +74,6 @@
                         <div class="col-md-4">
                             <h5 class="card-title text-muted">Nota Media Global</h5>
                             
-                            {# --- CAMBIO: Lógica de colores para la nota media --- #}
                             {% set nota = stats_clave.nota_media %}
                             {% set color_clase = '' %}
                             {% set color_style = '' %}
@@ -68,7 +83,6 @@
                                 {% set color_clase = 'text-bg-warning' %}
                             {% else %}
                                 {% set color_clase = 'text-white' %}
-                                {# Calculamos la claridad del verde. 7.0 -> 45% (claro), 10.0 -> 30% (oscuro) #}
                                 {% set lightness = 45 - (((nota - 7) / 3) * 15) %}
                                 {% set color_style = 'style="background-color: hsl(145, 63%, ' ~ lightness|round(2) ~ '%);"' %}
                             {% endif %}
