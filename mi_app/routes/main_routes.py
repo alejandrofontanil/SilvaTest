@@ -550,7 +550,7 @@ def offline():
 # --- RUTAS DE API PARA GRÁFICOS ---
 @main_bp.route('/api/evolucion-notas')
 @login_required
-def api_evolucion-notas():
+def api_evolucion_notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
     resultados_periodo = ResultadoTest.query.filter(ResultadoTest.autor == current_user, ResultadoTest.fecha >= fecha_inicio).order_by(ResultadoTest.fecha.asc()).all()
     resultados_agrupados = defaultdict(list)
