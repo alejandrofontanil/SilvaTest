@@ -646,15 +646,53 @@ def api_consulta_rag():
 @main_bp.route('/agente-ia')
 @login_required
 def agente_ia_page():
-    # Añadimos un 'print' para ver si esta función llega a ejecutarse
-    print("--- ENTRANDO A LA RUTA /agente-ia (VERSIÓN DE PRUEBA) ---")
+    print("--- ENTRANDO A LA RUTA /agente-ia (VERSIÓN FINAL) ---")
+    if not current_user.tiene_acceso_ia:
+        flash('No tienes acceso a esta función premium.', 'warning')
+        return redirect(url_for('main.home'))
 
-    # De momento, ignoramos la lógica de GCS y solo intentamos renderizar la plantilla.
-    # Pasamos un diccionario vacío a 'grouped_sources' para que el HTML no falle.
-    return render_template('agente_ia.html', 
-                           title="Asistente de Prueba", 
+    grouped_sources = defaultdict(list)
+    bucket_name = "silvatest-prod-temarios"
+
+    try:
+        # Añadimos un manejo de errores específico para la inicialización del cliente
+        try:
+            storage_client = storage.Client(credentials=credentials, project=GCP_PROJECT_ID)
+            bucket = storage_client.bucket(bucket_name)
+            blobs = bucket.list_blobs()
+        except Exception as e:
+            print(f"ERROR CRÍTICO: No se pudo inicializar el cliente de GCS o el bucket. ¿Permisos IAM?: {e}")
+            raise # Lanzamos la excepción para que el bloque exterior la capture
+
+        for blob in blobs:
+            if blob.name.lower().endswith(('.pdf', '.txt')):
+                path_parts = blob.name.split('/')
+
+                if len(path_parts) > 1:
+                    group_name = path_parts[-2].replace('_', ' ').title()
+                else:
+                    group_name = "General"
+
+                full_gcs_path = f"gs://{bucket_name}/{blob.name}"
+                file_name = blob.name.split('/')[-1]
+                cleaned_name = re.sub(r'\.(pdf|txt)$', '', file_name, flags=re.IGNORECASE).replace('_', ' ').strip().title()
+
+                grouped_sources[group_name].append({
+                    'name': cleaned_name,
+                    'path': full_gcs_path
+                })
+
+        for group in grouped_sources:
+            grouped_sources[group].sort(key=lambda x: x['name'])
+
+    except Exception as e:
+        print(f"ERROR: Fallo al procesar los blobs de GCS: {e}")
+        flash("Error al cargar los documentos del temario. Revisa los permisos de la cuenta de servicio.", "danger")
+
+    return render_template('agente_ia.html',
+                           title="Asistente de Estudio IA",
                            rag_tokens_restantes=current_user.rag_tokens_restantes,
-                           grouped_sources={})
+                           grouped_sources=grouped_sources)
 
 @main_bp.route('/explicar-respuesta', methods=['POST'])
 @login_required
