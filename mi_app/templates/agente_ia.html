@@ -84,7 +84,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (isThinking) {
             messageDiv.innerHTML = `<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div><span>Consultando...</span></div>`;
         } else {
-            // Usamos la librería 'marked' si está disponible para renderizar Markdown
             messageDiv.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : content.replace(/\n/g, '<br>');
         }
         
@@ -99,7 +98,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const userMessage = userInput.value.trim();
             if (!userMessage) return;
 
-            // En el nuevo diseño, el filtro son los documentos ACTIVOS en el panel izquierdo
             const activeSource = document.querySelector('.source-item.active');
             let selectedSources = [];
             if(activeSource) {
@@ -111,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const thinkingMessage = addMessageToChat('bot', '', true);
 
-            fetch("{{ url_for('main.api_consulta_rag') }}", {
+            fetch("/api/consulta-rag", { // <-- LÍNEA CORREGIDA
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -119,13 +117,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ 
                     message: userMessage, 
-                    mode: "didactico", // O el modo que prefieras
-                    selected_sources: selectedSources // Enviamos solo la fuente activa
+                    mode: "didactico",
+                    selected_sources: selectedSources
                 })
             })
             .then(response => {
                 if (!response.ok) {
-                    // Si el servidor devuelve un error, lo intentamos leer como JSON
                     return response.json().then(err => { 
                         throw new Error(err.error || 'Error desconocido del servidor.'); 
                     });
@@ -133,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                thinkingMessage.remove(); // Quitamos el "Consultando..."
+                thinkingMessage.remove();
                 addMessageToChat('bot', data.response);
                 
                 if (data.remaining_tokens !== undefined) {
