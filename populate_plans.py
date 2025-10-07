@@ -1,11 +1,9 @@
 from mi_app import create_app, db
-# --- LÍNEA CORREGIDA: Se añade RegistroEntrenamiento a la importación ---
-from mi_app.models import PlanFisico, SemanaPlan, RegistroEntrenamiento
+# --- LÍNEA CORREGIDA: Se añade Usuario a la importación ---
+from mi_app.models import PlanFisico, SemanaPlan, RegistroEntrenamiento, Usuario
 
-# --- DATOS DE LOS PLANES DIRECTAMENTE EN EL CÓDIGO ---
-
+# --- (El resto de los datos del plan, sin cambios) ---
 PLAN_BASE_DATA = [
-    # Semana, Día 1, Día 2, Carga KM, Zona Ritmo, Progreso %
     (1, "3 km a 6:40 - 6:50 min/km", "6 x 400m a 6:20 min/km (Descanso 1:30 min)", 5.4, "Z3 - Umbral Aeróbico", 6.25),
     (2, "3.5 km a 6:40 min/km", "4 x 600m a 6:15 min/km (Descanso 1:30 min)", 5.9, "Z3 - Umbral Aeróbico", 12.50),
     (3, "4 km a 6:35 min/km", "3 x 800m a 6:10 min/km (Descanso 1:30 min)", 6.4, "Z3 - Umbral Aeróbico", 18.75),
@@ -23,9 +21,7 @@ PLAN_BASE_DATA = [
     (15, "6 km a 5:50 min/km", "2 x 800m a 5:30 min/km (Descanso 2 min)", 8.6, "Z4-Z5 - Subumbral / Umbral Anaeróbico", 93.75),
     (16, "6 km en menos de 35 min", "3 km rápidos a 5:30 min/km", 9.0, "Z5 - Umbral Anaeróbico", 100.00),
 ]
-
 PLAN_EXIGENTE_DATA = [
-    # Semana, Día 1, Día 2, Carga KM, Zona Ritmo, Progreso %
     (1, "3 km a 6:00 min/km", "6 x 400m a 5:55 min/km (Descanso 1:30 min)", 5.4, "Z3-Z4 - Umbral Aeróbico / Subumbral", 6),
     (2, "3.5 km a 5:55 min/km", "4 x 600m a 5:45 min/km (Descanso 1:30 min)", 5.9, "Z4 - Subumbral", 13),
     (3, "4 km a 5:50 min/km", "2 x 1000m a 5:40 min/km (Descanso 1:30 min)", 6.4, "Z4 - Subumbral", 19),
@@ -63,24 +59,39 @@ def poblar_plan(plan_nombre, plan_data):
         db.session.add(nueva_semana)
         print(f"  -> Añadida semana {data_semana[0]} al plan '{plan_nombre}'")
 
-    db.session.commit()
-    print(f"✅ Plan '{plan_nombre}' guardado en la base de datos.")
+    # Guardamos los planes y semanas, pero aún no cerramos la transacción
+    db.session.flush()
+    print(f"✅ Plan '{plan_nombre}' preparado para guardar.")
 
 if __name__ == '__main__':
     app = create_app()
     with app.app_context():
-        print("--- Limpiando datos de planes físicos existentes... ---")
-        # --- CORREGIDO: Ahora el script sabe qué es RegistroEntrenamiento ---
-        db.session.query(RegistroEntrenamiento).delete()
-        db.session.query(SemanaPlan).delete()
-        db.session.query(PlanFisico).delete()
-        db.session.commit()
-        print("--- Base de datos de planes físicos limpiada. ---")
-        
         try:
+            print("--- Limpiando datos de planes físicos existentes... ---")
+            
+            # --- ¡NUEVO! Primero, desvinculamos los planes de los usuarios ---
+            print(" -> Desvinculando planes de usuarios existentes...")
+            db.session.query(Usuario).update({"plan_fisico_actual_id": None})
+            
+            # Ahora sí, borramos en el orden correcto
+            print(" -> Borrando registros de entrenamiento...")
+            db.session.query(RegistroEntrenamiento).delete()
+            print(" -> Borrando semanas de planes...")
+            db.session.query(SemanaPlan).delete()
+            print(" -> Borrando planes físicos...")
+            db.session.query(PlanFisico).delete()
+            
+            # Confirmamos todos los borrados
+            db.session.commit()
+            print("--- Base de datos de planes físicos limpiada. ---")
+            
             poblar_plan("Plan Base", PLAN_BASE_DATA)
             poblar_plan("Plan Exigente", PLAN_EXIGENTE_DATA)
+
+            # Confirmamos la adición de los nuevos planes
+            db.session.commit()
             print("\n--- Proceso de población de datos finalizado con éxito ---")
+
         except Exception as e:
             print(f"❌ ERROR GENERAL durante la población: {e}")
             db.session.rollback()
