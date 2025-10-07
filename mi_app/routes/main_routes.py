@@ -158,6 +158,7 @@ def home():
                            progreso_objetivo=progreso_objetivo,
                            modules={'datetime': datetime, 'hoy': date.today()})
 
+
 @main_bp.route('/convocatoria/<int:convocatoria_id>')
 @login_required
 def convocatoria_detalle(convocatoria_id):
@@ -549,7 +550,7 @@ def offline():
     return render_template('offline.html')
 
 # --- RUTAS DE API PARA GRÁFICOS ---
-@main_bp.route('/api/evolucion-notas')
+@main_bp.route('/api/evolucion_notas') # <-- CORREGIDO
 @login_required
 def api_evolucion_notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
@@ -901,6 +902,38 @@ def registrar_entrenamiento():
         db.session.rollback()
         print(f"Error al registrar entrenamiento: {e}")
         return jsonify({'success': False, 'error': 'Error interno al guardar los datos.'}), 500
+        
+@main_bp.route('/api/borrar-entrenamiento', methods=['POST'])
+@login_required
+def borrar_entrenamiento():
+    """
+    API para borrar un registro de entrenamiento existente.
+    """
+    data = request.get_json()
+    semana_id = data.get('semana_id')
+    dia_entreno = data.get('dia_entreno')
+
+    if not all([semana_id, dia_entreno]):
+        return jsonify({'success': False, 'error': 'Faltan datos para identificar el registro.'}), 400
+
+    registro = RegistroEntrenamiento.query.filter_by(
+        usuario_id=current_user.id,
+        semana_id=int(semana_id),
+        dia_entreno=int(dia_entreno)
+    ).first()
+
+    if not registro:
+        return jsonify({'success': False, 'error': 'No se encontró el registro para borrar.'}), 404
+
+    try:
+        db.session.delete(registro)
+        db.session.commit()
+        flash('Registro de entrenamiento eliminado correctamente.', 'success')
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al borrar entrenamiento: {e}")
+        return jsonify({'success': False, 'error': 'Error interno al borrar el registro.'}), 500
 
 # --- FIN: RUTAS PARA PREPARACIÓN FÍSICA ---
 
