@@ -1,54 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }}{% endblock %}
-
 {% block content %}
-<div class="container mt-4" data-aos="fade-up">
+<div class="container mt-4">
     <div class="text-center mb-5">
-        <h2 class="display-5"><i class="bi bi-person-walking me-2"></i>Elige tu Plan de Entrenamiento</h2>
+        <h1 class="display-5">Elige tu Plan de Entrenamiento</h1>
         <p class="lead text-muted">Selecciona el plan que mejor se adapte a tu nivel actual para empezar a preparar las pruebas físicas.</p>
     </div>
 
+    {% if planes %}
     <div class="row justify-content-center g-4">
-        {% if planes %}
-            {% for plan in planes %}
-            <div class="col-lg-5">
-                <div class="card h-100 shadow-sm border-2 {% if 'Exigente' in plan.nombre %}border-primary{% else %}border-secondary{% endif %}">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <h3 class="card-title text-center mb-3">
-                            {% if 'Exigente' in plan.nombre %}
-                                <i class="bi bi-trophy-fill text-primary me-2"></i>
-                            {% else %}
-                                <i class="bi bi-shield-check text-secondary me-2"></i>
-                            {% endif %}
-                            {{ plan.nombre }}
-                        </h3>
-                        
-                        {# Aquí podríamos añadir una descripción del plan si la tuvieras en la BD #}
-                        <p class="text-muted text-center">
-                            Un plan estructurado de {{ plan.semanas|length }} semanas para alcanzar tus objetivos de forma progresiva.
-                        </p>
-
-                        <div class="mt-auto text-center">
-                            {# Este formulario envía el ID del plan a la ruta que creamos #}
-                            <form action="{{ url_for('main.seleccionar_plan', plan_id=plan.id) }}" method="POST">
-                                {{ form.hidden_tag() if form }} {# Para protección CSRF si la tienes configurada en el form #}
-                                <button type="submit" class="btn btn-lg {% if 'Exigente' in plan.nombre %}btn-primary{% else %}btn-secondary{% endif %} w-100">
-                                    <i class="bi bi-play-circle-fill me-2"></i>Seleccionar este plan
-                                </button>
-                            </form>
-                        </div>
+        {% for plan in planes %}
+        <div class="col-md-5 col-lg-4">
+            {% set is_exigente = 'Exigente' in plan.nombre %}
+            <div class="card h-100 shadow-sm border-2 {% if is_exigente %}border-primary{% else %}border-secondary{% endif %}">
+                <div class="card-body d-flex flex-column text-center p-4">
+                    <div class="mb-3">
+                        {% if is_exigente %}
+                            <i class="bi bi-trophy-fill text-primary" style="font-size: 3rem;"></i>
+                        {% else %}
+                            <i class="bi bi-shield-check text-secondary" style="font-size: 3rem;"></i>
+                        {% endif %}
                     </div>
+                    <h3 class="card-title h4">{{ plan.nombre }}</h3>
+                    <p class="text-muted">Un plan de {{ plan.semanas|length }} semanas para alcanzar tu objetivo.</p>
+                    
+                    <!-- Formulario que envía la elección del plan -->
+                    <form action="{{ url_for('main.seleccionar_plan', plan_id=plan.id) }}" method="POST" class="mt-auto">
+                        <!-- === LA LÍNEA QUE FALTABA === -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <!-- ============================ -->
+                        <button type="submit" class="btn {% if is_exigente %}btn-primary{% else %}btn-secondary{% endif %} w-100">
+                            <i class="bi bi-check-circle-fill me-2"></i>Seleccionar este plan
+                        </button>
+                    </form>
                 </div>
             </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                <div class="alert alert-warning text-center" role="alert">
-                    Actualmente no hay planes de entrenamiento disponibles. Por favor, contacta con el administrador.
-                </div>
-            </div>
-        {% endif %}
+        </div>
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="text-center">
+        <p class="text-muted">Actualmente no hay planes de entrenamiento disponibles. Por favor, contacta con el administrador.</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
+
