@@ -205,3 +205,6 @@ class RegistroEntrenamiento(db.Model):
 
     def __repr__(self):
         return f'<Registro del Usuario {self.usuario_id} para la Semana {self.semana_id}>'
+
+
+# --- FIN DE LOS MODELOS ---

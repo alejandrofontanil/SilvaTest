@@ -1,8 +1,8 @@
-"""Migracion inicial
+"""Creación inicial de la base de datos con todos los modelos
 
-Revision ID: c1f13423712e
+Revision ID: 95d43c548086
 Revises: 
-Create Date: 2025-10-02 12:00:58.857416
+Create Date: 2025-10-07 11:23:22.760804
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c1f13423712e'
+revision = '95d43c548086'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,6 +26,12 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_convocatoria')),
     sa.UniqueConstraint('nombre', name=op.f('uq_convocatoria_nombre'))
     )
+    op.create_table('plan_fisico',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nombre', sa.String(length=100), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_plan_fisico')),
+    sa.UniqueConstraint('nombre', name=op.f('uq_plan_fisico_nombre'))
+    )
     op.create_table('bloque',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nombre', sa.String(length=200), nullable=False),
@@ -35,6 +41,19 @@ def upgrade():
     sa.Column('contexto_ia', sa.String(length=250), nullable=True),
     sa.ForeignKeyConstraint(['convocatoria_id'], ['convocatoria.id'], name=op.f('fk_bloque_convocatoria_id_convocatoria')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_bloque'))
+    )
+    op.create_table('semana_plan',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('plan_id', sa.Integer(), nullable=False),
+    sa.Column('numero_semana', sa.Integer(), nullable=False),
+    sa.Column('progreso_pct', sa.Float(), nullable=True),
+    sa.Column('dia1_desc', sa.String(length=200), nullable=True),
+    sa.Column('dia2_desc', sa.String(length=200), nullable=True),
+    sa.Column('sensacion', sa.String(length=200), nullable=True),
+    sa.Column('carga_semanal_km', sa.Float(), nullable=True),
+    sa.Column('zona_ritmo', sa.String(length=100), nullable=True),
+    sa.ForeignKeyConstraint(['plan_id'], ['plan_fisico.id'], name=op.f('fk_semana_plan_plan_id_plan_fisico')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_semana_plan'))
     )
     op.create_table('usuario',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -48,8 +67,11 @@ def upgrade():
     sa.Column('tiene_acceso_ia', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('preferencias_dashboard', sa.JSON(), nullable=True),
     sa.Column('objetivo_fecha', sa.Date(), nullable=True),
+    sa.Column('rag_tokens_restantes', sa.Integer(), nullable=True),
     sa.Column('fecha_creacion', sa.DateTime(), nullable=False),
+    sa.Column('plan_fisico_actual_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['objetivo_principal_id'], ['convocatoria.id'], name=op.f('fk_usuario_objetivo_principal_id_convocatoria')),
+    sa.ForeignKeyConstraint(['plan_fisico_actual_id'], ['plan_fisico.id'], name=op.f('fk_usuario_plan_fisico_actual_id_plan_fisico')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_usuario')),
     sa.UniqueConstraint('email', name=op.f('uq_usuario_email'))
     )
@@ -61,39 +83,49 @@ def upgrade():
     sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_accesos_usuario_convocatoria_usuario_id_usuario')),
     sa.PrimaryKeyConstraint('usuario_id', 'convocatoria_id', name=op.f('pk_accesos_usuario_convocatoria'))
     )
+    op.create_table('registro_entrenamiento',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=False),
+    sa.Column('semana_id', sa.Integer(), nullable=False),
+    sa.Column('fecha', sa.Date(), nullable=False),
+    sa.Column('dia_entreno', sa.Integer(), nullable=False),
+    sa.Column('km_realizados', sa.Float(), nullable=True),
+    sa.Column('sensacion_usuario', sa.String(length=200), nullable=True),
+    sa.Column('notas_usuario', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['semana_id'], ['semana_plan.id'], name=op.f('fk_registro_entrenamiento_semana_id_semana_plan')),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_registro_entrenamiento_usuario_id_usuario')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_registro_entrenamiento'))
+    )
     op.create_table('tema',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nombre', sa.String(length=200), nullable=False),
     sa.Column('posicion', sa.Integer(), nullable=False),
+    sa.Column('bloque_id', sa.Integer(), nullable=False),
     sa.Column('parent_id', sa.Integer(), nullable=True),
-    sa.Column('bloque_id', sa.Integer(), nullable=True),
     sa.Column('es_simulacro', sa.Boolean(), nullable=False),
-    sa.Column('tiempo_limite_minutos', sa.Integer(), nullable=True),
-    sa.Column('pdf_url', sa.String(length=300), nullable=True),
-    sa.Column('ruta_documento_contexto', sa.String(length=300), nullable=True),
     sa.ForeignKeyConstraint(['bloque_id'], ['bloque.id'], name=op.f('fk_tema_bloque_id_bloque')),
     sa.ForeignKeyConstraint(['parent_id'], ['tema.id'], name=op.f('fk_tema_parent_id_tema')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_tema'))
     )
     op.create_table('nota',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('texto', sa.Text(), nullable=False),
-    sa.Column('tema_id', sa.Integer(), nullable=False),
+    sa.Column('contenido', sa.Text(), nullable=False),
     sa.Column('fecha_creacion', sa.DateTime(), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=False),
+    sa.Column('tema_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['tema_id'], ['tema.id'], name=op.f('fk_nota_tema_id_tema')),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_nota_usuario_id_usuario')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_nota'))
     )
     op.create_table('pregunta',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('texto', sa.Text(), nullable=False),
     sa.Column('posicion', sa.Integer(), nullable=False),
-    sa.Column('imagen_url', sa.String(length=300), nullable=True),
     sa.Column('retroalimentacion', sa.Text(), nullable=True),
-    sa.Column('dificultad', sa.String(length=50), nullable=False),
-    sa.Column('necesita_revision', sa.Boolean(), nullable=False),
+    sa.Column('necesita_revision', sa.Boolean(), nullable=True),
     sa.Column('tema_id', sa.Integer(), nullable=False),
     sa.Column('tipo_pregunta', sa.String(length=50), nullable=False),
-    sa.Column('respuesta_correcta_texto', sa.String(length=500), nullable=True),
+    sa.Column('respuesta_correcta_texto', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['tema_id'], ['tema.id'], name=op.f('fk_pregunta_tema_id_tema')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_pregunta'))
     )
@@ -101,8 +133,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nota', sa.Float(), nullable=False),
     sa.Column('fecha', sa.DateTime(), nullable=False),
-    sa.Column('tema_id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
+    sa.Column('tema_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['tema_id'], ['tema.id'], name=op.f('fk_resultado_test_tema_id_tema')),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_resultado_test_usuario_id_usuario')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_resultado_test'))
@@ -128,7 +160,7 @@ def upgrade():
     sa.Column('usuario_id', sa.Integer(), nullable=False),
     sa.Column('pregunta_id', sa.Integer(), nullable=False),
     sa.Column('respuesta_seleccionada_id', sa.Integer(), nullable=True),
-    sa.Column('respuesta_texto_usuario', sa.String(length=500), nullable=True),
+    sa.Column('respuesta_texto_usuario', sa.Text(), nullable=True),
     sa.Column('resultado_test_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['pregunta_id'], ['pregunta.id'], name=op.f('fk_respuesta_usuario_pregunta_id_pregunta')),
     sa.ForeignKeyConstraint(['respuesta_seleccionada_id'], ['respuesta.id'], name=op.f('fk_respuesta_usuario_respuesta_seleccionada_id_respuesta')),
@@ -148,8 +180,11 @@ def downgrade():
     op.drop_table('pregunta')
     op.drop_table('nota')
     op.drop_table('tema')
+    op.drop_table('registro_entrenamiento')
     op.drop_table('accesos_usuario_convocatoria')
     op.drop_table('usuario')
+    op.drop_table('semana_plan')
     op.drop_table('bloque')
+    op.drop_table('plan_fisico')
     op.drop_table('convocatoria')
     # ### end Alembic commands ###
