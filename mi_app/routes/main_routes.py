@@ -800,3 +800,39 @@ def api_rendimiento_bloques():
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
 
+# --- INICIO: NUEVAS RUTAS PARA PREPARACIÓN FÍSICA ---
+
+@main_bp.route('/preparacion-fisica')
+@login_required
+def preparacion_fisica():
+    """
+    Página principal del panel de entrenamiento físico.
+    Muestra la selección de planes si el usuario no tiene uno,
+    o su panel de progreso si ya lo tiene.
+    """
+    if current_user.plan_fisico_actual:
+        # El usuario ya tiene un plan, muestra el panel de progreso
+        return render_template('panel_fisico.html', 
+                               title="Mi Plan de Entrenamiento",
+                               plan=current_user.plan_fisico_actual)
+    else:
+        # El usuario no tiene plan, muestra la página para elegir uno
+        planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
+        return render_template('elegir_plan.html', 
+                               title="Elige tu Plan de Entrenamiento",
+                               planes=planes_disponibles)
+
+@main_bp.route('/seleccionar-plan/<int:plan_id>', methods=['POST'])
+@login_required
+def seleccionar_plan(plan_id):
+    """
+    Asigna un plan de entrenamiento al usuario actual.
+    """
+    plan_a_asignar = PlanFisico.query.get_or_404(plan_id)
+    current_user.plan_fisico_actual = plan_a_asignar
+    db.session.commit()
+    flash(f"¡Has seleccionado el '{plan_a_asignar.nombre}'! Mucho ánimo con el entrenamiento.", "success")
+    return redirect(url_for('main.preparacion_fisica'))
+
+# --- FIN: NUEVAS RUTAS ---
+
