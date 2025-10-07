@@ -12,7 +12,7 @@
         padding: 1.5rem;
     }
     .table-responsive {
-        max-height: 60vh;
+        max-height: 70vh; /* Aumentamos un poco la altura máxima */
     }
     .table thead th {
         position: sticky;
@@ -20,77 +20,93 @@
         background-color: var(--bs-light-bg-subtle);
         z-index: 2;
     }
-    .semana-completada {
-        background-color: var(--bs-success-bg-subtle) !important;
-        text-decoration: line-through;
-        color: var(--bs-secondary-color);
+    /* Estilo para los botones de registrar */
+    .btn-registrar {
+        font-weight: bold;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4" data-aos="fade-up">
+<div class="container-fluid mt-4" data-aos="fade-up">
+
+    <!-- Encabezado -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="display-5"><i class="bi bi-clipboard-data-fill me-2"></i>Mi Plan: {{ plan.nombre }}</h2>
+            <h1 class="display-5"><i class="bi bi-clipboard-data-fill me-2"></i>Mi Plan: {{ plan.nombre }}</h1>
             <p class="lead text-muted">Aquí puedes seguir tu progreso y registrar tus entrenamientos semanales.</p>
         </div>
-        <div>
-            <a href="#" class="btn btn-outline-danger">
-                <i class="bi bi-x-circle me-2"></i>Cambiar de Plan
-            </a>
-        </div>
+        <!-- FORMULARIO CORREGIDO para cambiar/reiniciar el plan -->
+        <form action="{{ url_for('main.seleccionar_plan', plan_id=0) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres reiniciar tu progreso y elegir un nuevo plan? Se borrarán todos tus registros de entrenamiento.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-arrow-repeat me-2"></i>Cambiar de Plan</button>
+        </form>
     </div>
 
-    <!-- Sección de Gráficos y Estadísticas -->
+    <!-- Sección de Gráficos con DATOS REALES -->
     <div class="row g-4 mb-5">
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card text-center h-100 shadow-sm">
-                <h5>Progreso del Plan</h5>
-                <canvas id="progresoGeneralChart"></canvas>
-                <p class="fw-bold fs-4 mt-2 mb-0">25%</p>
-                <p class="text-muted small">4 de 16 semanas completadas</p>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h5 class="card-title">Progreso General</h5>
+                    <canvas id="progresoGeneralChart"></canvas>
+                    <p class="fw-bold fs-2 mt-3 mb-0">{{ progreso_general_pct }}%</p>
+                    <p class="text-muted small">Completado</p>
+                </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-8">
-            <div class="stat-card h-100 shadow-sm">
-                <h5 class="text-center">Carga de Kilómetros Semanal</h5>
-                <canvas id="cargaKmChart"></canvas>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Carga de Kilómetros Semanal</h5>
+                    <div style="height: 250px;">
+                        <canvas id="cargaKmChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla del Plan de Entrenamiento -->
+    <!-- Tabla del Plan de Entrenamiento INTERACTIVA -->
     <div class="card shadow-sm">
         <div class="card-header">
             <h4 class="mb-0">Planificación Semanal</h4>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle">
+                <table class="table table-hover table-striped align-middle mb-0">
                     <thead class="text-uppercase small">
                         <tr>
-                            <th scope="col">Semana</th>
-                            <th scope="col">Día 1</th>
-                            <th scope="col">Día 2</th>
-                            <th scope="col">Carga Obj. (km)</th>
-                            <th scope="col">Ritmo Obj.</th>
-                            <th scope="col" class="text-center">Acciones</th>
+                            <th>Semana</th>
+                            <th>Día 1</th>
+                            <th>Día 2</th>
+                            <th>Carga Obj. (km)</th>
+                            <th>Ritmo Obj.</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for semana in plan.semanas|sort(attribute='numero_semana') %}
-                        {# Aquí añadiremos lógica para ver si la semana está completada #}
-                        <tr class=""> 
-                            <th scope="row">{{ semana.numero_semana }}</th>
+                        <tr>
+                            <td class="fw-bold">Semana {{ semana.numero_semana }}</td>
                             <td>{{ semana.dia1_desc }}</td>
                             <td>{{ semana.dia2_desc }}</td>
                             <td>{{ semana.carga_semanal_km }} km</td>
                             <td>{{ semana.zona_ritmo }}</td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}">
-                                    <i class="bi bi-check2-circle me-1"></i> Registrar
-                                </button>
+                                <!-- Lógica para mostrar botón 'Registrar' o 'Completado' para DÍA 1 -->
+                                {% if (semana.id, 1) in dias_registrados %}
+                                    <button class="btn btn-success btn-sm" disabled><i class="bi bi-check-circle-fill"></i> Día 1</button>
+                                {% else %}
+                                    <button class="btn btn-outline-primary btn-sm btn-registrar" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}" data-semana-num="{{ semana.numero_semana }}" data-dia="1">Registrar Día 1</button>
+                                {% endif %}
+                                
+                                <!-- Lógica para mostrar botón 'Registrar' o 'Completado' para DÍA 2 -->
+                                {% if (semana.id, 2) in dias_registrados %}
+                                    <button class="btn btn-success btn-sm ms-2" disabled><i class="bi bi-check-circle-fill"></i> Día 2</button>
+                                {% else %}
+                                    <button class="btn btn-outline-primary btn-sm ms-2 btn-registrar" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}" data-semana-num="{{ semana.numero_semana }}" data-dia="2">Registrar Día 2</button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -101,23 +117,42 @@
     </div>
 </div>
 
-<!-- Modal para Registrar Entrenamiento (lo haremos funcional más adelante) -->
+<!-- Modal FUNCIONAL para Registrar Entrenamiento -->
 <div class="modal fade" id="registroModal" tabindex="-1" aria-labelledby="registroModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="registroModalLabel">Registrar Entrenamiento</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>Aquí irá un formulario para registrar los KM, sensaciones y notas del entrenamiento.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        <button type="button" class="btn btn-primary">Guardar Registro</button>
-      </div>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registroModalLabel">Registrar Entrenamiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="registroForm">
+                    <input type="hidden" id="semanaIdInput" name="semana_id">
+                    <input type="hidden" id="diaEntrenoInput" name="dia_entreno">
+                    
+                    <div class="mb-3">
+                        <label for="kmRealizadosInput" class="form-label fw-bold">Kilómetros Realizados</label>
+                        <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sensacionUsuarioInput" class="form-label fw-bold">¿Cómo te sentiste?</label>
+                        <select class="form-select" id="sensacionUsuarioInput" name="sensacion_usuario" required>
+                            <option value="" disabled selected>-- Elige una opción --</option>
+                            <option value="De sobra">🟢 De sobra</option>
+                            <option value="Bien">🔵 Bien</option>
+                            <option value="Justo">🟡 Justo</option>
+                            <option value="Muy justo">🟠 Muy justo</option>
+                            <option value="Mal">🔴 Mal</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="registroForm" class="btn btn-primary" id="guardarRegistroBtn">Guardar Registro</button>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}
 
@@ -125,68 +160,118 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // --- GRÁFICO 1: PROGRESO GENERAL (DONUT) ---
+    const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+    const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+    // --- GRÁFICO 1: PROGRESO GENERAL (CON DATOS REALES) ---
     const progresoCtx = document.getElementById('progresoGeneralChart');
     if (progresoCtx) {
         new Chart(progresoCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Completado', 'Pendiente'],
                 datasets: [{
-                    data: [25, 75], // Datos de ejemplo
-                    backgroundColor: ['#2E7D32', '#e9ecef'],
-                    borderColor: ['#2E7D32', '#e9ecef'],
-                    borderWidth: 1
+                    data: [{{ progreso_general_pct }}, 100 - {{ progreso_general_pct }}],
+                    backgroundColor: [ esModoOscuro ? '#8AB4F8' : '#2E7D32', 'transparent' ],
+                    borderColor: [ esModoOscuro ? '#8AB4F8' : '#2E7D32', esModoOscuro ? '#444746' : '#dee2e6'],
+                    borderWidth: 2
                 }]
             },
-            options: {
-                responsive: true,
-                cutout: '70%',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: false }
-                }
-            }
+            options: { responsive: true, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
         });
     }
 
-    // --- GRÁFICO 2: CARGA DE KM SEMANAL (BARRAS) ---
+    // --- GRÁFICO 2: CARGA DE KM SEMANAL (CON DATOS REALES) ---
     const cargaKmCtx = document.getElementById('cargaKmChart');
     if (cargaKmCtx) {
         new Chart(cargaKmCtx, {
             type: 'bar',
             data: {
-                labels: [{% for s in plan.semanas|sort(attribute='numero_semana') %}'S{{ s.numero_semana }}',{% endfor %}],
+                labels: {{ labels_grafico_km|tojson }},
                 datasets: [
-                {
-                    label: 'KM Objetivo',
-                    data: [{% for s in plan.semanas|sort(attribute='numero_semana') %}{{ s.carga_semanal_km or 0 }},{% endfor %}],
-                    backgroundColor: 'rgba(93, 64, 55, 0.5)', // Color secundario
-                    borderColor: 'rgba(93, 64, 55, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'KM Realizados',
-                    data: [5, 6, 8, 7.5], // Datos de ejemplo
-                    backgroundColor: 'rgba(46, 125, 50, 0.7)', // Color primario
-                    borderColor: 'rgba(46, 125, 50, 1)',
-                    borderWidth: 1
-                }]
+                    {
+                        label: 'KM Objetivo',
+                        data: {{ km_objetivo_data|tojson }},
+                        backgroundColor: 'rgba(128, 128, 128, 0.2)',
+                        borderColor: 'rgba(128, 128, 128, 0.5)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'KM Reales',
+                        data: {{ km_reales_data|tojson }},
+                        backgroundColor: esModoOscuro ? 'rgba(138, 180, 248, 0.6)' : 'rgba(46, 125, 50, 0.6)',
+                        borderColor: esModoOscuro ? '#8AB4F8' : '#2E7D32',
+                        borderWidth: 1
+                    }
+                ]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Kilómetros' }
-                    }
+                    y: { ticks: { color: colorTexto }, grid: { color: colorGrid } },
+                    x: { ticks: { color: colorTexto }, grid: { color: colorGrid } }
                 },
-                plugins: {
-                    legend: { position: 'top' }
-                }
+                plugins: { legend: { labels: { color: colorTexto } } }
             }
+        });
+    }
+
+    // --- LÓGICA DEL MODAL PARA REGISTRAR ENTRENAMIENTOS ---
+    const registroModal = document.getElementById('registroModal');
+    if (registroModal) {
+        const modalTitle = document.getElementById('registroModalLabel');
+        const semanaIdInput = document.getElementById('semanaIdInput');
+        const diaEntrenoInput = document.getElementById('diaEntrenoInput');
+        
+        registroModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const semanaId = button.getAttribute('data-semana-id');
+            const semanaNum = button.getAttribute('data-semana-num');
+            const dia = button.getAttribute('data-dia');
+            
+            modalTitle.textContent = `Registrar Entreno: Semana ${semanaNum}, Día ${dia}`;
+            semanaIdInput.value = semanaId;
+            diaEntrenoInput.value = dia;
+        });
+
+        const registroForm = document.getElementById('registroForm');
+        registroForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const guardarBtn = document.getElementById('guardarRegistroBtn');
+            guardarBtn.disabled = true;
+            guardarBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...`;
+            
+            const formData = new FormData(registroForm);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch("{{ url_for('main.registrar_entrenamiento') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    window.location.reload(); 
+                } else {
+                    alert('Error: ' + (result.error || 'Ocurrió un problema.'));
+                    guardarBtn.disabled = false;
+                    guardarBtn.textContent = 'Guardar Registro';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Hubo un error de conexión al guardar el registro.');
+                guardarBtn.disabled = false;
+                guardarBtn.textContent = 'Guardar Registro';
+            });
         });
     }
 });
 </script>
 {% endblock %}
+
