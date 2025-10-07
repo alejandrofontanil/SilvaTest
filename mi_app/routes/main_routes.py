@@ -807,16 +807,12 @@ def api_rendimiento_bloques():
 def preparacion_fisica():
     """
     Página principal del panel de entrenamiento físico.
-    Muestra la selección de planes si el usuario no tiene uno,
-    o su panel de progreso si ya lo tiene.
     """
     if current_user.plan_fisico_actual:
-        # El usuario ya tiene un plan, muestra el panel de progreso
         return render_template('panel_fisico.html', 
                                title="Mi Plan de Entrenamiento",
                                plan=current_user.plan_fisico_actual)
     else:
-        # El usuario no tiene plan, muestra la página para elegir uno
         planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
         return render_template('elegir_plan.html', 
                                title="Elige tu Plan de Entrenamiento",
@@ -828,11 +824,211 @@ def seleccionar_plan(plan_id):
     """
     Asigna un plan de entrenamiento al usuario actual.
     """
-    plan_a_asignar = PlanFisico.query.get_or_404(plan_id)
-    current_user.plan_fisico_actual = plan_a_asignar
+    if plan_id == 0: # Lógica para reiniciar el plan
+        current_user.plan_fisico_actual_id = None
+        # Opcional: Borrar registros anteriores
+        RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).delete()
+        flash('Has reiniciado tu plan. Ahora puedes elegir uno nuevo.', 'info')
+    else:
+        plan_a_asignar = PlanFisico.query.get_or_404(plan_id)
+        current_user.plan_fisico_actual = plan_a_asignar
+        flash(f"¡Has seleccionado el '{plan_a_asignar.nombre}'! Mucho ánimo.", "success")
+    
     db.session.commit()
-    flash(f"¡Has seleccionado el '{plan_a_asignar.nombre}'! Mucho ánimo con el entrenamiento.", "success")
     return redirect(url_for('main.preparacion_fisica'))
 
 # --- FIN: NUEVAS RUTAS ---
+" in the document above. I am asking for the following: "dame el panel_fisico.html: {% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .stat-card {
+        background-color: var(--bs-light-bg-subtle);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+    }
+    .table-responsive {
+        max-height: 60vh;
+    }
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: var(--bs-light-bg-subtle);
+        z-index: 2;
+    }
+    .semana-completada {
+        background-color: var(--bs-success-bg-subtle) !important;
+        text-decoration: line-through;
+        color: var(--bs-secondary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-aos="fade-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="display-5"><i class="bi bi-clipboard-data-fill me-2"></i>Mi Plan: {{ plan.nombre }}</h2>
+            <p class="lead text-muted">Aquí puedes seguir tu progreso y registrar tus entrenamientos semanales.</p>
+        </div>
+        <div>
+            <a href="#" class="btn btn-outline-danger">
+                <i class="bi bi-x-circle me-2"></i>Cambiar de Plan
+            </a>
+        </div>
+    </div>
+
+    <!-- Sección de Gráficos y Estadísticas -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="stat-card text-center h-100 shadow-sm">
+                <h5>Progreso del Plan</h5>
+                <canvas id="progresoGeneralChart"></canvas>
+                <p class="fw-bold fs-4 mt-2 mb-0">25%</p>
+                <p class="text-muted small">4 de 16 semanas completadas</p>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-8">
+            <div class="stat-card h-100 shadow-sm">
+                <h5 class="text-center">Carga de Kilómetros Semanal</h5>
+                <canvas id="cargaKmChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla del Plan de Entrenamiento -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h4 class="mb-0">Planificación Semanal</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle">
+                    <thead class="text-uppercase small">
+                        <tr>
+                            <th scope="col">Semana</th>
+                            <th scope="col">Día 1</th>
+                            <th scope="col">Día 2</th>
+                            <th scope="col">Carga Obj. (km)</th>
+                            <th scope="col">Ritmo Obj.</th>
+                            <th scope="col" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for semana in plan.semanas|sort(attribute='numero_semana') %}
+                        {# Aquí añadiremos lógica para ver si la semana está completada #}
+                        <tr class=""> 
+                            <th scope="row">{{ semana.numero_semana }}</th>
+                            <td>{{ semana.dia1_desc }}</td>
+                            <td>{{ semana.dia2_desc }}</td>
+                            <td>{{ semana.carga_semanal_km }} km</td>
+                            <td>{{ semana.zona_ritmo }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}">
+                                    <i class="bi bi-check2-circle me-1"></i> Registrar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Registrar Entrenamiento (lo haremos funcional más adelante) -->
+<div class="modal fade" id="registroModal" tabindex="-1" aria-labelledby="registroModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="registroModalLabel">Registrar Entrenamiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Aquí irá un formulario para registrar los KM, sensaciones y notas del entrenamiento.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary">Guardar Registro</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // --- GRÁFICO 1: PROGRESO GENERAL (DONUT) ---
+    const progresoCtx = document.getElementById('progresoGeneralChart');
+    if (progresoCtx) {
+        new Chart(progresoCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completado', 'Pendiente'],
+                datasets: [{
+                    data: [25, 75], // Datos de ejemplo
+                    backgroundColor: ['#2E7D32', '#e9ecef'],
+                    borderColor: ['#2E7D32', '#e9ecef'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+    }
+
+    // --- GRÁFICO 2: CARGA DE KM SEMANAL (BARRAS) ---
+    const cargaKmCtx = document.getElementById('cargaKmChart');
+    if (cargaKmCtx) {
+        new Chart(cargaKmCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for s in plan.semanas|sort(attribute='numero_semana') %}'S{{ s.numero_semana }}',{% endfor %}],
+                datasets: [
+                {
+                    label: 'KM Objetivo',
+                    data: [{% for s in plan.semanas|sort(attribute='numero_semana') %}{{ s.carga_semanal_km or 0 }},{% endfor %}],
+                    backgroundColor: 'rgba(93, 64, 55, 0.5)', // Color secundario
+                    borderColor: 'rgba(93, 64, 55, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'KM Realizados',
+                    data: [5, 6, 8, 7.5], // Datos de ejemplo
+                    backgroundColor: 'rgba(46, 125, 50, 0.7)', // Color primario
+                    borderColor: 'rgba(46, 125, 50, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Kilómetros' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+" in the document above. I am asking for the following: "y que otro codigo va en panel fisico.html?"
 
