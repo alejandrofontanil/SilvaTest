@@ -550,7 +550,7 @@ def offline():
     return render_template('offline.html')
 
 # --- RUTAS DE API PARA GRÁFICOS ---
-@main_bp.route('/api/evolucion_notas') # <-- CORREGIDO: guion bajo en lugar de guion
+@main_bp.route('/api/evolucion_notas') # <-- CORREGIDO
 @login_required
 def api_evolucion_notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
@@ -801,6 +801,7 @@ def api_rendimiento_bloques():
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
 
+
 # --- INICIO: NUEVAS RUTAS PARA PREPARACIÓN FÍSICA ---
 
 @main_bp.route('/preparacion-fisica')
@@ -813,20 +814,16 @@ def preparacion_fisica():
         plan = current_user.plan_fisico_actual
         semanas = sorted(plan.semanas, key=lambda s: s.numero_semana)
         
-        # Obtener todos los registros del usuario para su plan
         registros = RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).all()
         dias_registrados = {(r.semana_id, r.dia_entreno) for r in registros}
 
-        # Calcular progreso general
         entrenos_completados = len(dias_registrados)
         entrenos_totales = len(semanas) * 2
         progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100) if entrenos_totales > 0 else 0
 
-        # Preparar datos para el gráfico de KM
         labels_grafico_km = [f"S{s.numero_semana}" for s in semanas]
         km_objetivo_data = [s.carga_semanal_km or 0 for s in semanas]
         
-        # Calcular KM reales por semana
         km_reales_por_semana = defaultdict(float)
         for registro in registros:
             if registro.semana:
@@ -843,7 +840,6 @@ def preparacion_fisica():
                                km_objetivo_data=km_objetivo_data,
                                km_reales_data=km_reales_data)
     else:
-        # El usuario no tiene plan, muestra la página para elegir uno
         planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
         return render_template('elegir_plan.html', 
                                title="Elige tu Plan de Entrenamiento",
