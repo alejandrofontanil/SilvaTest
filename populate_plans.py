@@ -1,5 +1,6 @@
 from mi_app import create_app, db
-from mi_app.models import PlanFisico, SemanaPlan
+# --- LÍNEA CORREGIDA: Se añade RegistroEntrenamiento a la importación ---
+from mi_app.models import PlanFisico, SemanaPlan, RegistroEntrenamiento
 
 # --- DATOS DE LOS PLANES DIRECTAMENTE EN EL CÓDIGO ---
 
@@ -69,6 +70,7 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         print("--- Limpiando datos de planes físicos existentes... ---")
+        # --- CORREGIDO: Ahora el script sabe qué es RegistroEntrenamiento ---
         db.session.query(RegistroEntrenamiento).delete()
         db.session.query(SemanaPlan).delete()
         db.session.query(PlanFisico).delete()
@@ -82,4 +84,3 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"❌ ERROR GENERAL durante la población: {e}")
             db.session.rollback()
-
