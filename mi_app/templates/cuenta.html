@@ -29,6 +29,13 @@
                     <i class="bi bi-tools me-2"></i>Generador de Tests
                 </a>
 
+                <!-- === INICIO: CÓDIGO AÑADIDO === -->
+                <a id="preparacion-fisica-link" href="{{ url_for('main.preparacion_fisica') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-person-walking me-2"></i>Preparación Física
+                    <span class="badge bg-primary ms-2">Nuevo</span>
+                </a>
+                <!-- === FIN: CÓDIGO AÑADIDO === -->
+
                 <a id="analizador-link" class="list-group-item list-group-item-action {% if active_tab == 'analizador' %}active{% endif %}" data-bs-toggle="list" href="#analizador" role="tab">
                     <i class="bi bi-robot me-2"></i>SilvIA - Analizador <span class="badge bg-primary ms-1">Nuevo</span>
                 </a>
