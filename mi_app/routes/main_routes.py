@@ -18,7 +18,8 @@ from itertools import groupby
 from flask_wtf import FlaskForm
 
 from mi_app import db
-from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario 
+# --- MODIFICADO: Se añaden los nuevos modelos del plan físico ---
+from mi_app.models import Convocatoria, Bloque, Tema, Pregunta, Respuesta, ResultadoTest, RespuestaUsuario, Usuario, PlanFisico, SemanaPlan, RegistroEntrenamiento
 from mi_app.forms import ObjetivoForm, FiltroCuentaForm, DashboardPreferencesForm, ObjetivoFechaForm
 from mi_app.rag_agent import get_rag_response
 # --- FIN IMPORTACIONES ---
@@ -798,3 +799,4 @@ def api_rendimiento_bloques():
     labels = [stat.nombre for stat in stats_bloques_sorted]
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
+
