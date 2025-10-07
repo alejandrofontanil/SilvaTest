@@ -3,23 +3,24 @@ from mi_app import create_app, db
 from mi_app.models import PlanFisico, SemanaPlan
 import re
 
+# Esta función crea la aplicación Flask y la configura para que el script pueda usarla
 app = create_app()
 app.app_context().push()
 
 # --- CONFIGURACIÓN ---
 EXCEL_FILE = 'planes.xlsx'
 PLAN_BASE_SHEET = 'Plan Base'
-PLAN_EXIGENTE_SHEET = 'Plan Exigente'
+PLAN_EXIGENTE_SHEET = 'Plan Exigiente'
 
 def limpiar_progreso(valor):
-    """Convierte '6,25%' a 6.25"""
+    """Convierte '6,25%' a 6.25 de forma segura."""
     try:
         return float(str(valor).replace(',', '.').replace('%', '').strip())
     except (ValueError, TypeError):
         return None
 
 def limpiar_km(valor):
-    """Convierte '5.4 km' a 5.4"""
+    """Convierte '5.4 km' a 5.4 de forma segura."""
     try:
         match = re.search(r'[\d.]+', str(valor))
         return float(match.group(0)) if match else None
@@ -35,6 +36,7 @@ def poblar_plan(sheet_name, plan_nombre):
         return
 
     try:
+        # Leemos solo las 8 primeras columnas (A hasta H)
         df = pd.read_excel(EXCEL_FILE, sheet_name=sheet_name, header=3, usecols="A:H")
         
         df.columns = [
@@ -50,11 +52,12 @@ def poblar_plan(sheet_name, plan_nombre):
             if pd.isna(row['semana']):
                 continue
 
-            # --- LÍNEA AÑADIDA ---
+            # --- ¡LA CORRECCIÓN CLAVE! ---
             # Si la celda de la semana no es un número (ej: "..."), la ignoramos
             if not str(row['semana']).replace('.0', '').isdigit():
+                print(f"  -> Ignorando fila no numérica (Semana: {row['semana']})")
                 continue
-            # --- FIN DE LA LÍNEA AÑADIDA ---
+            # --- FIN DE LA CORRECCIÓN ---
 
             nueva_semana = SemanaPlan(
                 plan=nuevo_plan,
