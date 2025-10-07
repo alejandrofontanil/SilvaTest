@@ -5,6 +5,7 @@
 {% block styles %}
 {{ super() }}
 <style>
+    /* ... (tu CSS original no necesita cambios) ... */
     .stat-card {
         background-color: var(--bs-light-bg-subtle);
         border: 1px solid var(--bs-border-color);
@@ -79,7 +80,7 @@
                 <div class="card-body d-flex flex-column justify-content-center">
                     <h5 class="card-title">Progreso General</h5>
                     <canvas id="progresoGeneralChart"></canvas>
-                    <p class="fw-bold fs-2 mt-3 mb-0">{{ progreso_general_pct }}%</p>
+                    <p id="progresoGeneralPctText" class="fw-bold fs-2 mt-3 mb-0">{{ progreso_general_pct }}%</p>
                     <p class="text-muted small">Completado</p>
                 </div>
             </div>
@@ -152,13 +153,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div id="errorContainer" class="alert alert-danger d-none" role="alert"></div>
+
                 <form id="registroForm">
                     <input type="hidden" id="semanaIdInput" name="semana_id">
                     <input type="hidden" id="diaEntrenoInput" name="dia_entreno">
                     
                     <div class="mb-3">
                         <label for="kmRealizadosInput" class="form-label fw-bold">Kilómetros Realizados</label>
-                        <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" required>
+                        <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" min="0" required>
                     </div>
                     <div class="mb-3">
                         <label for="sensacionUsuarioInput" class="form-label fw-bold">¿Cómo te sentiste?</label>
@@ -190,10 +193,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
     const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
-    // --- GRÁFICO 1: PROGRESO GENERAL (CON DATOS REALES) ---
+    // CAMBIO: Declaramos las variables de los gráficos aquí para que sean accesibles globalmente en este script
+    let progresoGeneralChart, cargaKmChart;
+
+    // --- GRÁFICO 1: PROGRESO GENERAL ---
     const progresoCtx = document.getElementById('progresoGeneralChart');
     if (progresoCtx) {
-        new Chart(progresoCtx, {
+        progresoGeneralChart = new Chart(progresoCtx, {
             type: 'doughnut',
             data: {
                 datasets: [{
@@ -207,10 +213,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- GRÁFICO 2: CARGA DE KM SEMANAL (CON DATOS REALES) ---
+    // --- GRÁFICO 2: CARGA DE KM SEMANAL ---
     const cargaKmCtx = document.getElementById('cargaKmChart');
     if (cargaKmCtx) {
-        new Chart(cargaKmCtx, {
+        cargaKmChart = new Chart(cargaKmCtx, {
             type: 'bar',
             data: {
                 labels: {{ labels_grafico_km|tojson }},
@@ -243,42 +249,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- LÓGICA DEL MODAL PARA REGISTRAR ENTRENAMIENTOS (CORREGIDA) ---
-    const registroModal = document.getElementById('registroModal');
-    if (registroModal) {
+    // --- LÓGICA DEL MODAL MEJORADA ---
+    const registroModalEl = document.getElementById('registroModal');
+    const registroModal = bootstrap.Modal.getOrCreateInstance(registroModalEl);
+    
+    if (registroModalEl) {
         const modalTitle = document.getElementById('registroModalLabel');
         const semanaIdInput = document.getElementById('semanaIdInput');
         const diaEntrenoInput = document.getElementById('diaEntrenoInput');
-        
-        const kmRealizadosInput = document.getElementById('kmRealizadosInput');
-        const sensacionUsuarioInput = document.getElementById('sensacionUsuarioInput');
+        const registroForm = document.getElementById('registroForm');
+        const guardarBtn = document.getElementById('guardarRegistroBtn');
+        const errorContainer = document.getElementById('errorContainer');
+        let activeButton = null; // Variable para guardar el botón que abrió el modal
 
-        registroModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const semanaId = button.getAttribute('data-semana-id');
-            const semanaNum = button.getAttribute('data-semana-num');
-            const dia = button.getAttribute('data-dia');
+        registroModalEl.addEventListener('show.bs.modal', function (event) {
+            activeButton = event.relatedTarget; // Guardamos el botón
+            const semanaId = activeButton.getAttribute('data-semana-id');
+            const semanaNum = activeButton.getAttribute('data-semana-num');
+            const dia = activeButton.getAttribute('data-dia');
             
+            // Reiniciar el modal
             modalTitle.textContent = `Registrar Entreno: Semana ${semanaNum}, Día ${dia}`;
             semanaIdInput.value = semanaId;
             diaEntrenoInput.value = dia;
-
-            kmRealizadosInput.value = '';
-            sensacionUsuarioInput.value = '';
-            kmRealizadosInput.disabled = false;
-            sensacionUsuarioInput.disabled = false;
+            registroForm.reset();
+            errorContainer.classList.add('d-none'); // Ocultar errores previos
+            guardarBtn.disabled = false;
+            guardarBtn.innerHTML = 'Guardar Registro';
         });
 
-        const registroForm = document.getElementById('registroForm');
         registroForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const guardarBtn = document.getElementById('guardarRegistroBtn');
             guardarBtn.disabled = true;
             guardarBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...`;
+            errorContainer.classList.add('d-none');
             
             const formData = new FormData(registroForm);
             const data = Object.fromEntries(formData.entries());
 
+            // **IMPORTANTE**: Tu backend debe devolver los datos actualizados para los gráficos
+            // Ejemplo de respuesta JSON esperada del backend en caso de éxito:
+            // { 
+            //   "success": true, 
+            //   "updated_data": {
+            //     "progreso_general_pct": 55,
+            //     "km_reales_data": [10.2, 12.0, 8.5, ...]
+            //   }
+            // }
             fetch("{{ url_for('main.registrar_entrenamiento') }}", {
                 method: 'POST',
                 headers: {
@@ -290,18 +307,50 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    window.location.reload(); 
+                    // --- ACTUALIZACIÓN DINÁMICA (SIN RECARGAR) ---
+                    
+                    // 1. Actualizar el botón en la tabla
+                    activeButton.classList.remove('btn-outline-primary');
+                    activeButton.classList.add('btn-success');
+                    activeButton.disabled = true;
+                    activeButton.innerHTML = `<i class="bi bi-check-circle-fill"></i> Día ${data.dia_entreno}`;
+
+                    // 2. Actualizar texto de progreso
+                    const progresoPctText = document.getElementById('progresoGeneralPctText');
+                    if(progresoPctText) {
+                       progresoPctText.textContent = `${result.updated_data.progreso_general_pct}%`;
+                    }
+
+                    // 3. Actualizar gráfico de progreso
+                    if (progresoGeneralChart) {
+                        const newPct = result.updated_data.progreso_general_pct;
+                        progresoGeneralChart.data.datasets[0].data = [newPct, 100 - newPct];
+                        progresoGeneralChart.update();
+                    }
+
+                    // 4. Actualizar gráfico de KM
+                    if (cargaKmChart) {
+                        cargaKmChart.data.datasets[1].data = result.updated_data.km_reales_data;
+                        cargaKmChart.update();
+                    }
+                    
+                    // 5. Cerrar el modal
+                    registroModal.hide();
+
                 } else {
-                    alert('Error: ' + (result.error || 'Ocurrió un problema.'));
+                    // --- MANEJO DE ERRORES MEJORADO ---
+                    errorContainer.textContent = result.error || 'Ocurrió un problema al guardar.';
+                    errorContainer.classList.remove('d-none');
                     guardarBtn.disabled = false;
-                    guardarBtn.textContent = 'Guardar Registro';
+                    guardarBtn.innerHTML = 'Guardar Registro';
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Hubo un error de conexión al guardar el registro.');
+                console.error('Error en Fetch:', error);
+                errorContainer.textContent = 'Hubo un error de conexión al guardar el registro.';
+                errorContainer.classList.remove('d-none');
                 guardarBtn.disabled = false;
-                guardarBtn.textContent = 'Guardar Registro';
+                guardarBtn.innerHTML = 'Guardar Registro';
             });
         });
     }
