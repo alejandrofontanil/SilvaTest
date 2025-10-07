@@ -819,8 +819,16 @@ def preparacion_fisica():
 
         entrenos_completados = len(dias_registrados)
         entrenos_totales = len(semanas) * 2
-        progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100) if entrenos_totales > 0 else 0
 
+        # --- CORRECCIÓN DEL CÁLCULO PARA EVITAR ERRORES DE DIVISIÓN ---
+        try:
+            progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100)
+        except ZeroDivisionError:
+            progreso_general_pct = 0
+        except TypeError:
+            # En caso de que los datos no sean numéricos por alguna razón
+            progreso_general_pct = 0
+        
         labels_grafico_km = [f"S{s.numero_semana}" for s in semanas]
         km_objetivo_data = [s.carga_semanal_km or 0 for s in semanas]
         
@@ -936,4 +944,3 @@ def borrar_entrenamiento():
         return jsonify({'success': False, 'error': 'Error interno al borrar el registro.'}), 500
 
 # --- FIN: RUTAS PARA PREPARACIÓN FÍSICA ---
-
