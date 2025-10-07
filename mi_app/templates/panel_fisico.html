@@ -358,8 +358,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     activeButton.classList.add('btn-success');
                     activeButton.disabled = true;
                     activeButton.innerHTML = `<i class="bi bi-check-circle-fill"></i> Día ${data.dia_entreno}`;
+                    
                     const progresoPctText = document.getElementById('progresoGeneralPctText');
                     if(progresoPctText) { progresoPctText.textContent = `${result.updated_data.progreso_general_pct}%`; }
+                    
                     if (progresoGeneralChart) {
                         const newPct = result.updated_data.progreso_general_pct;
                         progresoGeneralChart.data.datasets[0].data = [newPct, 100 - newPct];
@@ -381,8 +383,9 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(error => {
                 console.error('Error en Fetch:', error);
-                errorContainer.textContent = 'Hubo un error de conexión al guardar el registro.';
+                errorContainer.textContent = 'Hubo un error de conexión.';
                 errorContainer.classList.remove('d-none');
+                
                 guardarBtn.disabled = false;
                 kmRealizadosInput.disabled = false;
                 sensacionUsuarioInput.disabled = false;
