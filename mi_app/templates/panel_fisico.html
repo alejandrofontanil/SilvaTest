@@ -22,7 +22,7 @@
         align-items: center;
         font-size: 0.85rem;
         margin-right: 1.5rem;
-        margin-bottom: 0.5rem; /* Espacio extra para envolver mejor en móviles */
+        margin-bottom: 0.5rem;
     }
     .legend-dot {
         width: 10px;
@@ -36,52 +36,54 @@
     }
 
     /* ============================================= */
-    /* ========= CSS MEJORADO PARA LA TABLA ========== */
+    /* === REDISEÑO DE TABLA: COMPACTO Y ELEGANTE ==== */
     /* ============================================= */
-
     .plan-table {
-        border-collapse: separate;
-        border-spacing: 0 1rem; /* Espacio vertical entre filas */
+        border-collapse: collapse;
+        width: 100%;
     }
     .plan-table thead th {
         border: none;
-        padding: 0 1.5rem;
-        position: static; /* Anulamos el sticky header que ya no es necesario */
+        padding: 0.75rem 1.25rem;
+        border-bottom: 2px solid var(--bs-primary);
     }
     .plan-table tbody tr {
-        background-color: var(--bs-tertiary-bg);
-        border-radius: 0.75rem;
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        border: 1px solid var(--bs-border-color);
+        border-bottom: 1px solid var(--bs-border-color);
+        transition: background-color 0.2s ease-in-out;
+    }
+    .plan-table tbody tr:last-child {
+        border-bottom: none;
     }
     .plan-table tbody tr:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--bs-box-shadow);
+        background-color: var(--bs-tertiary-bg);
     }
     .plan-table tbody td {
-        padding: 1.5rem;
+        padding: 1.25rem;
         vertical-align: middle;
         border: none;
     }
-    .plan-table tbody td:first-child {
-        border-top-left-radius: 0.75rem;
-        border-bottom-left-radius: 0.75rem;
-    }
-    .plan-table tbody td:last-child {
-        border-top-right-radius: 0.75rem;
-        border-bottom-right-radius: 0.75rem;
-    }
     
+    /* ==== NUEVA PALETA DE COLORES PARA BADGES ==== */
     .badge {
         font-size: 0.8rem;
+        font-weight: 700;
         padding: 0.5em 0.8em;
     }
-    .badge-z1 { background-color: #a5d6a7; color: #1b5e20; }
-    .badge-z2 { background-color: #64b5f6; color: #0d47a1; }
-    .badge-z3 { background-color: #ffd54f; color: #ff6f00; }
-    .badge-z4 { background-color: #ff8a65; color: #bf360c; }
-    .badge-z5 { background-color: #e57373; color: #b71c1c; }
+    /* Modo claro */
+    .badge-z1 { background-color: #e8f5e9; color: #1b5e20; }
+    .badge-z2 { background-color: #e3f2fd; color: #0d47a1; }
+    .badge-z3 { background-color: #fffde7; color: #ff6f00; }
+    .badge-z4 { background-color: #fff3e0; color: #bf360c; }
+    .badge-z5 { background-color: #ffebee; color: #b71c1c; }
 
+    /* Modo oscuro */
+    [data-bs-theme="dark"] .badge-z1 { background-color: rgba(165, 214, 167, 0.15); color: #a5d6a7; }
+    [data-bs-theme="dark"] .badge-z2 { background-color: rgba(100, 181, 246, 0.15); color: #64b5f6; }
+    [data-bs-theme="dark"] .badge-z3 { background-color: rgba(255, 213, 79, 0.15); color: #ffd54f; }
+    [data-bs-theme="dark"] .badge-z4 { background-color: rgba(255, 138, 101, 0.15); color: #ff8a65; }
+    [data-bs-theme="dark"] .badge-z5 { background-color: rgba(229, 115, 115, 0.15); color: #e57373; }
+
+    /* ===== ADAPTACIÓN A MÓVILES MANTENIDA ===== */
     @media (max-width: 992px) {
         .plan-table thead {
             display: none;
@@ -91,23 +93,24 @@
             width: 100%;
         }
         .plan-table tr {
-            margin-bottom: 1.5rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            background-color: var(--bs-tertiary-bg);
         }
         .plan-table td {
             text-align: right;
             position: relative;
             padding-left: 50%;
-            border: none;
             border-bottom: 1px solid var(--bs-border-color-translucent);
         }
-        .plan-table td:last-child {
-            border-bottom: none;
-        }
+        .plan-table tr:hover { background-color: var(--bs-tertiary-bg); }
+        .plan-table td:last-child { border-bottom: none; }
         .plan-table td::before {
             content: attr(data-label);
             position: absolute;
-            left: 1.5rem;
-            width: calc(50% - 2rem);
+            left: 1.25rem;
+            width: calc(50% - 1.5rem);
             text-align: left;
             font-weight: bold;
             color: var(--bs-body-color);
