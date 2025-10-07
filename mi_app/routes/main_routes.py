@@ -54,15 +54,13 @@ except Exception as e:
     print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
 
 
-# --- (Aquí va todo tu código de rutas y funciones de ayuda sin cambios) ---
-# ... (home, cuenta, test, etc.) ...
-# --- Te lo pongo completo para que no haya dudas ---
-
+# --- FUNCIONES DE AYUDA ---
 def obtener_preguntas_recursivas(tema):
     preguntas = []
-    preguntas.extend(tema.preguntas)
-    for subtema in tema.subtemas:
-        preguntas.extend(obtener_preguntas_recursivas(subtema))
+    if tema:
+        preguntas.extend(tema.preguntas)
+        for subtema in tema.subtemas:
+            preguntas.extend(obtener_preguntas_recursivas(subtema))
     return preguntas
 
 def analizar_rendimiento_usuario(usuario):
@@ -89,6 +87,8 @@ def analizar_rendimiento_usuario(usuario):
         return None
 
     return informe
+
+# --- RUTAS PRINCIPALES DE LA APLICACIÓN ---
 
 @main_bp.route('/')
 @main_bp.route('/home')
@@ -550,7 +550,7 @@ def offline():
     return render_template('offline.html')
 
 # --- RUTAS DE API PARA GRÁFICOS ---
-@main_bp.route('/api/evolucion-notas')
+@main_bp.route('/api/evolucion_notas') # <-- CORREGIDO: guion bajo en lugar de guion
 @login_required
 def api_evolucion_notas():
     fecha_inicio = datetime.utcnow() - timedelta(days=30)
@@ -810,10 +810,40 @@ def preparacion_fisica():
     Página principal del panel de entrenamiento físico.
     """
     if current_user.plan_fisico_actual:
+        plan = current_user.plan_fisico_actual
+        semanas = sorted(plan.semanas, key=lambda s: s.numero_semana)
+        
+        # Obtener todos los registros del usuario para su plan
+        registros = RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).all()
+        dias_registrados = {(r.semana_id, r.dia_entreno) for r in registros}
+
+        # Calcular progreso general
+        entrenos_completados = len(dias_registrados)
+        entrenos_totales = len(semanas) * 2
+        progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100) if entrenos_totales > 0 else 0
+
+        # Preparar datos para el gráfico de KM
+        labels_grafico_km = [f"S{s.numero_semana}" for s in semanas]
+        km_objetivo_data = [s.carga_semanal_km or 0 for s in semanas]
+        
+        # Calcular KM reales por semana
+        km_reales_por_semana = defaultdict(float)
+        for registro in registros:
+            if registro.semana:
+                km_reales_por_semana[registro.semana.numero_semana] += registro.km_realizados or 0
+        
+        km_reales_data = [km_reales_por_semana.get(s.numero_semana, 0) for s in semanas]
+
         return render_template('panel_fisico.html', 
                                title="Mi Plan de Entrenamiento",
-                               plan=current_user.plan_fisico_actual)
+                               plan=plan,
+                               dias_registrados=dias_registrados,
+                               progreso_general_pct=progreso_general_pct,
+                               labels_grafico_km=labels_grafico_km,
+                               km_objetivo_data=km_objetivo_data,
+                               km_reales_data=km_reales_data)
     else:
+        # El usuario no tiene plan, muestra la página para elegir uno
         planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
         return render_template('elegir_plan.html', 
                                title="Elige tu Plan de Entrenamiento",
@@ -825,9 +855,8 @@ def seleccionar_plan(plan_id):
     """
     Asigna un plan de entrenamiento al usuario actual o lo reinicia.
     """
-    if plan_id == 0: # Lógica para reiniciar el plan
+    if plan_id == 0:
         current_user.plan_fisico_actual_id = None
-        # Opcional: Borrar registros anteriores
         RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).delete()
         flash('Has reiniciado tu plan. Ahora puedes elegir uno nuevo.', 'info')
     else:
@@ -838,5 +867,45 @@ def seleccionar_plan(plan_id):
     db.session.commit()
     return redirect(url_for('main.preparacion_fisica'))
 
-# --- FIN: NUEVAS RUTAS ---
+@main_bp.route('/api/registrar-entrenamiento', methods=['POST'])
+@login_required
+def registrar_entrenamiento():
+    """
+    API para guardar un nuevo registro de entrenamiento.
+    """
+    data = request.get_json()
+    semana_id = data.get('semana_id')
+    dia_entreno = data.get('dia_entreno')
+    km_realizados = data.get('km_realizados')
+    sensacion_usuario = data.get('sensacion_usuario')
+
+    if not all([semana_id, dia_entreno, km_realizados, sensacion_usuario]):
+        return jsonify({'success': False, 'error': 'Faltan datos en la petición.'}), 400
+    
+    existente = RegistroEntrenamiento.query.filter_by(
+        usuario_id=current_user.id,
+        semana_id=semana_id,
+        dia_entreno=dia_entreno
+    ).first()
+
+    if existente:
+        return jsonify({'success': False, 'error': 'Ya has registrado este entrenamiento.'}), 409
+
+    try:
+        nuevo_registro = RegistroEntrenamiento(
+            usuario_id=current_user.id,
+            semana_id=int(semana_id),
+            dia_entreno=int(dia_entreno),
+            km_realizados=float(km_realizados),
+            sensacion_usuario=sensacion_usuario
+        )
+        db.session.add(nuevo_registro)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al registrar entrenamiento: {e}")
+        return jsonify({'success': False, 'error': 'Error interno al guardar los datos.'}), 500
+
+# --- FIN: RUTAS PARA PREPARACIÓN FÍSICA ---
 
