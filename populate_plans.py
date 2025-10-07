@@ -1,4 +1,3 @@
-# populate_plans.py
 import pandas as pd
 from mi_app import create_app, db
 from mi_app.models import PlanFisico, SemanaPlan
@@ -29,18 +28,17 @@ def limpiar_km(valor):
     except (ValueError, TypeError):
         return None
 
-
 def poblar_plan(sheet_name, plan_nombre):
     print(f"--- Procesando '{plan_nombre}' desde la hoja '{sheet_name}' ---")
     
-    # Comprueba si el plan ya existe para no duplicarlo
     plan_existente = PlanFisico.query.filter_by(nombre=plan_nombre).first()
     if plan_existente:
         print(f"El plan '{plan_nombre}' ya existe. Saltando...")
         return
 
     try:
-        df = pd.read_excel(EXCEL_FILE, sheet_name=sheet_name, header=3) # Asume que los datos empiezan en la fila 4
+        # --- LÍNEA MODIFICADA: Se añade usecols="A:H" para leer solo las 8 primeras columnas ---
+        df = pd.read_excel(EXCEL_FILE, sheet_name=sheet_name, header=3, usecols="A:H") 
         
         # Renombramos las columnas para que sea más fácil trabajar
         df.columns = [
@@ -48,11 +46,9 @@ def poblar_plan(sheet_name, plan_nombre):
             'carga_semanal_km', 'zona_ritmo'
         ]
 
-        # Creamos el objeto del plan
         nuevo_plan = PlanFisico(nombre=plan_nombre)
         db.session.add(nuevo_plan)
         
-        # Iteramos sobre cada fila (cada semana) del Excel
         for index, row in df.iterrows():
             if pd.isna(row['semana']):
                 continue
@@ -63,7 +59,7 @@ def poblar_plan(sheet_name, plan_nombre):
                 progreso_pct=limpiar_progreso(row['progreso']),
                 dia1_desc=str(row['dia1']),
                 dia2_desc=str(row['dia2']),
-                sensacion=str(row['sensacion2']), # Usamos la sensación del día 2 como la general
+                sensacion=str(row['sensacion2']),
                 carga_semanal_km=limpiar_km(row['carga_semanal_km']),
                 zona_ritmo=str(row['zona_ritmo'])
             )
@@ -76,7 +72,6 @@ def poblar_plan(sheet_name, plan_nombre):
     except Exception as e:
         print(f"❌ ERROR al procesar la hoja '{sheet_name}': {e}")
         db.session.rollback()
-
 
 if __name__ == '__main__':
     with app.app_context():
