@@ -3,24 +3,23 @@ from mi_app import create_app, db
 from mi_app.models import PlanFisico, SemanaPlan
 import re
 
-# Esta función crea la aplicación Flask y la configura para que el script pueda usarla
 app = create_app()
 app.app_context().push()
 
 # --- CONFIGURACIÓN ---
 EXCEL_FILE = 'planes.xlsx'
 PLAN_BASE_SHEET = 'Plan Base'
-PLAN_EXIGENTE_SHEET = 'Plan Exigiente'
+PLAN_EXIGENTE_SHEET = 'Plan Exigente'
 
 def limpiar_progreso(valor):
-    """Convierte '6,25%' a 6.25 de forma segura."""
+    """Convierte '6,25%' a 6.25"""
     try:
         return float(str(valor).replace(',', '.').replace('%', '').strip())
     except (ValueError, TypeError):
         return None
 
 def limpiar_km(valor):
-    """Convierte '5.4 km' a 5.4 de forma segura."""
+    """Convierte '5.4 km' a 5.4"""
     try:
         match = re.search(r'[\d.]+', str(valor))
         return float(match.group(0)) if match else None
@@ -30,13 +29,14 @@ def limpiar_km(valor):
 def poblar_plan(sheet_name, plan_nombre):
     print(f"--- Procesando '{plan_nombre}' desde la hoja '{sheet_name}' ---")
     
+    # Esta comprobación ya no es necesaria porque borramos antes, 
+    # pero la dejamos por si se ejecuta el script varias veces sin borrar.
     plan_existente = PlanFisico.query.filter_by(nombre=plan_nombre).first()
     if plan_existente:
         print(f"El plan '{plan_nombre}' ya existe. Saltando...")
         return
 
     try:
-        # Leemos solo las 8 primeras columnas (A hasta H)
         df = pd.read_excel(EXCEL_FILE, sheet_name=sheet_name, header=3, usecols="A:H")
         
         df.columns = [
@@ -48,16 +48,10 @@ def poblar_plan(sheet_name, plan_nombre):
         db.session.add(nuevo_plan)
         
         for index, row in df.iterrows():
-            # Si la celda de la semana está vacía, la ignoramos
-            if pd.isna(row['semana']):
-                continue
-
-            # --- ¡LA CORRECCIÓN CLAVE! ---
-            # Si la celda de la semana no es un número (ej: "..."), la ignoramos
+            # Validación para ignorar filas no numéricas o vacías en la columna 'semana'
             if not str(row['semana']).replace('.0', '').isdigit():
-                print(f"  -> Ignorando fila no numérica (Semana: {row['semana']})")
+                print(f"   -> Ignorando fila no numérica en la semana: {row['semana']}")
                 continue
-            # --- FIN DE LA CORRECCIÓN ---
 
             nueva_semana = SemanaPlan(
                 plan=nuevo_plan,
@@ -81,7 +75,14 @@ def poblar_plan(sheet_name, plan_nombre):
 
 if __name__ == '__main__':
     with app.app_context():
+        # --- ¡NUEVO! Limpiamos las tablas antes de empezar ---
+        print("--- Limpiando datos de planes físicos existentes... ---")
+        db.session.query(SemanaPlan).delete()
+        db.session.query(PlanFisico).delete()
+        db.session.commit()
+        print("--- Base de datos de planes físicos limpiada. ---")
+        
+        # --- El resto del proceso sigue igual ---
         poblar_plan(PLAN_BASE_SHEET, "Plan Base")
         poblar_plan(PLAN_EXIGENTE_SHEET, "Plan Exigente")
         print("\n--- Proceso de población de datos finalizado ---")
-
