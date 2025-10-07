@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es" data-bs-theme="light">
-  <head>
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -8,6 +8,7 @@
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#4B5320" />
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
@@ -15,9 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+    
     <style>
       :root {
         --bs-body-bg: #F8F9FA;
@@ -41,26 +40,20 @@
         --bs-light-bg-subtle: #2A2A2E;
         --bs-btn-color: #1F1F1F;
       }
-
-      /* --- INICIO DE NUESTROS CAMBIOS --- */
-      /* 1. MEJORA DE CONTRASTE PARA TARJETAS EN MODO CLARO */
       [data-bs-theme="light"] .card {
-          background-color: #FFFFFF !important;
-          border-color: #dee2e6;
+        background-color: #FFFFFF !important;
+        border-color: #dee2e6;
       }
       [data-bs-theme="light"] .text-muted {
-          color: #6c757d !important;
+        color: #6c757d !important;
       }
-      /* 2. CENTRADO PARA TEXTO EN TARJETAS VACÍAS */
       .placeholder-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100%;
-          text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        text-align: center;
       }
-      /* --- FIN DE NUESTROS CAMBIOS --- */
-
       body {
         font-family: 'Lato', sans-serif;
         font-size: 1.1rem;
@@ -76,7 +69,6 @@
         backdrop-filter: blur(10px);
       }
       .navbar .navbar-brand { color: var(--bs-secondary-text-emphasis) !important; font-weight: 700; }
-      /* He movido la regla original de .card aquí para que las nuevas reglas la sobreescriban correctamente */
       .card, .list-group-item, .alert {
         background-color: var(--bs-light-bg-subtle, #FFFFFF) !important;
         border: 1px solid var(--bs-border-color);
@@ -96,57 +88,57 @@
       }
       [data-bs-theme="light"] .nav-pills .nav-link.active,
       [data-bs-theme="light"] .list-group-item.active {
-          background-color: var(--bs-primary);
-          color: black;
+        background-color: var(--bs-primary);
+        color: black;
       }
       .breadcrumb {
-          background-color: var(--bs-light-bg-subtle, #e9ecef);
-          padding: 0.75rem 1rem;
-          border-radius: 0.5rem;
+        background-color: var(--bs-light-bg-subtle, #e9ecef);
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
       }
       .breadcrumb-item a {
-          text-decoration: none;
-          color: var(--bs-primary-text-emphasis);
-          font-weight: 600;
+        text-decoration: none;
+        color: var(--bs-primary-text-emphasis);
+        font-weight: 600;
       }
       .breadcrumb-item a:hover {
-          text-decoration: underline;
+        text-decoration: underline;
       }
       .breadcrumb-item.active {
-          color: var(--bs-secondary-text-emphasis);
-          font-weight: 500;
+        color: var(--bs-secondary-text-emphasis);
+        font-weight: 500;
       }
       .breadcrumb-item + .breadcrumb-item::before {
-          color: var(--bs-secondary-text-emphasis);
+        color: var(--bs-secondary-text-emphasis);
       }
       #iniciar-tour-cuenta {
-          animation: pulse-animation 2s infinite;
-          box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7);
+        animation: pulse-animation 2s infinite;
+        box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7);
       }
       @keyframes pulse-animation {
-          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7); }
-          70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
-          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
       }
       .focus-mode .navbar,
       .focus-mode footer,
       .focus-mode .footer-border {
-          display: none !important;
+        display: none !important;
       }
       .focus-mode main.container {
-          padding-top: 0;
-          margin-top: 0;
-          max-width: 100%;
+        padding-top: 0;
+        margin-top: 0;
+        max-width: 100%;
       }
       #exit-focus-btn {
-          position: fixed;
-          top: 15px;
-          right: 20px;
-          z-index: 1100;
-          display: none;
+        position: fixed;
+        top: 15px;
+        right: 20px;
+        z-index: 1100;
+        display: none;
       }
       .focus-mode #exit-focus-btn {
-          display: block;
+        display: block;
       }
       #pomodoro-timer {
         display: none;
@@ -166,19 +158,19 @@
         display: block;
       }
       @media (max-width: 768px) {
-          .shepherd-element {
-              position: fixed !important;
-              bottom: 20px !important;
-              top: auto !important;
-              left: 5vw !important;
-              right: 5vw !important;
-              width: 90vw !important;
-              max-width: 90vw !important;
-              transform: none !important; 
-          }
-          .shepherd-arrow {
-              display: none !important;
-          }
+        .shepherd-element {
+          position: fixed !important;
+          bottom: 20px !important;
+          top: auto !important;
+          left: 5vw !important;
+          right: 5vw !important;
+          width: 90vw !important;
+          max-width: 90vw !important;
+          transform: none !important; 
+        }
+        .shepherd-arrow {
+          display: none !important;
+        }
       }
       #ios-install-prompt {
         display: none;
@@ -197,58 +189,49 @@
       #ios-install-prompt.show {
         transform: translateY(0);
       }
-      /* --- ESTILOS AGREGADOS PARA EL BOTÓN IA (FUNCIÓN PREMIUM) --- */
       .btn-ia-pro {
-          background-color: var(--bs-primary);
-          color: var(--bs-btn-color, #FFFFFF) !important;
-          border-radius: 0.5rem;
-          padding: 0.375rem 0.75rem;
-          font-weight: 600;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: var(--bs-primary);
+        color: var(--bs-btn-color, #FFFFFF) !important;
+        border-radius: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
       .btn-ia-pro:hover {
-          background-color: #2da16b;
-          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-          transform: translateY(-2px);
+        background-color: #2da16b;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
       }
       .ia-pro-badge {
-          font-size: 0.6rem;
-          font-weight: 800;
-          margin-left: 0.25rem;
-          padding: 0.2em 0.5em;
-          background-color: var(--bs-warning) !important;
-          color: var(--bs-body-bg) !important;
+        font-size: 0.6rem;
+        font-weight: 800;
+        margin-left: 0.25rem;
+        padding: 0.2em 0.5em;
+        background-color: var(--bs-warning) !important;
+        color: var(--bs-body-bg) !important;
       }
-      /* --- FIN ESTILOS AGREGADOS --- */
-
-      
-      /* --- AJUSTES DE COLOR PARA MODO OSCURO EN AGENTE IA --- */
       [data-bs-theme="dark"] .source-item.list-group-item-action {
-          background-color: transparent;
-          color: var(--bs-body-color);
+        background-color: transparent;
+        color: var(--bs-body-color);
       }
-
       [data-bs-theme="dark"] .source-item.list-group-item-action:hover {
-          background-color: rgba(255, 255, 255, 0.05); /* Un hover muy sutil */
+        background-color: rgba(255, 255, 255, 0.05);
       }
-
       [data-bs-theme="dark"] .source-item.list-group-item-action.active {
-          background-color: var(--bs-primary);
-          color: #1F1F1F; /* Texto oscuro para que contraste con el azul claro */
-          border-color: var(--bs-primary);
+        background-color: var(--bs-primary);
+        color: #1F1F1F;
+        border-color: var(--bs-primary);
       }
-
       [data-bs-theme="dark"] #user-input.form-control {
-          background-color: var(--bs-light-bg-subtle);
-          color: var(--bs-body-color);
-          border-color: var(--bs-border-color);
+        background-color: var(--bs-light-bg-subtle);
+        color: var(--bs-body-color);
+        border-color: var(--bs-border-color);
       }
-      /* --- FIN DE AJUSTES --- */
-      </style>
+    </style>
     {% block styles %}{% endblock %}
-  </head>
-  <body class="d-flex flex-column min-vh-100">
+</head>
+<body class="d-flex flex-column min-vh-100">
 
     <div id="pomodoro-timer">20:00</div>
     
@@ -382,6 +365,8 @@
         <small class="d-block mt-2">Toca el icono de Compartir <i class="bi bi-box-arrow-up"></i> y luego "Añadir a pantalla de inicio".</small>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
@@ -548,8 +533,6 @@
                 });
             }
 
-            // Mantenemos la lógica para restaurar el estado al cargar la página.
-            // No es necesario DOMContentLoaded aquí ya que está al final del body.
             if (localStorage.getItem('focusMode') === 'true') {
                 body.classList.add('focus-mode');
             }
@@ -592,5 +575,5 @@
     </script>
     
     {% endblock %}
-  </body>
+</body>
 </html>
