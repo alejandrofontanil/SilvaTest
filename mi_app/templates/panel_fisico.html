@@ -33,11 +33,9 @@
         background-color: #fd7e14 !important;
     }
 
-    /* ============================================= */
-    /* === REDISEÑO DE TABLA: COMPACTO Y ELEGANTE ==== */
-    /* ============================================= */
+    /* === REDISEÑO DE TABLA: COMPACTO Y ELEGANTE === */
     .plan-table {
-        font-size: 0.9rem; /* <-- AJUSTE DE TAMAÑO: Texto más pequeño */
+        font-size: 0.9rem; /* Texto más pequeño */
         border-collapse: collapse;
         width: 100%;
     }
@@ -57,12 +55,12 @@
         background-color: var(--bs-tertiary-bg);
     }
     .plan-table tbody td {
-        padding: 0.9rem 1.25rem; /* <-- AJUSTE DE TAMAÑO: Menos espacio vertical */
+        padding: 0.9rem 1.25rem; /* Menos espacio vertical */
         vertical-align: middle;
         border: none;
     }
     
-    /* ==== PALETA DE COLORES PARA BADGES ==== */
+    /* === PALETA DE COLORES PARA BADGES === */
     .badge {
         font-size: 0.8rem;
         font-weight: 700;
@@ -79,7 +77,7 @@
     [data-bs-theme="dark"] .badge-z4 { background-color: rgba(255, 138, 101, 0.15); color: #ff8a65; }
     [data-bs-theme="dark"] .badge-z5 { background-color: rgba(229, 115, 115, 0.15); color: #e57373; }
 
-    /* ===== ADAPTACIÓN A MÓVILES ===== */
+    /* === ADAPTACIÓN A MÓVILES === */
     @media (max-width: 992px) {
         .plan-table thead { display: none; }
         .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
@@ -112,6 +110,66 @@
 
 {% block content %}
 <div class="container-fluid mt-4" data-aos="fade-up">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-5"><i class="bi bi-clipboard-data-fill me-2"></i>Mi Plan: {{ plan.nombre }}</h1>
+            <p class="lead text-muted">Aquí puedes seguir tu progreso y registrar tus entrenamientos semanales.</p>
+        </div>
+        <form action="{{ url_for('main.seleccionar_plan', plan_id=0) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres reiniciar tu progreso y elegir un nuevo plan? Se borrarán todos tus registros de entrenamiento.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-arrow-repeat me-2"></i>Cambiar de Plan</button>
+        </form>
+    </div>
+    
+    <div class="card card-ritmo-leyenda shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="card-title small fw-bold mb-2">Ritmos (sensación)</h6>
+            <div class="d-flex flex-wrap">
+                <span class="legend-item"><span class="legend-dot bg-success"></span> De sobra</span>
+                <span class="legend-item"><span class="legend-dot bg-primary"></span> Bien</span>
+                <span class="legend-item"><span class="legend-dot bg-warning"></span> Justo</span>
+                <span class="legend-item"><span class="legend-dot bg-orange"></span> Muy justo</span>
+                <span class="legend-item"><span class="legend-dot bg-danger"></span> Mal</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card card-ritmo-leyenda shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="card-title small fw-bold mb-2">Zonas de Ritmo (min/km)</h6>
+            <div class="d-flex flex-wrap">
+                <span class="legend-item" title="Recuperación activa, muy suave"><span class="legend-dot" style="background-color: #a5d6a7;"></span> Z1 (+7:00)</span>
+                <span class="legend-item" title="Ritmo fácil, conversación fluida"><span class="legend-dot" style="background-color: #64b5f6;"></span> Z2 (6:30-7:00)</span>
+                <span class="legend-item" title="Ritmo controlado, esfuerzo moderado"><span class="legend-dot" style="background-color: #ffd54f;"></span> Z3 (5:50-6:30)</span>
+                <span class="legend-item" title="Ritmo exigente, pero sostenible"><span class="legend-dot" style="background-color: #ff8a65;"></span> Z4 (5:10-5:50)</span>
+                <span class="legend-item" title="Ritmo máximo, esfuerzo corto e intenso"><span class="legend-dot" style="background-color: #e57373;"></span> Z5 (4:55-5:10)</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h5 class="card-title">Progreso General</h5>
+                    <canvas id="progresoGeneralChart"></canvas>
+                    <p id="progresoGeneralPctText" class="fw-bold fs-2 mt-3 mb-0">{{ progreso_general_pct }}%</p>
+                    <p class="text-muted small">Completado</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Carga de Kilómetros Semanal</h5>
+                    <div style="height: 250px;">
+                        <canvas id="cargaKmChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent">
@@ -178,8 +236,27 @@
             </div>
             <div class="modal-body">
                 <div id="errorContainer" class="alert alert-danger d-none" role="alert"></div>
+                
                 <form id="registroForm">
-                    </form>
+                    <input type="hidden" id="semanaIdInput" name="semana_id">
+                    <input type="hidden" id="diaEntrenoInput" name="dia_entreno">
+                    
+                    <div class="mb-3">
+                        <label for="kmRealizadosInput" class="form-label fw-bold">Kilómetros Realizados</label>
+                        <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sensacionUsuarioInput" class="form-label fw-bold">¿Cómo te sentiste?</label>
+                        <select class="form-select" id="sensacionUsuarioInput" name="sensacion_usuario" required>
+                            <option value="" disabled selected>-- Elige una opción --</option>
+                            <option value="De sobra">🟢 De sobra</option>
+                            <option value="Bien">🔵 Bien</option>
+                            <option value="Justo">🟡 Justo</option>
+                            <option value="Muy justo">🟠 Muy justo</option>
+                            <option value="Mal">🔴 Mal</option>
+                        </select>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -193,7 +270,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-// El JavaScript es el correcto y no necesita cambios
 document.addEventListener('DOMContentLoaded', function () {
     const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
