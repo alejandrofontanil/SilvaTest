@@ -25,7 +25,8 @@ from mi_app.rag_agent import get_rag_response
 
 # --- CORRECCIÓN IMPORTANTE ---
 # Se crea el Blueprint con el nombre 'main', que se usará en todas las rutas.
-main = Blueprint('main', __name__)
+main_bp = Blueprint('main', __name__)
+
 
 # Definición de coste
 RAG_COST_PER_QUERY = 100
