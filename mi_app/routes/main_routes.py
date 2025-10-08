@@ -944,3 +944,29 @@ def borrar_entrenamiento():
         return jsonify({'success': False, 'error': 'Error interno al borrar el registro.'}), 500
 
 # --- FIN: RUTAS PARA PREPARACIÓN FÍSICA ---
+
+@main.route('/test-fisico')
+def test_fisico_page():
+    # Simula los datos mínimos necesarios para que la plantilla no falle
+    plan_simulado = {
+        'nombre': 'Plan de Prueba',
+        'semanas': [
+            {'id': 1, 'numero_semana': 1, 'dia1_desc': 'Test D1', 'dia2_desc': 'Test D2', 'carga_semanal_km': 5, 'zona_ritmo': 'Z3 - Test'}
+        ]
+    }
+    dias_registrados_simulado = []
+    progreso_simulado = 10
+    labels_simulado = ['Sem 1']
+    km_obj_simulado = [5]
+    km_reales_simulado = [0]
+
+    return render_template(
+        'panel_fisico.html',
+        title="Página de Prueba",
+        plan=plan_simulado,
+        dias_registrados=dias_registrados_simulado,
+        progreso_general_pct=progreso_simulado,
+        labels_grafico_km=labels_simulado,
+        km_objetivo_data=km_obj_simulado,
+        km_reales_data=km_reales_simulado
+    )
