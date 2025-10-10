@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .stat-card {
+        background-color: var(--bs-light-bg-subtle);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+    }
+    .btn-registrar {
+        font-weight: bold;
+    }
+    .card-ritmo-leyenda { }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-right: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+        display: inline-block;
+    }
+    .bg-orange {
+        background-color: #fd7e14 !important;
+    }
+    .plan-table {
+        font-size: 0.9rem;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .plan-table thead th {
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 2px solid var(--bs-primary);
+    }
+    .plan-table tbody tr {
+        border-bottom: 1px solid var(--bs-border-color);
+        transition: background-color 0.2s ease-in-out;
+    }
+    .plan-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    .plan-table tbody tr:hover {
+        background-color: var(--bs-tertiary-bg);
+    }
+    .plan-table tbody td {
+        padding: 0.9rem 1.25rem;
+        vertical-align: middle;
+        border: none;
+    }
+    .badge {
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 0.5em 0.8em;
+    }
+    .badge-z1 { background-color: #e8f5e9; color: #1b5e20; }
+    .badge-z2 { background-color: #e3f2fd; color: #0d47a1; }
+    .badge-z3 { background-color: #fffde7; color: #ff6f00; }
+    .badge-z4 { background-color: #fff3e0; color: #bf360c; }
+    .badge-z5 { background-color: #ffebee; color: #b71c1c; }
+    [data-bs-theme="dark"] .badge-z1 { background-color: rgba(165, 214, 167, 0.15); color: #a5d6a7; }
+    [data-bs-theme="dark"] .badge-z2 { background-color: rgba(100, 181, 246, 0.15); color: #64b5f6; }
+    [data-bs-theme="dark"] .badge-z3 { background-color: rgba(255, 213, 79, 0.15); color: #ffd54f; }
+    [data-bs-theme="dark"] .badge-z4 { background-color: rgba(255, 138, 101, 0.15); color: #ff8a65; }
+    [data-bs-theme="dark"] .badge-z5 { background-color: rgba(229, 115, 115, 0.15); color: #e57373; }
+    @media (max-width: 992px) {
+        .plan-table thead { display: none; }
+        .plan-table, .plan-table tbody, .plan-table tr, .plan-table td { display: block; width: 100%; }
+        .plan-table tr {
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            background-color: var(--bs-tertiary-bg);
+        }
+        .plan-table td {
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+            border-bottom: 1px solid var(--bs-border-color-translucent);
+        }
+        .plan-table tr:hover { background-color: var(--bs-tertiary-bg); }
+        .plan-table td:last-child { border-bottom: none; }
+        .plan-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 1.25rem;
+            width: calc(50% - 1.5rem);
+            text-align: left;
+            font-weight: bold;
+            color: var(--bs-body-color);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4" data-aos="fade-up">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-5"><i class="bi bi-clipboard-data-fill me-2"></i>Mi Plan: {{ plan.nombre }}</h1>
+            <p class="lead text-muted">Aquí puedes seguir tu progreso y registrar tus entrenamientos semanales.</p>
+        </div>
+        <form action="{{ url_for('main.seleccionar_plan', plan_id=0) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres reiniciar tu progreso y elegir un nuevo plan? Se borrarán todos tus registros de entrenamiento.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-arrow-repeat me-2"></i>Cambiar de Plan</button>
+        </form>
+    </div>
+    
+    <div class="card card-ritmo-leyenda shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="card-title small fw-bold mb-2">Ritmos (sensación)</h6>
+            <div class="d-flex flex-wrap">
+                <span class="legend-item"><span class="legend-dot bg-success"></span> De sobra</span>
+                <span class="legend-item"><span class="legend-dot bg-primary"></span> Bien</span>
+                <span class="legend-item"><span class="legend-dot bg-warning"></span> Justo</span>
+                <span class="legend-item"><span class="legend-dot bg-orange"></span> Muy justo</span>
+                <span class="legend-item"><span class="legend-dot bg-danger"></span> Mal</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card card-ritmo-leyenda shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="card-title small fw-bold mb-2">Zonas de Ritmo (min/km)</h6>
+            <div class="d-flex flex-wrap">
+                <span class="legend-item" title="Recuperación activa, muy suave"><span class="legend-dot" style="background-color: #a5d6a7;"></span> Z1 (+7:00)</span>
+                <span class="legend-item" title="Ritmo fácil, conversación fluida"><span class="legend-dot" style="background-color: #64b5f6;"></span> Z2 (6:30-7:00)</span>
+                <span class="legend-item" title="Ritmo controlado, esfuerzo moderado"><span class="legend-dot" style="background-color: #ffd54f;"></span> Z3 (5:50-6:30)</span>
+                <span class="legend-item" title="Ritmo exigente, pero sostenible"><span class="legend-dot" style="background-color: #ff8a65;"></span> Z4 (5:10-5:50)</span>
+                <span class="legend-item" title="Ritmo máximo, esfuerzo corto e intenso"><span class="legend-dot" style="background-color: #e57373;"></span> Z5 (4:55-5:10)</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h5 class="card-title">Progreso General</h5>
+                    <canvas id="progresoGeneralChart"></canvas>
+                    <p id="progresoGeneralPctText" class="fw-bold fs-2 mt-3 mb-0">{{ progreso_general_pct }}%</p>
+                    <p class="text-muted small">Completado</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Carga de Kilómetros Semanal</h5>
+                    <div style="height: 250px;">
+                        <canvas id="cargaKmChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-transparent">
+            <h4 class="mb-0">Planificación Semanal</h4>
+        </div>
+        <div class="card-body p-0 p-lg-3">
+             <div class="table-responsive">
+                <table class="table align-middle mb-0 plan-table">
+                    <thead class="text-uppercase small text-muted">
+                        <tr>
+                            <th>Semana</th>
+                            <th>Día 1</th>
+                            <th>Día 2</th>
+                            <th>Carga Obj.</th>
+                            <th>Ritmo Obj.</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for semana in plan.semanas|sort(attribute='numero_semana') %}
+                        <tr>
+                            <td data-label="Semana" class="fw-bold">Semana {{ semana.numero_semana }}</td>
+                            <td data-label="Día 1">{{ semana.dia1_desc }}</td>
+                            <td data-label="Día 2">{{ semana.dia2_desc }}</td>
+                            <td data-label="Carga Obj.">{{ semana.carga_semanal_km }} km</td>
+                            <td data-label="Ritmo Obj.">
+                                <span class="badge 
+                                    {% if 'Z5' in semana.zona_ritmo %}badge-z5
+                                    {% elif 'Z4' in semana.zona_ritmo %}badge-z4
+                                    {% elif 'Z3' in semana.zona_ritmo %}badge-z3
+                                    {% elif 'Z2' in semana.zona_ritmo %}badge-z2
+                                    {% else %}badge-z1{% endif %}">
+                                    {{ semana.zona_ritmo }}
+                                </span>
+                            </td>
+                            <td data-label="Acciones" class="text-center">
+                                {% if (semana.id, 1) in dias_registrados %}
+                                    <button class="btn btn-success btn-sm" disabled><i class="bi bi-check-circle-fill"></i> Día 1</button>
+                                {% else %}
+                                    <button class="btn btn-outline-primary btn-sm btn-registrar" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}" data-semana-num="{{ semana.numero_semana }}" data-dia="1">Registrar Día 1</button>
+                                {% endif %}
+                                
+                                {% if (semana.id, 2) in dias_registrados %}
+                                    <button class="btn btn-success btn-sm ms-lg-2 mt-2 mt-lg-0" disabled><i class="bi bi-check-circle-fill"></i> Día 2</button>
+                                {% else %}
+                                    <button class="btn btn-outline-primary btn-sm ms-lg-2 mt-2 mt-lg-0 btn-registrar" data-bs-toggle="modal" data-bs-target="#registroModal" data-semana-id="{{ semana.id }}" data-semana-num="{{ semana.numero_semana }}" data-dia="2">Registrar Día 2</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="registroModal" tabindex="-1" aria-labelledby="registroModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registroModalLabel">Registrar Entrenamiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorContainer" class="alert alert-danger d-none" role="alert"></div>
+                <form id="registroForm">
+                    <input type="hidden" id="semanaIdInput" name="semana_id">
+                    <input type="hidden" id="diaEntrenoInput" name="dia_entreno">
+                    <div class="mb-3">
+                        <label for="kmRealizadosInput" class="form-label fw-bold">Kilómetros Realizados</label>
+                        <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sensacionUsuarioInput" class="form-label fw-bold">¿Cómo te sentiste?</label>
+                        <select class="form-select" id="sensacionUsuarioInput" name="sensacion_usuario" required>
+                            <option value="" disabled selected>-- Elige una opción --</option>
+                            <option value="De sobra">🟢 De sobra</option>
+                            <option value="Bien">🔵 Bien</option>
+                            <option value="Justo">🟡 Justo</option>
+                            <option value="Muy justo">🟠 Muy justo</option>
+                            <option value="Mal">🔴 Mal</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="registroForm" class="btn btn-primary" id="guardarRegistroBtn">Guardar Registro</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
+    const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    let progresoGeneralChart, cargaKmChart;
+
+    const progresoCtx = document.getElementById('progresoGeneralChart');
+    if (progresoCtx) {
+        progresoGeneralChart = new Chart(progresoCtx, {
+            type: 'doughnut', data: { datasets: [{ data: [{{ progreso_general_pct }}, 100 - {{ progreso_general_pct }}], backgroundColor: [ esModoOscuro ? '#8AB4F8' : '#2E7D32', 'transparent' ], borderColor: [ esModoOscuro ? '#8AB4F8' : '#2E7D32', esModoOscuro ? '#444746' : '#dee2e6'], borderWidth: 2 }] }, options: { responsive: true, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+        });
+    }
+    const cargaKmCtx = document.getElementById('cargaKmChart');
+    if (cargaKmCtx) {
+        cargaKmChart = new Chart(cargaKmCtx, {
+            type: 'bar', data: { labels: {{ labels_grafico_km|tojson }}, datasets: [ { label: 'KM Objetivo', data: {{ km_objetivo_data|tojson }}, backgroundColor: 'rgba(128, 128, 128, 0.2)', borderColor: 'rgba(128, 128, 128, 0.5)', borderWidth: 1 }, { label: 'KM Reales', data: {{ km_reales_data|tojson }}, backgroundColor: esModoOscuro ? 'rgba(138, 180, 248, 0.6)' : 'rgba(46, 125, 50, 0.6)', borderColor: esModoOscuro ? '#8AB4F8' : '#2E7D32', borderWidth: 1 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { color: colorTexto }, grid: { color: colorGrid } }, x: { ticks: { color: colorTexto }, grid: { color: colorGrid } } }, plugins: { legend: { labels: { color: colorTexto } } } }
+        });
+    }
+
+    const registroModalEl = document.getElementById('registroModal');
+    const registroModal = bootstrap.Modal.getOrCreateInstance(registroModalEl);
+    
+    if (registroModalEl) {
+        const modalTitle = document.getElementById('registroModalLabel');
+        const semanaIdInput = document.getElementById('semanaIdInput');
+        const diaEntrenoInput = document.getElementById('diaEntrenoInput');
+        const registroForm = document.getElementById('registroForm');
+        const guardarBtn = document.getElementById('guardarRegistroBtn');
+        const errorContainer = document.getElementById('errorContainer');
+        const kmRealizadosInput = document.getElementById('kmRealizadosInput');
+        const sensacionUsuarioInput = document.getElementById('sensacionUsuarioInput');
+        let activeButton = null;
+        registroModalEl.addEventListener('show.bs.modal', function (event) {
+            activeButton = event.relatedTarget;
+            const semanaId = activeButton.getAttribute('data-semana-id');
+            const semanaNum = activeButton.getAttribute('data-semana-num');
+            const dia = activeButton.getAttribute('data-dia');
+            
+            modalTitle.textContent = `Registrar Entreno: Semana ${semanaNum}, Día ${dia}`;
+            semanaIdInput.value = semanaId;
+            diaEntrenoInput.value = dia;
+            registroForm.reset();
+            errorContainer.classList.add('d-none');
+            
+            kmRealizadosInput.disabled = false;
+            sensacionUsuarioInput.disabled = false;
+            guardarBtn.disabled = false;
+            guardarBtn.innerHTML = 'Guardar Registro';
+        });
+        registroForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            guardarBtn.disabled = true;
+            kmRealizadosInput.disabled = true;
+            sensacionUsuarioInput.disabled = true;
+            guardarBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...`;
+            errorContainer.classList.add('d-none');
+            
+            const formData = new FormData(registroForm);
+            const data = Object.fromEntries(formData.entries());
+            fetch("{{ url_for('main.registrar_entrenamiento') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    activeButton.classList.remove('btn-outline-primary');
+                    activeButton.classList.add('btn-success');
+                    activeButton.disabled = true;
+                    activeButton.innerHTML = `<i class="bi bi-check-circle-fill"></i> Día ${data.dia_entreno}`;
+                    
+                    const progresoPctText = document.getElementById('progresoGeneralPctText');
+                    if(progresoPctText) { progresoPctText.textContent = `${result.updated_data.progreso_general_pct}%`; }
+                    
+                    if (progresoGeneralChart) {
+                        const newPct = result.updated_data.progreso_general_pct;
+                        progresoGeneralChart.data.datasets[0].data = [newPct, 100 - newPct];
+                        progresoGeneralChart.update();
+                    }
+                    if (cargaKmChart) {
+                        cargaKmChart.data.datasets[1].data = result.updated_data.km_reales_data;
+                        cargaKmChart.update();
+                    }
+                    registroModal.hide();
+                } else {
+                    errorContainer.textContent = result.error || 'Ocurrió un problema al guardar.';
+                    errorContainer.classList.remove('d-none');
+                    guardarBtn.disabled = false;
+                    kmRealizadosInput.disabled = false;
+                    sensacionUsuarioInput.disabled = false;
+                    guardarBtn.innerHTML = 'Guardar Registro';
+                }
+            })
+            .catch(error => {
+                console.error('Error en Fetch:', error);
+                errorContainer.textContent = 'Hubo un error de conexión.';
+                errorContainer.classList.remove('d-none');
+                
+                guardarBtn.disabled = false;
+                kmRealizadosInput.disabled = false;
+                sensacionUsuarioInput.disabled = false;
+                guardarBtn.innerHTML = 'Guardar Registro';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
