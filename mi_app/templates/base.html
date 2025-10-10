@@ -8,6 +8,7 @@
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#4B5320" />
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
@@ -214,17 +215,14 @@
         background-color: transparent;
         color: var(--bs-body-color);
       }
-
       [data-bs-theme="dark"] .source-item.list-group-item-action:hover {
         background-color: rgba(255, 255, 255, 0.05);
       }
-
       [data-bs-theme="dark"] .source-item.list-group-item-action.active {
         background-color: var(--bs-primary);
         color: #1F1F1F;
         border-color: var(--bs-primary);
       }
-
       [data-bs-theme="dark"] #user-input.form-control {
         background-color: var(--bs-light-bg-subtle);
         color: var(--bs-body-color);
@@ -243,62 +241,62 @@
     </button>
 
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container-fluid">
-          <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="32" class="me-2">
-            SilvaTest
-          </a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link fw-bold" href="{{ url_for('main.home') }}">Inicio</a>
-                </li>
-                  {% if current_user.is_authenticated and current_user.es_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link fw-bold" href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
-                    </li>
-                  {% endif %}
-            </ul>
-            <ul class="navbar-nav ms-auto align-items-center">
-                {% if current_user.is_authenticated %}
-                  
-                  {% if not current_user.es_admin %}
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
+          <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="32" class="me-2">
+          SilvaTest
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav me-auto">
+              <li class="nav-item">
+                  <a class="nav-link fw-bold" href="{{ url_for('main.home') }}">Inicio</a>
+              </li>
+                {% if current_user.is_authenticated and current_user.es_admin %}
                   <li class="nav-item">
-                      <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
-                          <i class="bi bi-compass"></i> Visita Guiada
-                      </a>
+                      <a class="nav-link fw-bold" href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
                   </li>
-                  {% endif %}
-
-                  <li class="nav-item">
-                      <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
-                          <i class="bi bi-robot me-1"></i> Agente IA
-                          <span class="badge rounded-pill bg-warning text-dark ms-1 ia-pro-badge">PRO</span>
-                      </a>
-                  </li>
-                  <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
-                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
-                
-                {% else %}
-                  
-                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
-                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
-                
                 {% endif %}
+          </ul>
+          <ul class="navbar-nav ms-auto align-items-center">
+              {% if current_user.is_authenticated %}
+                
+                {% if not current_user.es_admin %}
                 <li class="nav-item">
-                    <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">
-                        <i class="bi bi-aspect-ratio"></i>
-                    </button>
+                    <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
+                        <i class="bi bi-compass"></i> Visita Guiada
+                    </a>
                 </li>
-                <li class="nav-item ms-2">
-                    <button id="theme-toggle" class="btn"><i id="theme-toggle-icon" class="bi"></i></button>
+                {% endif %}
+
+                <li class="nav-item">
+                    <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
+                        <i class="bi bi-robot me-1"></i> Agente IA
+                        <span class="badge rounded-pill bg-warning text-dark ms-1 ia-pro-badge">PRO</span>
+                    </a>
                 </li>
-            </ul>
-          </div>
+                <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+              
+              {% else %}
+                
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
+              
+              {% endif %}
+              <li class="nav-item">
+                  <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">
+                      <i class="bi bi-aspect-ratio"></i>
+                  </button>
+              </li>
+              <li class="nav-item ms-2">
+                  <button id="theme-toggle" class="btn"><i id="theme-toggle-icon" class="bi"></i></button>
+              </li>
+          </ul>
         </div>
+      </div>
     </nav>
 
     <main class="container mt-4" data-aos="fade-up" data-aos-delay="100">
