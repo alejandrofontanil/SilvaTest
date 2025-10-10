@@ -798,24 +798,27 @@ def api_rendimiento_bloques():
 @main_bp.route('/preparacion-fisica')
 @login_required
 def preparacion_fisica():
+    """
+    Página principal del panel de entrenamiento físico, ahora con cálculos mejorados.
+    """
     if current_user.plan_fisico_actual:
         plan = current_user.plan_fisico_actual
         semanas = sorted(plan.semanas, key=lambda s: s.numero_semana)
         
         registros = RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).all()
         
-        # --- ESTA ES LA PARTE CLAVE ---
-        # 1. Creamos el diccionario que necesita la plantilla.
+        # MEJORA 1: Creamos un diccionario para acceder a todos los datos del registro en la plantilla
         registros_dict = {(r.semana_id, r.dia_entreno): r for r in registros}
         
         entrenos_completados = len(registros_dict)
-        entrenos_totales = len(semanas) * 2
+        entrenos_totales = len(semanas) * 2 if semanas else 1
 
         try:
             progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100)
         except ZeroDivisionError:
             progreso_general_pct = 0
         
+        # --- Lógica para gráficos ---
         labels_grafico_km = [f"S{s.numero_semana}" for s in semanas]
         km_objetivo_data = [s.carga_semanal_km or 0 for s in semanas]
         
@@ -826,15 +829,31 @@ def preparacion_fisica():
         
         km_reales_data = [km_reales_por_semana.get(s.numero_semana, 0) for s in semanas]
 
+        # --- MEJORA 2: Cálculo de KM totales para el resumen ---
+        total_km_objetivo = sum(km_objetivo_data)
+        total_km_realizados = sum(km_reales_data)
+
+        # --- MEJORA 3: Cálculo de la semana actual ---
+        # NOTA: Esto asume que tienes un campo `fecha_inicio_plan` en tu modelo de Usuario.
+        # Si no lo tienes, esta lógica no dará error, simplemente `semana_actual` será 1.
+        semana_actual = 1
+        if hasattr(current_user, 'fecha_inicio_plan') and current_user.fecha_inicio_plan:
+            dias_desde_inicio = (date.today() - current_user.fecha_inicio_plan).days
+            if dias_desde_inicio >= 0:
+                semana_actual = (dias_desde_inicio // 7) + 1
+
+
         return render_template('panel_fisico.html', 
                                title="Mi Plan de Entrenamiento",
                                plan=plan,
-                               # 2. Pasamos el diccionario en lugar de la variable antigua.
                                registros_dict=registros_dict,
                                progreso_general_pct=progreso_general_pct,
                                labels_grafico_km=labels_grafico_km,
                                km_objetivo_data=km_objetivo_data,
-                               km_reales_data=km_reales_data)
+                               km_reales_data=km_reales_data,
+                               total_km_objetivo=total_km_objetivo,      # <-- Nueva variable
+                               total_km_realizados=total_km_realizados,  # <-- Nueva variable
+                               semana_actual=semana_actual)              # <-- Nueva variable
     else:
         planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
         return render_template('elegir_plan.html', 

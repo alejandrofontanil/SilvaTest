@@ -6,7 +6,7 @@
 {{ super() }}
 <style>
     .stat-card { background-color: var(--bs-light-bg-subtle); border: 1px solid var(--bs-border-color); border-radius: 0.75rem; padding: 1.5rem; }
-    .btn-registrar { font-weight: bold; }
+    .btn-registrar, .btn-borrar-entrenamiento { font-weight: bold; }
     .legend-item { display: flex; align-items: center; font-size: 0.85rem; margin-right: 1.5rem; margin-bottom: 0.5rem; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; display: inline-block; }
     .bg-orange { background-color: #fd7e14 !important; }
@@ -95,24 +95,25 @@
     
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent">
-            <h4 class="mb-0">Planificación Semanal</h4>
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Planificación Semanal</h4>
+                <div>
+                    <span class="badge text-bg-secondary me-2">KM Obj. Total: {{ '%.1f'|format(total_km_objetivo) }} km</span>
+                    <span class="badge text-bg-primary">KM Realizados: {{ '%.1f'|format(total_km_realizados) }} km</span>
+                </div>
+            </div>
         </div>
         <div class="card-body p-0 p-lg-3">
              <div class="table-responsive">
                 <table class="table align-middle mb-0 plan-table">
                     <thead class="text-uppercase small text-muted">
                         <tr>
-                            <th>Semana</th>
-                            <th>Día 1</th>
-                            <th>Día 2</th>
-                            <th>Carga Obj.</th>
-                            <th>Ritmo Obj.</th>
-                            <th class="text-center">Acciones</th>
+                            <th>Semana</th> <th>Día 1</th> <th>Día 2</th> <th>Carga Obj.</th> <th>Ritmo Obj.</th> <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for semana in plan.semanas|sort(attribute='numero_semana') %}
-                        <tr id="semana-row-{{ semana.id }}">
+                        <tr id="semana-row-{{ semana.id }}" class="{% if semana.numero_semana == semana_actual %}table-primary{% endif %}">
                             <td data-label="Semana" class="fw-bold">Semana {{ semana.numero_semana }}</td>
                             <td data-label="Día 1">{{ semana.dia1_desc }}</td>
                             <td data-label="Día 2">{{ semana.dia2_desc }}</td>
@@ -135,7 +136,9 @@
                                                          'warning' if registro1.sensacion_usuario == 'Justo' else
                                                          'danger' %}
                                     <button class="btn btn-{{ color_class }} btn-sm btn-borrar-entrenamiento" 
-                                            data-semana-id="{{ semana.id }}" data-dia="1" title="Borrar registro del Día 1">
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="Registraste {{ registro1.km_realizados }} km. Sensación: {{ registro1.sensacion_usuario }}"
+                                            data-semana-id="{{ semana.id }}" data-dia="1">
                                         <i class="bi bi-check-circle-fill"></i> Día 1
                                     </button>
                                 {% else %}
@@ -149,7 +152,9 @@
                                                          'warning' if registro2.sensacion_usuario == 'Justo' else
                                                          'danger' %}
                                     <button class="btn btn-{{ color_class }} btn-sm ms-lg-2 mt-2 mt-lg-0 btn-borrar-entrenamiento"
-                                            data-semana-id="{{ semana.id }}" data-dia="2" title="Borrar registro del Día 2">
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="Registraste {{ registro2.km_realizados }} km. Sensación: {{ registro2.sensacion_usuario }}"
+                                            data-semana-id="{{ semana.id }}" data-dia="2">
                                         <i class="bi bi-check-circle-fill"></i> Día 2
                                     </button>
                                 {% else %}
@@ -167,13 +172,16 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const esModoOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     const colorTexto = esModoOscuro ? 'rgba(234, 234, 234, 0.8)' : 'rgba(73, 80, 87, 0.8)';
     const colorGrid = esModoOscuro ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     let progresoGeneralChart, cargaKmChart;
+
+    // INICIALIZADOR DE TOOLTIPS
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
     // CÓDIGO DE LOS GRÁFICOS
     const progresoCtx = document.getElementById('progresoGeneralChart');
