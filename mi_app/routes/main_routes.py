@@ -795,7 +795,6 @@ def api_rendimiento_bloques():
     data = [round(stat.porcentaje) for stat in stats_bloques_sorted]
     return jsonify({'labels': labels, 'data': data})
 
-
 @main_bp.route('/preparacion-fisica')
 @login_required
 def preparacion_fisica():
@@ -804,16 +803,17 @@ def preparacion_fisica():
         semanas = sorted(plan.semanas, key=lambda s: s.numero_semana)
         
         registros = RegistroEntrenamiento.query.filter_by(usuario_id=current_user.id).all()
-        dias_registrados = {(r.semana_id, r.dia_entreno) for r in registros}
-
-        entrenos_completados = len(dias_registrados)
+        
+        # --- ESTA ES LA PARTE CLAVE ---
+        # 1. Creamos el diccionario que necesita la plantilla.
+        registros_dict = {(r.semana_id, r.dia_entreno): r for r in registros}
+        
+        entrenos_completados = len(registros_dict)
         entrenos_totales = len(semanas) * 2
 
         try:
             progreso_general_pct = int((entrenos_completados / entrenos_totales) * 100)
         except ZeroDivisionError:
-            progreso_general_pct = 0
-        except TypeError:
             progreso_general_pct = 0
         
         labels_grafico_km = [f"S{s.numero_semana}" for s in semanas]
@@ -826,21 +826,15 @@ def preparacion_fisica():
         
         km_reales_data = [km_reales_por_semana.get(s.numero_semana, 0) for s in semanas]
 
-        # MODIFICACIÓN: Se añaden los datos actualizados para la respuesta de la API
-        updated_data = {
-            "progreso_general_pct": progreso_general_pct,
-            "km_reales_data": km_reales_data
-        }
-
         return render_template('panel_fisico.html', 
                                title="Mi Plan de Entrenamiento",
                                plan=plan,
-                               dias_registrados=dias_registrados,
+                               # 2. Pasamos el diccionario en lugar de la variable antigua.
+                               registros_dict=registros_dict,
                                progreso_general_pct=progreso_general_pct,
                                labels_grafico_km=labels_grafico_km,
                                km_objetivo_data=km_objetivo_data,
-                               km_reales_data=km_reales_data,
-                               updated_data_json=json.dumps(updated_data)) # Pasamos los datos como JSON
+                               km_reales_data=km_reales_data)
     else:
         planes_disponibles = PlanFisico.query.order_by(PlanFisico.nombre).all()
         return render_template('elegir_plan.html', 
