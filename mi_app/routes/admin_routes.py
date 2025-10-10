@@ -215,8 +215,7 @@ def crear_tema():
     form.parent.query = Tema.query.order_by(Tema.posicion)
     if form.validate_on_submit():
         max_pos = db.session.query(db.func.max(Tema.posicion)).filter_by(bloque_id=form.bloque.data.id).scalar() or -1
-        # --- CORRECCIÓN 1: Quitar pdf_url de la inicialización de Tema ---
-        # La columna 'pdf_url' no existe en el modelo Tema y causa TypeError.
+        # --- CORRECCIÓN 1: Se elimina 'pdf_url' de la inicialización de Tema para evitar TypeError ---
         nuevo_tema = Tema(
             nombre=form.nombre.data, 
             parent=form.parent.data, 
@@ -225,12 +224,12 @@ def crear_tema():
             tiempo_limite_minutos=form.tiempo_limite_minutos.data, 
             posicion=max_pos + 1,
         )
-        # Asignar pdf_url por separado si es necesario
+        # Si pdf_url es un atributo del formulario, se asigna después.
         if hasattr(form, 'pdf_url'):
-            # Si la columna sí existe, se asigna aquí después de la inicialización,
-            # aunque se debe revisar el modelo para ver por qué pdf_url está en el form.
-            # Como el error original fue TypeError, eliminamos el argumento directo.
-            pass
+            # Asumo que si la columna existía antes, se asigna aquí. 
+            # Si no existe en el modelo, esta línea no es necesaria.
+            # nuevo_tema.pdf_url = form.pdf_url.data # Descomentar si el modelo Tema tiene 'pdf_url'
+            pass 
         
         db.session.add(nuevo_tema)
         db.session.commit()
@@ -290,14 +289,15 @@ def editar_tema(tema_id):
         tema_a_editar.bloque = form.bloque.data
         tema_a_editar.es_simulacro = form.es_simulacro.data
         tema_a_editar.tiempo_limite_minutos = form.tiempo_limite_minutos.data
-        # tema_a_editar.pdf_url = form.pdf_url.data # Asumo que esta línea existe si form.pdf_url existe
+        # tema_a_editar.pdf_url = form.pdf_url.data 
 
         db.session.commit()
         flash('¡Tema actualizado con éxito!', 'success')
         return redirect(url_for('admin.admin_temas'))
 
     if request.method == 'GET':
-        # form.pdf_url.data = tema_a_editar.pdf_url # Asumo que esta línea existe si form.pdf_url existe
+        # form.pdf_url.data = tema_a_editar.pdf_url 
+        pass
 
     return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
     
