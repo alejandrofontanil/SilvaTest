@@ -36,7 +36,8 @@ def load_user(user_id):
     from .models import Usuario
     return Usuario.query.get(int(user_id))
 
-def create_app():
+# --- CAMBIO REALIZADO AQUÍ: Aceptar argumentos opcionales ---
+def create_app(*args, **kwargs): 
     app = Flask(__name__, instance_relative_config=True)
 
     # --- CONFIGURACIÓN DE LA APP ---
