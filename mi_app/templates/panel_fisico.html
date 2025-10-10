@@ -33,7 +33,7 @@
         background-color: #fd7e14 !important;
     }
     .plan-table {
-        font-size: 0.9rem; /* Texto más pequeño */
+        font-size: 0.9rem;
         border-collapse: collapse;
         width: 100%;
     }
@@ -53,7 +53,7 @@
         background-color: var(--bs-tertiary-bg);
     }
     .plan-table tbody td {
-        padding: 0.9rem 1.25rem; /* Menos espacio vertical */
+        padding: 0.9rem 1.25rem;
         vertical-align: middle;
         border: none;
     }
@@ -230,11 +230,9 @@
             </div>
             <div class="modal-body">
                 <div id="errorContainer" class="alert alert-danger d-none" role="alert"></div>
-                
                 <form id="registroForm">
                     <input type="hidden" id="semanaIdInput" name="semana_id">
                     <input type="hidden" id="diaEntrenoInput" name="dia_entreno">
-                    
                     <div class="mb-3">
                         <label for="kmRealizadosInput" class="form-label fw-bold">Kilómetros Realizados</label>
                         <input type="number" class="form-control" id="kmRealizadosInput" name="km_realizados" step="0.1" min="0" required>
