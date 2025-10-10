@@ -1,17 +1,581 @@
 <!doctype html>
-<html lang="es" data-bs-theme="dark">
+<html lang="es" data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Prueba Mínima</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% if title %}{{ title }} - {% endif %}SilvaTest</title>
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#4B5320" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+      :root {
+        --bs-body-bg: #F8F9FA;
+        --bs-body-color: #212529;
+        --bs-primary: #2E7D32;
+        --bs-secondary: #5D4037;
+        --bs-primary-text-emphasis: #2E7D32;
+        --bs-secondary-text-emphasis: #5D4037;
+        --bs-border-color: #dee2e6;
+        --bs-btn-color: #FFFFFF;
+        --bs-info-rgb: 13, 202, 240;
+      }
+      [data-bs-theme="dark"] {
+        --bs-body-bg: #1F1F1F;
+        --bs-body-color: #DADCE0;
+        --bs-primary: #8AB4F8;
+        --bs-secondary: #D7CCC8;
+        --bs-primary-text-emphasis: #8AB4F8;
+        --bs-secondary-text-emphasis: #E3E3E3;
+        --bs-border-color: #444746;
+        --bs-light-bg-subtle: #2A2A2E;
+        --bs-btn-color: #1F1F1F;
+      }
+      [data-bs-theme="light"] .card {
+        background-color: #FFFFFF !important;
+        border-color: #dee2e6;
+      }
+      [data-bs-theme="light"] .text-muted {
+        color: #6c757d !important;
+      }
+      .placeholder-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        text-align: center;
+      }
+      body {
+        font-family: 'Lato', sans-serif;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        padding-bottom: 120px;
+        position: relative;
+        background-color: var(--bs-body-bg);
+      }
+      .navbar {
+        background-color: var(--bs-light-bg-subtle, #FFFFFF) !important;
+        border-bottom: 1px solid var(--bs-border-color);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+      }
+      .navbar .navbar-brand { color: var(--bs-secondary-text-emphasis) !important; font-weight: 700; }
+      .card, .list-group-item, .alert {
+        background-color: var(--bs-light-bg-subtle, #FFFFFF) !important;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        color: var(--bs-body-color);
+      }
+      h1, h2, h3, h4, h5, h6 { color: var(--bs-secondary-text-emphasis); font-weight: 700; }
+      .footer-border {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 80px;
+        z-index: -1;
+        pointer-events: none;
+        color: var(--bs-border-color);
+      }
+      [data-bs-theme="light"] .nav-pills .nav-link.active,
+      [data-bs-theme="light"] .list-group-item.active {
+        background-color: var(--bs-primary);
+        color: black;
+      }
+      .breadcrumb {
+        background-color: var(--bs-light-bg-subtle, #e9ecef);
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+      }
+      .breadcrumb-item a {
+        text-decoration: none;
+        color: var(--bs-primary-text-emphasis);
+        font-weight: 600;
+      }
+      .breadcrumb-item a:hover {
+        text-decoration: underline;
+      }
+      .breadcrumb-item.active {
+        color: var(--bs-secondary-text-emphasis);
+        font-weight: 500;
+      }
+      .breadcrumb-item + .breadcrumb-item::before {
+        color: var(--bs-secondary-text-emphasis);
+      }
+      #iniciar-tour-cuenta {
+        animation: pulse-animation 2s infinite;
+        box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7);
+      }
+      @keyframes pulse-animation {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(var(--bs-info-rgb), 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--bs-info-rgb), 0); }
+      }
+      .focus-mode .navbar,
+      .focus-mode footer,
+      .focus-mode .footer-border {
+        display: none !important;
+      }
+      .focus-mode main.container {
+        padding-top: 0;
+        margin-top: 0;
+        max-width: 100%;
+      }
+      #exit-focus-btn {
+        position: fixed;
+        top: 15px;
+        right: 20px;
+        z-index: 1100;
+        display: none;
+      }
+      .focus-mode #exit-focus-btn {
+        display: block;
+      }
+      #pomodoro-timer {
+        display: none;
+        position: fixed;
+        top: 15px;
+        left: 20px;
+        z-index: 1100;
+        background-color: var(--bs-primary);
+        color: var(--bs-btn-color, #FFFFFF);
+        padding: 8px 18px;
+        border-radius: 50px;
+        font-size: 1.4rem;
+        font-weight: 700;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+      .focus-mode #pomodoro-timer {
+        display: block;
+      }
+      @media (max-width: 768px) {
+        .shepherd-element {
+          position: fixed !important;
+          bottom: 20px !important;
+          top: auto !important;
+          left: 5vw !important;
+          right: 5vw !important;
+          width: 90vw !important;
+          max-width: 90vw !important;
+          transform: none !important; 
+        }
+        .shepherd-arrow {
+          display: none !important;
+        }
+      }
+      #ios-install-prompt {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--bs-light-bg-subtle, #FFFFFF);
+        color: var(--bs-body-color);
+        border-top: 1px solid var(--bs-border-color);
+        z-index: 1000;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+        transform: translateY(100%);
+      }
+      #ios-install-prompt.show {
+        transform: translateY(0);
+      }
+      .btn-ia-pro {
+        background-color: var(--bs-primary);
+        color: var(--bs-btn-color, #FFFFFF) !important;
+        border-radius: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .btn-ia-pro:hover {
+        background-color: #2da16b;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+      }
+      .ia-pro-badge {
+        font-size: 0.6rem;
+        font-weight: 800;
+        margin-left: 0.25rem;
+        padding: 0.2em 0.5em;
+        background-color: var(--bs-warning) !important;
+        color: var(--bs-body-bg) !important;
+      }
+      [data-bs-theme="dark"] .source-item.list-group-item-action {
+        background-color: transparent;
+        color: var(--bs-body-color);
+      }
+
+      [data-bs-theme="dark"] .source-item.list-group-item-action:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+
+      [data-bs-theme="dark"] .source-item.list-group-item-action.active {
+        background-color: var(--bs-primary);
+        color: #1F1F1F;
+        border-color: var(--bs-primary);
+      }
+
+      [data-bs-theme="dark"] #user-input.form-control {
+        background-color: var(--bs-light-bg-subtle);
+        color: var(--bs-body-color);
+        border-color: var(--bs-border-color);
+      }
+    </style>
     {% block styles %}{% endblock %}
 </head>
-<body>
-    <main class="container mt-4">
+<body class="d-flex flex-column min-vh-100">
+
+    <div id="pomodoro-timer">20:00</div>
+    
+    <button id="exit-focus-btn" class="btn btn-light btn-lg" title="Salir del Modo Concentración">
+      <i class="bi bi-box-arrow-in-up-right"></i>
+      <span class="d-none d-sm-inline"> Salir del Modo Concentración</span>
+    </button>
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container-fluid">
+          <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="32" class="me-2">
+            SilvaTest
+          </a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link fw-bold" href="{{ url_for('main.home') }}">Inicio</a>
+                </li>
+                  {% if current_user.is_authenticated and current_user.es_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link fw-bold" href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
+                    </li>
+                  {% endif %}
+            </ul>
+            <ul class="navbar-nav ms-auto align-items-center">
+                {% if current_user.is_authenticated %}
+                  
+                  {% if not current_user.es_admin %}
+                  <li class="nav-item">
+                      <a href="#" id="iniciar-tour" class="btn btn-sm btn-outline-info me-2">
+                          <i class="bi bi-compass"></i> Visita Guiada
+                      </a>
+                  </li>
+                  {% endif %}
+
+                  <li class="nav-item">
+                      <a id="agente-ia-link" class="nav-link btn-ia-pro" href="{{ url_for('main.agente_ia_page') }}">
+                          <i class="bi bi-robot me-1"></i> Agente IA
+                          <span class="badge rounded-pill bg-warning text-dark ms-1 ia-pro-badge">PRO</span>
+                      </a>
+                  </li>
+                  <li class="nav-item"><a id="mi-cuenta-link" class="nav-link" href="{{ url_for('main.cuenta') }}"><i class="bi bi-person-circle"></i> Mi Cuenta</a></li>
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+                
+                {% else %}
+                  
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a></li>
+                  <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.registro') }}"><i class="bi bi-person-plus-fill"></i> Registro</a></li>
+                
+                {% endif %}
+                <li class="nav-item">
+                    <button id="focus-mode-btn" class="btn" title="Activar/Desactivar Modo Concentración">
+                        <i class="bi bi-aspect-ratio"></i>
+                    </button>
+                </li>
+                <li class="nav-item ms-2">
+                    <button id="theme-toggle" class="btn"><i id="theme-toggle-icon" class="bi"></i></button>
+                </li>
+            </ul>
+          </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4" data-aos="fade-up" data-aos-delay="100">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category != 'onboarding_trigger' %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="container mt-auto py-4">
+        <ul class="nav justify-content-center border-top pt-3 mb-3">
+            <li class="nav-item"><a href="{{ url_for('main.home') }}" class="nav-link px-2 text-body-secondary">Home</a></li>
+            <li class="nav-item"><a href="{{ url_for('main.terminos_condiciones') }}" class="nav-link px-2 text-body-secondary">Términos</a></li>
+            <li class="nav-item"><a href="{{ url_for('main.politica_privacidad') }}" class="nav-link px-2 text-body-secondary">Privacidad</a></li>
+        </ul>
+        <p class="text-center text-body-secondary">© 2025 SilvaTest</p>
+    </footer>
+
+
+    <div class="footer-border">
+        <svg width="100%" height="100%" viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M-5 65 C 40 20 80 90 150 70 C 220 50 280 95 320 45 C 330 20 350 25 360 50 C 370 75 390 90 440 70 C 490 50 530 85 590 65 C 650 45 690 90 760 70 C 830 50 870 95 940 75 C 970 65 990 90 1040 70 C 1050 65 1055 60 1060 62 C 1075 70 1090 50 1130 85 C 1190 65 1250 45 1290 90 1360 70 C 1410 55 1430 80 1445 65" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M-5 78 C 30 40 70 95 140 75 C 210 55 270 100 310 55 C 320 30 340 35 350 60 C 360 85 380 95 430 75 C 480 55 520 90 580 70 C 640 50 680 95 750 75 C 820 55 860 100 930 80 C 960 70 980 95 1030 75 C 1040 70 1045 65 1050 67 C 1065 75 1080 55 1120 90 C 1180 70 1240 50 1280 95 1350 75 C 1400 60 1420 85 1445 78" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+        </svg>
+    </div>
+    
+    <div class="modal fade" id="iaDisclaimerModal" tabindex="-1" aria-labelledby="iaDisclaimerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="iaDisclaimerModalLabel"><i class="bi bi-robot me-2"></i>Aviso sobre las Funciones de IA</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Estás a punto de usar una función impulsada por Inteligencia Artificial generativa.</p>
+                    <ul>
+                        <li><strong>Es una ayuda, no un sustituto:</strong> Las explicaciones y planes de estudio son una herramienta de apoyo y no reemplazan el temario oficial ni el criterio de un preparador.</li>
+                        <li><strong>Posibles imprecisiones:</strong> Aunque la IA es muy avanzada, puede cometer errores o generar información que no sea 100% precisa.</li>
+                        <li><strong>Tu responsabilidad:</strong> Como opositor, eres el responsable final de verificar y contrastar la información con las fuentes oficiales de tu convocatoria.</li>
+                    </ul>
+                    <p class="fw-bold">Al continuar, aceptas que comprendes y asumes estas condiciones.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="acceptIaDisclaimer">Acepto, continuar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ios-install-prompt" class="p-3 text-center">
+        <div class="d-flex justify-content-between align-items-center">
+            <p class="mb-0 me-3">¡Instala SilvaTest en tu pantalla de inicio para una mejor experiencia!</p>
+            <button id="close-ios-prompt" type="button" class="btn-close" aria-label="Cerrar"></button>
+        </div>
+        <small class="d-block mt-2">Toca el icono de Compartir <i class="bi bi-box-arrow-up"></i> y luego "Añadir a pantalla de inicio".</small>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    {% block scripts %}{% endblock %}
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ia-disclaimer.js') }}"></script>
+    
+    <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
+    
+    {% block scripts %}
+    <script>
+      (function() {
+        const htmlElement = document.documentElement;
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleIcon = document.getElementById('theme-toggle-icon');
+        function applyTheme(theme) {
+          htmlElement.setAttribute('data-bs-theme', theme);
+          if (theme === 'dark') {
+            themeToggleIcon.className = 'bi bi-sun-fill';
+          } else {
+            themeToggleIcon.className = 'bi bi-moon-fill';
+          }
+        }
+        themeToggleBtn.addEventListener('click', function() {
+          const currentTheme = htmlElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('theme', currentTheme);
+          applyTheme(currentTheme);
+        });
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register("{{ url_for('main.sw') }}")
+            .then(registration => console.log('Service Worker registrado con éxito:', registration))
+            .catch(error => console.log('Fallo en el registro del Service Worker:', error));
+        });
+      }
+    </script>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'onboarding_trigger' %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const tourUrl = "{{ url_for('main.cuenta', tour='true') }}";
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                            
+                            Swal.mixin({
+                                confirmButtonText: 'Siguiente &rarr;',
+                                progressSteps: ['1', '2', '3']
+                            }).queue([
+                                {
+                                    title: '¡Bienvenido a SilvaTest!',
+                                    text: 'Empieza eligiendo la convocatoria para la que te estás preparando.',
+                                    imageUrl: "{{ url_for('static', filename='logo.png') }}",
+                                    imageWidth: 150,
+                                    imageAlt: 'Logo de SilvaTest'
+                                },
+                                {
+                                    title: 'Guarda tus favoritas',
+                                    html: 'Durante los tests, usa el icono de la estrella ⭐ para marcar preguntas y repasarlas más tarde desde "Mi Cuenta".'
+                                },
+                                {
+                                    title: '¡Todo listo para empezar!',
+                                    html: 'Ya conoces lo básico. Puedes empezar a practicar o hacer un tour rápido por tu <b>Panel de Estudiante</b> para descubrir todas las herramientas.',
+                                    showCancelButton: true,
+                                    confirmButtonText: '<i class="bi bi-compass-fill"></i> Hacer un Tour Rápido',
+                                    cancelButtonText: 'Empezar a practicar',
+                                    reverseButtons: true
+                                }
+                            ]).then((result) => {
+                                fetch("{{ url_for('auth.marcar_tour_visto') }}", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfToken
+                                    }
+                                });
+                                if (result.value) {
+                                    window.location.href = tourUrl;
+                                }
+                            });
+                        });
+                    </script>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        (function() {
+            const focusBtn = document.getElementById('focus-mode-btn');
+            const exitFocusBtn = document.getElementById('exit-focus-btn');
+            const body = document.body;
+            const timerDisplay = document.getElementById('pomodoro-timer');
+            let pomodoroInterval;
+
+            function stopPomodoro() {
+                clearInterval(pomodoroInterval);
+                localStorage.removeItem('pomodoroEndTime');
+                if (timerDisplay) {
+                    timerDisplay.textContent = '20:00';
+                }
+            }
+            
+            function runPomodoroTick() {
+                clearInterval(pomodoroInterval);
+                pomodoroInterval = setInterval(() => {
+                    const endTime = localStorage.getItem('pomodoroEndTime');
+                    if (!endTime) {
+                        clearInterval(pomodoroInterval);
+                        return;
+                    }
+
+                    const remainingTime = parseInt(endTime) - Date.now();
+                    if (remainingTime < 0) {
+                        stopPomodoro();
+                        if (localStorage.getItem('focusMode') === 'true') {
+                            localStorage.setItem('focusMode', 'false');
+                            body.classList.remove('focus-mode');
+                            Swal.fire({
+                                title: '¡Tiempo finalizado!',
+                                text: 'Tu sesión de concentración de 20 minutos ha terminado. ¡Buen trabajo!',
+                                icon: 'success',
+                                confirmButtonText: 'Entendido'
+                            });
+                        }
+                        return;
+                    }
+
+                    const minutes = Math.floor((remainingTime / 1000) / 60);
+                    let seconds = Math.floor((remainingTime / 1000) % 60);
+                    seconds = seconds < 10 ? '0' + seconds : seconds;
+                    
+                    if (timerDisplay) {
+                        timerDisplay.textContent = `${minutes}:${seconds}`;
+                    }
+                }, 1000);
+            }
+
+            function startPomodoro() {
+                const endTime = Date.now() + 20 * 60 * 1000;
+                localStorage.setItem('pomodoroEndTime', endTime);
+                runPomodoroTick();
+            }
+            
+            if (focusBtn) {
+                focusBtn.addEventListener('click', function() {
+                    localStorage.setItem('focusMode', 'true');
+                    body.classList.add('focus-mode');
+                    startPomodoro();
+                });
+            }
+            if (exitFocusBtn) {
+                exitFocusBtn.addEventListener('click', function() {
+                    localStorage.setItem('focusMode', 'false');
+                    body.classList.remove('focus-mode');
+                    stopPomodoro();
+                });
+            }
+
+            if (localStorage.getItem('focusMode') === 'true') {
+                body.classList.add('focus-mode');
+            }
+
+            const endTime = localStorage.getItem('pomodoroEndTime');
+            if (endTime && Date.now() < parseInt(endTime)) {
+                runPomodoroTick();
+            } else {
+                stopPomodoro();
+            }
+        })();
+
+        (function() {
+            function isIOS() {
+                return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            }
+
+            function isInStandaloneMode() {
+                return ('standalone' in window.navigator) && (window.navigator.standalone);
+            }
+
+            if (isIOS() && !isInStandaloneMode() && localStorage.getItem('iosInstallPromptDismissed') !== 'true') {
+                
+                const promptElement = document.getElementById('ios-install-prompt');
+                const closeButton = document.getElementById('close-ios-prompt');
+
+                if (promptElement && closeButton) {
+                    setTimeout(function() {
+                        promptElement.classList.add('show');
+                    }, 5000);
+
+                    closeButton.addEventListener('click', function() {
+                        promptElement.classList.remove('show');
+                        localStorage.setItem('iosInstallPromptDismissed', 'true');
+                        setTimeout(() => { promptElement.style.display = 'none'; }, 300);
+                    });
+                }
+            }
+        })();
+    </script>
+    
+    {% endblock %}
 </body>
 </html>
