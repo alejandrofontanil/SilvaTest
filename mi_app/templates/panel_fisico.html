@@ -95,8 +95,8 @@
     
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent">
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Planificación Semanal</h4>
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h4 class="mb-2 mb-md-0">Planificación Semanal</h4>
                 <div>
                     <span class="badge text-bg-secondary me-2">KM Obj. Total: {{ '%.1f'|format(total_km_objetivo) }} km</span>
                     <span class="badge text-bg-primary">KM Realizados: {{ '%.1f'|format(total_km_realizados) }} km</span>
@@ -108,7 +108,12 @@
                 <table class="table align-middle mb-0 plan-table">
                     <thead class="text-uppercase small text-muted">
                         <tr>
-                            <th>Semana</th> <th>Día 1</th> <th>Día 2</th> <th>Carga Obj.</th> <th>Ritmo Obj.</th> <th class="text-center">Acciones</th>
+                            <th>Semana</th>
+                            <th>Día 1</th>
+                            <th>Día 2</th>
+                            <th>Carga Obj.</th>
+                            <th>Ritmo Obj.</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -309,3 +314,4 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endblock %}
+
