@@ -21,32 +21,19 @@
         --bs-body-color: #212529;
         --bs-primary: #2E7D32;
         --bs-secondary: #5D4037;
-        /* ... (el resto de tu CSS) ... */
+        /* ... tu CSS ... */
       }
-      /* ... (el resto de tu CSS) ... */
+      body {
+        font-family: 'Lato', sans-serif;
+      }
+      /* ... tu CSS ... */
     </style>
     {% block styles %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
 
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container-fluid">
-          <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="32" class="me-2">
-            SilvaTest
-          </a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-center">
-                {% if current_user.is_authenticated %}
-                  
-                  {% endif %}
-            </ul>
-          </div>
-        </div>
-    </nav>
+        </nav>
     
     <main class="container mt-4" data-aos="fade-up" data-aos-delay="100">
         {% block content %}{% endblock %}
@@ -62,7 +49,7 @@
     <script>AOS.init({ duration: 600, once: true, offset: 50, });</script>
     
     {% block scripts %}
-        {% endblock %}
+    {% endblock %}
 
 </body>
 </html>
