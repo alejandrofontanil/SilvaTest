@@ -37,6 +37,7 @@ class Usuario(db.Model, UserMixin):
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     plan_fisico_actual_id = db.Column(db.Integer, db.ForeignKey('plan_fisico.id'), nullable=True)
+    fecha_inicio_plan = db.Column(db.Date, nullable=True) # <-- MEJORA AÑADIDA
     plan_fisico_actual = db.relationship('PlanFisico', foreign_keys=[plan_fisico_actual_id])
     registros_entrenamiento = db.relationship('RegistroEntrenamiento', backref='usuario', lazy='dynamic', cascade="all, delete-orphan")
     
@@ -114,6 +115,7 @@ class Tema(db.Model):
     bloque_id = db.Column(db.Integer, db.ForeignKey('bloque.id'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
     es_simulacro = db.Column(db.Boolean, default=False, nullable=False)
+    tiempo_limite_minutos = db.Column(db.Integer, nullable=True) # <-- CAMPO AÑADIDO PARA SOLUCIONAR EL ERROR
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
     preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True)
@@ -154,19 +156,16 @@ class RespuestaUsuario(db.Model):
     pregunta = db.relationship('Pregunta')
     respuesta_seleccionada = db.relationship('Respuesta')
 
-# --- MODELO CORREGIDO ---
 class Nota(db.Model):
     __tablename__ = 'nota'
-    id = db.Column(db.Integer, primary_key=True) # <-- CLAVE PRIMARIA AÑADIDA
+    id = db.Column(db.Integer, primary_key=True)
     contenido = db.Column(db.Text, nullable=False)
     fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=True)
-    # Relaciones
     usuario = db.relationship('Usuario', backref=db.backref('notas', cascade="all, delete-orphan"))
     tema = db.relationship('Tema', backref=db.backref('notas', cascade="all, delete-orphan"))
 
-# --- MODELOS PARA PREPARACIÓN FÍSICA ---
 class PlanFisico(db.Model):
     __tablename__ = 'plan_fisico'
     id = db.Column(db.Integer, primary_key=True)
@@ -198,13 +197,10 @@ class RegistroEntrenamiento(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     semana_id = db.Column(db.Integer, db.ForeignKey('semana_plan.id'), nullable=False)
     fecha = db.Column(db.Date, nullable=False, default=date.today)
-    dia_entreno = db.Column(db.Integer, nullable=False) # 1 para Día 1, 2 para Día 2
+    dia_entreno = db.Column(db.Integer, nullable=False)
     km_realizados = db.Column(db.Float)
     sensacion_usuario = db.Column(db.String(200), nullable=True)
     notas_usuario = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f'<Registro del Usuario {self.usuario_id} para la Semana {self.semana_id}>'
-
-
-# --- FIN DE LOS MODELOS ---
