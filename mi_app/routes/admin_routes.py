@@ -447,47 +447,60 @@ def subir_sheets():
             headers = [h.strip().lower() for h in list_of_lists[0]]
             data_rows = list_of_lists[1:]
 
-            # --- LÓGICA DE IMPORTACIÓN AÑADIDA AQUÍ ---
+            # --- LÓGICA DE IMPORTACIÓN AÑADIDA Y CORREGIDA AQUÍ ---
             preguntas_creadas = 0
             
-            # Buscamos el ID del tema o bloque, asumiendo una columna 'tema_id' o similar
-            # ESTA ES UNA IMPLEMENTACIÓN BÁSICA Y REQUIERE QUE LAS COLUMNAS SEAN EXACTAS
+            # Mapeo de cabeceras de la hoja de cálculo a variables para evitar errores
+            ENUNCIADO_COL = 'enunciado'
+            RETRO_COL = 'retroalimentacion'
+            RESPUESTA_CORRECTA_COL = 'respuesta_correcta_multipl' # La que indicaste
+            TEMA_ID_COL = 'tema_id' # La que indicaste
+
             for row in data_rows:
-                # Nos aseguramos de que haya suficientes datos en la fila
+                # Nos aseguramos de que haya suficientes datos en la fila y que no esté vacía
                 if len(row) < len(headers) or not any(row): 
                     continue
 
                 row_dict = dict(zip(headers, row))
                 
-                # Buscamos el tema por nombre
-                tema_nombre = row_dict.get('tema_nombre')
-                if not tema_nombre or not row_dict.get('enunciado'): 
-                    continue 
-                
-                tema = Tema.query.filter_by(nombre=tema_nombre).first()
-                
-                if not tema:
-                    # En lugar de hacer 'flash' que es lento en un bucle, lo imprimimos
-                    print(f"DEBUG: Tema '{tema_nombre}' no encontrado. Saltando fila.")
+                # 1. Validación de la existencia del Tema (CRÍTICO)
+                tema_id_str = row_dict.get(TEMA_ID_COL)
+                if not tema_id_str or not row_dict.get(ENUNCIADO_COL): 
+                    # Salta si falta el tema ID o el enunciado
                     continue
                 
-                # Creamos la nueva pregunta
+                try:
+                    tema_id = int(tema_id_str)
+                    tema = Tema.query.get(tema_id)
+                except ValueError:
+                    print(f"DEBUG: tema_id '{tema_id_str}' no es un número válido. Saltando fila.")
+                    continue
+                
+                if not tema:
+                    print(f"DEBUG: Tema con ID '{tema_id_str}' no encontrado. Saltando fila.")
+                    continue
+                
+                # 2. Creación de la Pregunta
                 nueva_pregunta = Pregunta(
-                    texto=row_dict['enunciado'], 
+                    texto=row_dict[ENUNCIADO_COL], 
                     tema_id=tema.id,
-                    retroalimentacion=row_dict.get('retroalimentacion', '')
+                    retroalimentacion=row_dict.get(RETRO_COL, ''),
+                    tipo_pregunta=row_dict.get('tipo_pregunta', 'opcion_multiple')
                 )
                 db.session.add(nueva_pregunta)
-                db.session.flush() # Obtiene el ID de la nueva_pregunta
+                db.session.flush() # Necesario para obtener el ID de la pregunta
 
-                # Asumimos que las respuestas son Opción A, Opción B, etc.
-                for i, opcion_letra in enumerate(['opción a', 'opción b', 'opción c', 'opción d']):
-                    opcion_texto = row_dict.get(opcion_letra)
+                # 3. Creación de las Respuestas
+                respuestas_validas = 0
+                resp_correcta_letra = row_dict.get(RESPUESTA_CORRECTA_COL, '').lower()
+
+                for i, opcion_col in enumerate(['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d']):
+                    opcion_texto = row_dict.get(opcion_col)
                     
                     if opcion_texto:
-                        # La columna debe ser 'respuesta_correcta' o la que uses para indicar la letra correcta
-                        respuesta_correcta_str = row_dict.get('respuesta_correcta', '').lower()
-                        es_correcta = (opcion_letra.replace('opción ', '') == respuesta_correcta_str)
+                        # Comparamos si la respuesta_correcta_multipl (ej: 'a') coincide con la opción actual
+                        letra_actual = chr(ord('a') + i)
+                        es_correcta = (letra_actual == resp_correcta_letra)
                         
                         respuesta = Respuesta(
                             texto=opcion_texto, 
@@ -495,9 +508,16 @@ def subir_sheets():
                             pregunta=nueva_pregunta
                         )
                         db.session.add(respuesta)
+                        respuestas_validas += 1
                 
-                preguntas_creadas += 1
-
+                if respuestas_validas > 0:
+                    preguntas_creadas += 1
+                else:
+                    # Si no hay respuestas, eliminamos la pregunta para no dejar datos huérfanos
+                    db.session.delete(nueva_pregunta)
+                    db.session.flush() # Elimina la pregunta antes del commit
+                    print(f"DEBUG: Pregunta creada pero sin respuestas. Eliminada.")
+                    
             # --- FIN LÓGICA DE IMPORTACIÓN ---
             
             db.session.commit()
@@ -592,7 +612,6 @@ def exportar_preguntas():
     """
     try:
         # 1. Consulta optimizada para obtener toda la información necesaria de una vez
-        # --- CORRECCIÓN: Añadir .join(Tema) explícito para que el ORDER BY funcione correctamente ---
         preguntas = Pregunta.query.join(Tema).options(
             selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
             selectinload(Pregunta.respuestas)
