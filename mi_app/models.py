@@ -117,8 +117,16 @@ class Tema(db.Model):
     es_simulacro = db.Column(db.Boolean, default=False, nullable=False)
     tiempo_limite_minutos = db.Column(db.Integer, nullable=True) # <-- CAMPO AÑADIDO PARA SOLUCIONAR EL ERROR
     subtemas = db.relationship('Tema', backref=db.backref('parent', remote_side=[id]), cascade="all, delete-orphan", order_by='Tema.posicion')
-    preguntas = db.relationship('Pregunta', backref='tema', lazy=True, cascade="all, delete-orphan", order_by='Pregunta.posicion')
+    
+    # CAMBIO: Usamos lazy='dynamic' para que el conteo sea eficiente.
+    preguntas = db.relationship('Pregunta', backref='tema', lazy='dynamic', cascade="all, delete-orphan", order_by='Pregunta.posicion')
     resultados = db.relationship('ResultadoTest', backref='tema', lazy=True)
+
+    @property
+    def conteo_preguntas(self):
+        """Calcula el número de preguntas asociadas a este tema."""
+        # Ahora usamos .count() de la consulta dynamic
+        return self.preguntas.count() 
 
 class Pregunta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
