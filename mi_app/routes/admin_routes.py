@@ -135,7 +135,6 @@ def editar_convocatoria(convocatoria_id):
 def eliminar_convocatoria(convocatoria_id):
     convocatoria = Convocatoria.query.get_or_404(convocatoria_id)
     try:
-        # Lógica de borrado en cascada manual simplificada
         db.session.delete(convocatoria)
         db.session.commit()
         flash('La convocatoria y todo su contenido han sido eliminados.', 'success')
@@ -215,7 +214,6 @@ def crear_tema():
     form.parent.query = Tema.query.order_by(Tema.posicion)
     if form.validate_on_submit():
         max_pos = db.session.query(db.func.max(Tema.posicion)).filter_by(bloque_id=form.bloque.data.id).scalar() or -1
-        # Se asegura que solo se pasan argumentos válidos al constructor de Tema
         nuevo_tema = Tema(
             nombre=form.nombre.data, 
             parent=form.parent.data, 
@@ -224,11 +222,8 @@ def crear_tema():
             tiempo_limite_minutos=form.tiempo_limite_minutos.data, 
             posicion=max_pos + 1
         )
-        
-        # Asignar pdf_url si existe en el Form y en el Modelo
         if hasattr(form, 'pdf_url') and hasattr(nuevo_tema, 'pdf_url'):
              nuevo_tema.pdf_url = form.pdf_url.data
-
         db.session.add(nuevo_tema)
         db.session.commit()
         flash('¡El tema ha sido creado con éxito!', 'success')
@@ -290,15 +285,12 @@ def editar_tema(tema_id):
         
         if hasattr(form, 'pdf_url') and hasattr(tema_a_editar, 'pdf_url'):
             tema_a_editar.pdf_url = form.pdf_url.data
-
         db.session.commit()
         flash('¡Tema actualizado con éxito!', 'success')
         return redirect(url_for('admin.admin_temas'))
-
     if request.method == 'GET':
         if hasattr(form, 'pdf_url') and hasattr(tema_a_editar, 'pdf_url'):
             form.pdf_url.data = tema_a_editar.pdf_url
-
     return render_template('editar_tema.html', title="Editar Tema", form=form, tema=tema_a_editar)
     
 @admin_bp.route('/tema/<int:tema_id>/gestionar', methods=['GET', 'POST'])
@@ -307,27 +299,21 @@ def editar_tema(tema_id):
 def gestionar_tema(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     form = UploadContextoForm()
-
     if form.validate_on_submit():
         archivo = form.documento.data
-        
         try:
             upload_result = cloudinary.uploader.upload(
                 archivo,
                 resource_type="raw",
                 folder=f"contextos/{tema.id}"
             )
-            
             secure_url = upload_result.get('secure_url')
             tema.ruta_documento_contexto = secure_url
             db.session.commit()
             flash('¡Documento de contexto subido a Cloudinary con éxito!', 'success')
-
         except Exception as e:
             flash(f'Error al subir el archivo a Cloudinary: {e}', 'danger')
-
         return redirect(url_for('admin.gestionar_tema', tema_id=tema.id))
-
     return render_template('admin/gestionar_tema.html', title=f"Gestionar {tema.nombre}", tema=tema, form=form)
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar-contexto', methods=['POST'])
@@ -337,8 +323,6 @@ def eliminar_contexto_tema(tema_id):
     tema = Tema.query.get_or_404(tema_id)
     if tema.ruta_documento_contexto:
         try:
-            # Aquí iría la lógica para borrar el archivo de Cloudinary si fuera necesario
-            # Por ahora, solo limpiamos la referencia en la base de datos
             tema.ruta_documento_contexto = None
             db.session.commit()
             flash('El documento de contexto ha sido desvinculado con éxito.', 'success')
@@ -347,7 +331,6 @@ def eliminar_contexto_tema(tema_id):
             flash(f'Error al desvincular el archivo: {e}', 'danger')
     else:
         flash('Este tema no tenía ningún documento de contexto para eliminar.', 'warning')
-    
     return redirect(url_for('admin.gestionar_tema', tema_id=tema.id))
 
 @admin_bp.route('/tema/<int:tema_id>/eliminar', methods=['POST'])
@@ -355,7 +338,6 @@ def eliminar_contexto_tema(tema_id):
 def eliminar_tema(tema_id):
     tema_a_eliminar = Tema.query.get_or_404(tema_id)
     try:
-        # Aquí también iría la lógica para borrar el archivo de Cloudinary si quisiéramos
         db.session.delete(tema_a_eliminar)
         db.session.commit()
         flash('El tema y todo su contenido han sido eliminados con éxito.', 'success')
@@ -424,12 +406,16 @@ def eliminar_nota(nota_id):
     flash('La nota ha sido eliminada.', 'success')
     return redirect(url_for('admin.detalle_tema', tema_id=nota.tema_id))
 
+# ==============================================================================
+# ====================== FUNCIÓN SUBIR_SHEETS CORREGIDA ========================
+# ==============================================================================
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
     form = GoogleSheetImportForm()
     if form.validate_on_submit():
         try:
+            # --- Autenticación con Google ---
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
             creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
             if not creds_json_str:
@@ -440,31 +426,44 @@ def subir_sheets():
             creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
             client = gspread.authorize(creds)
             
+            # --- Lectura de la Hoja de Cálculo ---
             sheet_url = form.sheet_url.data
             spreadsheet = client.open_by_url(sheet_url)
             sheet = spreadsheet.get_worksheet(0)
             list_of_lists = sheet.get_all_values()
             headers = [h.strip().lower() for h in list_of_lists[0]]
             data_rows = list_of_lists[1:]
-
-            # --- LÓGICA DE IMPORTACIÓN AÑADIDA Y CORREGIDA AQUÍ ---
-            preguntas_creadas = 0
             
-            # Mapeo de cabeceras de la hoja de cálculo
-            TEMA_ID_COL = 'tema_id' 
+            # Mapeo de cabeceras
+            TEMA_ID_COL = 'tema_id'
             ENUNCIADO_COL = 'enunciado'
             RETRO_COL = 'retroalimentacion'
-            # Corregido de 'respuesta_correcta_multipl' a 'respuesta_correcta_multiple'
-            RESPUESTA_CORRECTA_COL = 'respuesta_correcta_multiple' 
+            RESPUESTA_CORRECTA_COL = 'respuesta_correcta_multiple'
 
+            # --- PASO 1: Recolectar todos los tema_id del sheet ---
+            temas_a_modificar = set()
             for row in data_rows:
-                # Nos aseguramos de que haya suficientes datos en la fila y que no esté vacía
+                row_dict = dict(zip(headers, row))
+                tema_id_str = row_dict.get(TEMA_ID_COL)
+                if tema_id_str and tema_id_str.isdigit():
+                    temas_a_modificar.add(int(tema_id_str))
+            
+            # --- PASO 2: Eliminar TODAS las preguntas existentes para esos temas ---
+            if temas_a_modificar:
+                print(f"DEBUG: Se eliminarán las preguntas de los temas: {list(temas_a_modificar)}")
+                Pregunta.query.filter(Pregunta.tema_id.in_(temas_a_modificar)).delete(synchronize_session=False)
+                # Damos una instrucción flush para asegurar que el borrado se propaga
+                # antes de empezar a añadir las nuevas preguntas.
+                db.session.flush()
+
+            # --- PASO 3: Añadir las nuevas preguntas del sheet ---
+            preguntas_creadas = 0
+            for row in data_rows:
                 if len(row) < len(headers) or not any(row): 
                     continue
-
+                
                 row_dict = dict(zip(headers, row))
                 
-                # 1. Validación de la existencia del Tema (CRÍTICO)
                 tema_id_str = row_dict.get(TEMA_ID_COL)
                 if not tema_id_str or not row_dict.get(ENUNCIADO_COL): 
                     continue 
@@ -473,14 +472,13 @@ def subir_sheets():
                     tema_id = int(tema_id_str)
                     tema = Tema.query.get(tema_id)
                 except ValueError:
-                    print(f"DEBUG: tema_id '{tema_id_str}' no es un número válido. Saltando fila.")
+                    print(f"DEBUG: tema_id '{tema_id_str}' no es un número. Saltando fila.")
                     continue
                 
                 if not tema:
-                    print(f"DEBUG: Tema con ID '{tema_id_str}' no encontrado. Saltando fila.")
+                    print(f"DEBUG: Tema con ID '{tema_id}' no encontrado. Saltando fila.")
                     continue
                 
-                # 2. Creación de la Pregunta
                 nueva_pregunta = Pregunta(
                     texto=row_dict[ENUNCIADO_COL], 
                     tema_id=tema.id,
@@ -488,20 +486,14 @@ def subir_sheets():
                     tipo_pregunta=row_dict.get('tipo_pregunta', 'opcion_multiple')
                 )
                 db.session.add(nueva_pregunta)
-                db.session.flush() # Obtiene el ID de la nueva_pregunta
+                db.session.flush() 
 
-                # 3. Creación de las Respuestas
+                resp_correcta_letra = row_dict.get(RESPUESTA_CORRECTA_COL, '').strip().lower()
                 respuestas_validas = 0
-                
-                # La columna 'respuesta_correcta_multiple' debe contener 'a', 'b', 'c', o 'd'
-                resp_correcta_letra = row_dict.get(RESPUESTA_CORRECTA_COL, '').lower()
 
-                # Iteramos sobre las columnas de respuesta
                 for i, opcion_col in enumerate(['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d']):
                     opcion_texto = row_dict.get(opcion_col)
-                    
                     if opcion_texto:
-                        # Comparamos la letra actual ('a', 'b', 'c', 'd') con la letra de respuesta correcta
                         letra_actual = chr(ord('a') + i)
                         es_correcta = (letra_actual == resp_correcta_letra)
                         
@@ -516,15 +508,14 @@ def subir_sheets():
                 if respuestas_validas > 0:
                     preguntas_creadas += 1
                 else:
-                    # Si no hay respuestas, eliminamos la pregunta para no dejar datos huérfanos
-                    db.session.delete(nueva_pregunta)
-                    db.session.flush() # Elimina la pregunta antes del commit
-                    print(f"DEBUG: Pregunta creada pero sin respuestas. Eliminada.")
-                    
-            # --- FIN LÓGICA DE IMPORTACIÓN ---
-            
+                    # Esto es un seguro por si una pregunta se añade sin respuestas
+                    db.session.rollback() # Revierte la adición de la pregunta huérfana
+                    print(f"DEBUG: Pregunta sin respuestas válidas para el enunciado: '{nueva_pregunta.texto}'. Se revierte y salta.")
+                    continue # Salta a la siguiente fila del sheet
+
+            # --- PASO 4: Confirmar la transacción ---
             db.session.commit()
-            flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas. Se crearon {preguntas_creadas} preguntas.', 'success')
+            flash(f'¡Sincronización completada! Se reemplazaron las preguntas para {len(temas_a_modificar)} temas. Total de preguntas nuevas: {preguntas_creadas}.', 'success')
 
         except Exception as e:
             db.session.rollback()
@@ -534,7 +525,6 @@ def subir_sheets():
         return redirect(url_for('admin.admin_dashboard'))
 
     return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
-
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
@@ -552,7 +542,6 @@ def eliminar_preguntas_masivo():
         db.session.rollback()
         flash(f"Ocurrió un error inesperado durante el borrado: {e}", 'danger')
     return redirect(request.referrer or url_for('admin.admin_dashboard'))
-
 
 @admin_bp.route('/super-admin-temporal-2025')
 @login_required
@@ -573,7 +562,6 @@ def hacerme_admin_temporalmente():
 @admin_required
 def eliminar_usuario(usuario_id):
     usuario_a_eliminar = Usuario.query.get_or_404(usuario_id)
-
     if usuario_a_eliminar.es_admin:
         flash('No se pueden eliminar cuentas de administrador.', 'danger')
         return redirect(url_for('admin.admin_usuarios'))
@@ -581,7 +569,6 @@ def eliminar_usuario(usuario_id):
     if usuario_a_eliminar.nombre == 'Invitado':
         flash('La cuenta de invitado no puede ser eliminada.', 'warning')
         return redirect(url_for('admin.admin_usuarios'))
-
     try:
         db.session.delete(usuario_a_eliminar)
         db.session.commit()
@@ -589,7 +576,6 @@ def eliminar_usuario(usuario_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Ocurrió un error al eliminar al usuario: {e}', 'danger')
-
     return redirect(url_for('admin.admin_usuarios'))
 
 @admin_bp.route('/usuario/<int:usuario_id>/toggle-ia', methods=['POST'])
@@ -599,7 +585,6 @@ def toggle_acceso_ia(usuario_id):
     if usuario.es_admin:
         flash('No se puede modificar el acceso a la IA para un administrador.', 'warning')
         return redirect(url_for('admin.admin_usuarios'))
-
     usuario.tiene_acceso_ia = not usuario.tiene_acceso_ia
     db.session.commit()
     
@@ -614,23 +599,17 @@ def exportar_preguntas():
     Exporta todas las preguntas y respuestas a un archivo Excel con la jerarquía completa.
     """
     try:
-        # 1. Consulta optimizada para obtener toda la información necesaria de una vez
         preguntas = Pregunta.query.join(Tema).options(
             selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
             selectinload(Pregunta.respuestas)
         ).order_by(Tema.id, Pregunta.id).all()
 
-        # 2. Preparar los datos para el Excel
         data_para_excel = []
         for p in preguntas:
-            # Construir la jerarquía
             tema_actual = p.tema
             bloque = tema_actual.bloque
             convocatoria = bloque.convocatoria if bloque else None
-            
-            # Determinar si es un subtema y quién es su padre
             tema_padre_nombre = tema_actual.parent.nombre if tema_actual.parent else ''
-
             fila = {
                 'ID Pregunta': p.id,
                 'Enunciado': p.texto,
@@ -639,52 +618,39 @@ def exportar_preguntas():
                 'Tema Padre': tema_padre_nombre,
                 'Tema/Subtema': tema_actual.nombre,
                 'Tema ID': tema_actual.id,
-                'Opción A': '',
-                'Opción B': '',
-                'Opción C': '',
-                'Opción D': '',
+                'Opción A': '', 'Opción B': '', 'Opción C': '', 'Opción D': '',
                 'Respuesta Correcta': '',
                 'Retroalimentación': p.retroalimentacion or ''
             }
-            
             opciones = ['Opción A', 'Opción B', 'Opción C', 'Opción D']
-            # Aseguramos un orden consistente en las respuestas
             respuestas_ordenadas = sorted(p.respuestas, key=lambda r: r.id)
             for i, r in enumerate(respuestas_ordenadas):
                 if i < len(opciones):
                     fila[opciones[i]] = r.texto
                     if r.es_correcta:
-                        # Asigna la letra A, B, C, o D
                         fila['Respuesta Correcta'] = chr(65 + i)
-            
             data_para_excel.append(fila)
 
         if not data_para_excel:
             flash("No hay preguntas para exportar.", "warning")
             return redirect(url_for('admin.admin_temas'))
 
-        # 3. Crear el archivo Excel en memoria
         df = pd.DataFrame(data_para_excel)
         output = io.BytesIO()
         writer = pd.ExcelWriter(output, engine='openpyxl')
         df.to_excel(writer, index=False, sheet_name='Preguntas')
         
-        # Ajustar el ancho de las columnas para que sea más legible
         worksheet = writer.sheets['Preguntas']
         for column_cells in worksheet.columns:
             length = max(len(str(cell.value)) for cell in column_cells)
             worksheet.column_dimensions[column_cells[0].column_letter].width = length + 2
-
         writer.close()
         output.seek(0)
-
-        # 4. Devolver el archivo para su descarga
         return Response(
             output,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": "attachment;filename=export_preguntas_silvatest.xlsx"}
         )
-
     except Exception as e:
         print(f"Error al generar el archivo Excel: {e}")
         traceback.print_exc()
