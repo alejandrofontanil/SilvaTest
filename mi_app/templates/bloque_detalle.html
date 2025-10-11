@@ -2,7 +2,7 @@
 
 {% macro render_tema_publico(tema) %}
     <a href="{{ url_for('main.hacer_test', tema_id=tema.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center 
-        {% if tema.subtemas %} disabled bg-light text-muted{% endif %}">
+        {% if tema.subtemas.all() %} disabled bg-light text-muted{% endif %}">
         <div>
             {% if tema.parent_id %}
                 <span class="ps-4">- {{ tema.nombre }}</span>
@@ -10,15 +10,18 @@
                 <span class="fw-bold">{{ tema.nombre }}</span>
             {% endif %}
         </div>
-        {% if not tema.subtemas %}
-            <span class="badge bg-primary rounded-pill">{{ tema.total_preguntas }} preguntas</span>
+        
+        <!-- CORRECCIÓN: Usar la propiedad correcta 'conteo_preguntas' -->
+        {% if not tema.subtemas.all() %}
+            <span class="badge bg-primary rounded-pill">{{ tema.conteo_preguntas }} preguntas</span>
         {% else %}
-             <span class="badge bg-secondary rounded-pill">{{ tema.total_preguntas }} preguntas en total</span>
+             <span class="badge bg-secondary rounded-pill">{{ tema.conteo_preguntas }} preguntas en total</span>
         {% endif %}
     </a>
-    {% if tema.subtemas %}
+    
+    {% if tema.subtemas.all() %}
         <div class="list-group" style="margin-left: 20px;">
-            {% for subtema in tema.subtemas %}
+            {% for subtema in tema.subtemas.all() %}
                 {{ render_tema_publico(subtema) }}
             {% endfor %}
         </div>
@@ -30,15 +33,15 @@
 
 {% if breadcrumbs %}
 <nav aria-label="breadcrumb" class="mb-4">
-  <ol class="breadcrumb">
-    {% for text, url in breadcrumbs %}
-      {% if loop.last %}
-        <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
-      {% else %}
-        <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
-      {% endif %}
-    {% endfor %}
-  </ol>
+    <ol class="breadcrumb">
+        {% for text, url in breadcrumbs %}
+            {% if loop.last %}
+                <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
+            {% else %}
+                <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
+            {% endif %}
+        {% endfor %}
+    </ol>
 </nav>
 {% endif %}
 <div class="card shadow-sm">
