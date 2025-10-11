@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 
 {% macro render_tema_publico(tema) %}
+    <!-- La corrección principal está aquí: Cambiar .subtemas.all() por solo .subtemas -->
     <a href="{{ url_for('main.hacer_test', tema_id=tema.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center 
-        {% if tema.subtemas.all() %} disabled bg-light text-muted{% endif %}">
+        {% if tema.subtemas %} disabled bg-light text-muted{% endif %}">
         <div>
             {% if tema.parent_id %}
                 <span class="ps-4">- {{ tema.nombre }}</span>
@@ -11,17 +12,18 @@
             {% endif %}
         </div>
         
-        <!-- CORRECCIÓN: Usar la propiedad correcta 'conteo_preguntas' -->
-        {% if not tema.subtemas.all() %}
-            <span class="badge bg-primary rounded-pill">{{ tema.conteo_preguntas }} preguntas</span>
-        {% else %}
+        <!-- Aquí usamos la propiedad 'conteo_preguntas' que añadimos al modelo -->
+        {% if tema.subtemas is not none and tema.subtemas|length > 0 %}
              <span class="badge bg-secondary rounded-pill">{{ tema.conteo_preguntas }} preguntas en total</span>
+        {% else %}
+            <span class="badge bg-primary rounded-pill">{{ tema.conteo_preguntas }} preguntas</span>
         {% endif %}
     </a>
     
-    {% if tema.subtemas.all() %}
+    <!-- Aquí también eliminamos .all() -->
+    {% if tema.subtemas %}
         <div class="list-group" style="margin-left: 20px;">
-            {% for subtema in tema.subtemas.all() %}
+            {% for subtema in tema.subtemas %}
                 {{ render_tema_publico(subtema) }}
             {% endfor %}
         </div>
@@ -60,3 +62,24 @@
     </div>
 </div>
 {% endblock %}
+```
+---
+
+## ⭐️ Problema Pendiente: El Botón de Favorito
+
+Ahora volvamos al problema del botón **Favorito** (la razón por la que te salió el último log):
+
+Si el botón no marca la pregunta, lo más probable es que **el `db.session.commit()` se está ejecutando, pero la página no se está recargando o la lógica del botón en el HTML (el `{% if current_user.es_favorita(pregunta) %}`) está viendo el estado anterior**.
+
+Debes asegurarte de que tu ruta de *toggle* de favoritos (que se supone está en `main_routes.py`):
+
+1.  **Termine con `db.session.commit()`:** (Ya lo revisamos, debe estar).
+2.  **Redirija correctamente:** Debería redirigir a la misma página donde se encuentra el usuario, o a una página principal. Si el `commit` ocurre, la página recargada reflejará el cambio.
+
+**Acción Recomendada:** Asegúrate de que tu `main_routes.py` tiene la función `toggle_favorito` y que termina con un `redirect` forzado:
+
+```python
+# Ejemplo de toggle_favorito en main_routes.py
+# ...
+    db.session.commit()
+    return redirect(request.referrer) # Esto fuerza la recarga de la página anterior
