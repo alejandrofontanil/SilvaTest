@@ -450,11 +450,12 @@ def subir_sheets():
             # --- LÓGICA DE IMPORTACIÓN AÑADIDA Y CORREGIDA AQUÍ ---
             preguntas_creadas = 0
             
-            # Mapeo de cabeceras de la hoja de cálculo a variables para evitar errores
+            # Mapeo de cabeceras de la hoja de cálculo
+            TEMA_ID_COL = 'tema_id' 
             ENUNCIADO_COL = 'enunciado'
             RETRO_COL = 'retroalimentacion'
-            RESPUESTA_CORRECTA_COL = 'respuesta_correcta_multipl' # La que indicaste
-            TEMA_ID_COL = 'tema_id' # La que indicaste
+            # Corregido de 'respuesta_correcta_multipl' a 'respuesta_correcta_multiple'
+            RESPUESTA_CORRECTA_COL = 'respuesta_correcta_multiple' 
 
             for row in data_rows:
                 # Nos aseguramos de que haya suficientes datos en la fila y que no esté vacía
@@ -466,8 +467,7 @@ def subir_sheets():
                 # 1. Validación de la existencia del Tema (CRÍTICO)
                 tema_id_str = row_dict.get(TEMA_ID_COL)
                 if not tema_id_str or not row_dict.get(ENUNCIADO_COL): 
-                    # Salta si falta el tema ID o el enunciado
-                    continue
+                    continue 
                 
                 try:
                     tema_id = int(tema_id_str)
@@ -488,17 +488,20 @@ def subir_sheets():
                     tipo_pregunta=row_dict.get('tipo_pregunta', 'opcion_multiple')
                 )
                 db.session.add(nueva_pregunta)
-                db.session.flush() # Necesario para obtener el ID de la pregunta
+                db.session.flush() # Obtiene el ID de la nueva_pregunta
 
                 # 3. Creación de las Respuestas
                 respuestas_validas = 0
+                
+                # La columna 'respuesta_correcta_multiple' debe contener 'a', 'b', 'c', o 'd'
                 resp_correcta_letra = row_dict.get(RESPUESTA_CORRECTA_COL, '').lower()
 
+                # Iteramos sobre las columnas de respuesta
                 for i, opcion_col in enumerate(['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d']):
                     opcion_texto = row_dict.get(opcion_col)
                     
                     if opcion_texto:
-                        # Comparamos si la respuesta_correcta_multipl (ej: 'a') coincide con la opción actual
+                        # Comparamos la letra actual ('a', 'b', 'c', 'd') con la letra de respuesta correcta
                         letra_actual = chr(ord('a') + i)
                         es_correcta = (letra_actual == resp_correcta_letra)
                         
