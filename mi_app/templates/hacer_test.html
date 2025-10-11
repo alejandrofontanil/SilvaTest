@@ -276,8 +276,8 @@
                 const preguntaId = this.dataset.preguntaId;
                 const icono = this.querySelector('i');
                 
-                const url_plantilla = "{{ url_for('main.toggle_favorito', pregunta_id='ID_PLACEHOLDER') }}";
-                const url_final = url_plantilla.replace('ID_PLACEHOLDER', preguntaId);
+                const url_plantilla = "{{ url_for('main.toggle_favorito', pregunta_id=999999) }}";
+                const url_final = url_plantilla.replace('999999', preguntaId);
 
                 fetch(url_final, { 
                     method: 'POST',
@@ -298,8 +298,8 @@
                 const preguntaId = this.dataset.preguntaId;
                 if (!confirm('¿Estás seguro de que quieres reportar esta pregunta para su revisión?')) { return; }
 
-                const url_plantilla = "{{ url_for('main.reportar_pregunta', pregunta_id='ID_PLACEHOLDER') }}";
-                const url_final = url_plantilla.replace('ID_PLACEHOLDER', preguntaId);
+                const url_plantilla = "{{ url_for('main.reportar_pregunta', pregunta_id=999999) }}";
+                const url_final = url_plantilla.replace('999999', preguntaId);
 
                 fetch(url_final, { 
                     method: 'POST', 
