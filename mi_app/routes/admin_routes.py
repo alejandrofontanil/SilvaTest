@@ -409,6 +409,9 @@ def eliminar_nota(nota_id):
 # ==============================================================================
 # ====================== FUNCIÓN SUBIR_SHEETS CORREGIDA ========================
 # ==============================================================================
+# ==============================================================================
+# ====================== FUNCIÓN SUBIR_SHEETS CORREGIDA ========================
+# ==============================================================================
 @admin_bp.route('/subir_sheets', methods=['GET', 'POST'])
 @admin_required
 def subir_sheets():
@@ -448,13 +451,22 @@ def subir_sheets():
                 if tema_id_str and tema_id_str.isdigit():
                     temas_a_modificar.add(int(tema_id_str))
             
-            # --- PASO 2: Eliminar TODAS las preguntas existentes para esos temas ---
+            # --- PASO 2: Eliminar TODAS las preguntas y respuestas existentes ---
             if temas_a_modificar:
-                print(f"DEBUG: Se eliminarán las preguntas de los temas: {list(temas_a_modificar)}")
-                Pregunta.query.filter(Pregunta.tema_id.in_(temas_a_modificar)).delete(synchronize_session=False)
-                # Damos una instrucción flush para asegurar que el borrado se propaga
-                # antes de empezar a añadir las nuevas preguntas.
-                db.session.flush()
+                # Obtenemos los IDs de las preguntas que vamos a borrar
+                preguntas_a_borrar_query = db.session.query(Pregunta.id).filter(Pregunta.tema_id.in_(temas_a_modificar))
+                pregunta_ids_a_borrar = [p_id for p_id, in preguntas_a_borrar_query]
+
+                if pregunta_ids_a_borrar:
+                    # ¡NUEVO! PRIMERO borramos las respuestas asociadas
+                    print(f"DEBUG: Se eliminarán las respuestas de las preguntas con IDs: {pregunta_ids_a_borrar}")
+                    Respuesta.query.filter(Respuesta.pregunta_id.in_(pregunta_ids_a_borrar)).delete(synchronize_session=False)
+
+                    # SEGUNDO, borramos las preguntas
+                    print(f"DEBUG: Se eliminarán las preguntas de los temas: {list(temas_a_modificar)}")
+                    Pregunta.query.filter(Pregunta.id.in_(pregunta_ids_a_borrar)).delete(synchronize_session=False)
+                    
+                    db.session.flush()
 
             # --- PASO 3: Añadir las nuevas preguntas del sheet ---
             preguntas_creadas = 0
@@ -508,10 +520,9 @@ def subir_sheets():
                 if respuestas_validas > 0:
                     preguntas_creadas += 1
                 else:
-                    # Esto es un seguro por si una pregunta se añade sin respuestas
-                    db.session.rollback() # Revierte la adición de la pregunta huérfana
+                    db.session.rollback() 
                     print(f"DEBUG: Pregunta sin respuestas válidas para el enunciado: '{nueva_pregunta.texto}'. Se revierte y salta.")
-                    continue # Salta a la siguiente fila del sheet
+                    continue
 
             # --- PASO 4: Confirmar la transacción ---
             db.session.commit()
