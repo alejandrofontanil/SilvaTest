@@ -53,6 +53,30 @@ try:
 except Exception as e:
     print(f"🔥 Error catastrófico al inicializar Vertex AI: {e}")
 
+# ==============================================================================
+# ======================== INICIO: NUEVA LÓGICA AÑADIDA ========================
+# ==============================================================================
+
+def get_todos_los_subtemas_ids(tema_principal):
+    """
+    Recopila de forma no recursiva (más eficiente) los IDs de todos los subtemas de un tema dado.
+    """
+    ids_subtemas = set()
+    # Usamos una cola para procesar los temas y sus hijos
+    cola_temas = list(tema_principal.subtemas)
+    
+    while cola_temas:
+        tema_actual = cola_temas.pop(0)
+        ids_subtemas.add(tema_actual.id)
+        # Añadimos los hijos del tema actual a la cola para que también se procesen
+        if tema_actual.subtemas:
+            cola_temas.extend(tema_actual.subtemas)
+            
+    return list(ids_subtemas)
+
+# ============================================================================
+# ========================= FIN: NUEVA LÓGICA AÑADIDA ========================
+# ============================================================================
 
 def obtener_preguntas_recursivas(tema):
     preguntas = []
@@ -287,6 +311,66 @@ def hacer_test(tema_id):
             random.shuffle(lista_respuestas)
             pregunta.respuestas_barajadas = lista_respuestas
     return render_template('hacer_test.html', title=f"Test de {tema.nombre}", tema=tema, preguntas=preguntas_test, form=form, is_personalizado=False, breadcrumbs=breadcrumbs)
+
+# ==============================================================================
+# ======================== INICIO: NUEVA RUTA AÑADIDA ==========================
+# ==============================================================================
+
+@main_bp.route('/tema/<int:tema_id>/examen_resumen')
+@login_required
+def examen_resumen(tema_id):
+    """
+    Crea un test de 30 preguntas aleatorias de todos los subtemas de un tema principal.
+    """
+    # 1. Obtenemos el tema principal
+    tema_principal = Tema.query.get_or_404(tema_id)
+
+    # 2. Usamos la función auxiliar para obtener los IDs de todos los subtemas
+    subtemas_ids = get_todos_los_subtemas_ids(tema_principal)
+
+    if not subtemas_ids:
+        flash('Este tema no tiene subtemas con preguntas.', 'warning')
+        return redirect(request.referrer or url_for('main.home'))
+
+    # 3. Hacemos la consulta a la base de datos:
+    #    - Filtramos las preguntas que pertenecen a cualquiera de los subtemas.
+    #    - Las ordenamos de forma aleatoria (func.random() para SQLite/PostgreSQL, o func.rand() para MySQL).
+    #    - Limitamos el resultado a 30 preguntas.
+    preguntas_examen = Pregunta.query.filter(
+        Pregunta.tema_id.in_(subtemas_ids)
+    ).order_by(func.random()).limit(30).all()
+
+    if not preguntas_examen:
+        flash('No se encontraron preguntas en los subtemas para generar el examen.', 'warning')
+        return redirect(request.referrer or url_for('main.home'))
+
+    # Barajamos las respuestas de cada pregunta seleccionada
+    for pregunta in preguntas_examen:
+        if pregunta.tipo_pregunta == 'opcion_multiple':
+            lista_respuestas = list(pregunta.respuestas)
+            random.shuffle(lista_respuestas)
+            pregunta.respuestas_barajadas = lista_respuestas
+
+    # Creamos los breadcrumbs para la navegación
+    breadcrumbs = [
+        ("Inicio", url_for('main.home')),
+        (tema_principal.bloque.convocatoria.nombre, url_for('main.convocatoria_detalle', convocatoria_id=tema_principal.bloque.convocatoria.id)),
+        (tema_principal.bloque.nombre, url_for('main.bloque_detalle', bloque_id=tema_principal.bloque.id)),
+        (f"Examen de {tema_principal.nombre}", "")
+    ]
+
+    # 4. Reutilizamos la misma plantilla que ya tienes para hacer tests
+    return render_template('hacer_test.html', 
+                           title=f"Examen de {tema_principal.nombre}", 
+                           tema=tema_principal, 
+                           preguntas=preguntas_examen, 
+                           form=None, # No necesitamos un formulario de corrección pre-hecho
+                           is_personalizado=True, # Lo tratamos como personalizado para que use la ruta de corrección correcta
+                           breadcrumbs=breadcrumbs)
+
+# ============================================================================
+# ========================= FIN: NUEVA RUTA AÑADIDA ==========================
+# ============================================================================
 
 @main_bp.route('/tema/<int:tema_id>/corregir', methods=['POST'])
 @login_required
