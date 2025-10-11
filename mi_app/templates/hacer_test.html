@@ -21,13 +21,13 @@
             {% if breadcrumbs %}
             <nav aria-label="breadcrumb" class="mb-4">
               <ol class="breadcrumb">
-                {% for text, url in breadcrumbs %}
-                  {% if loop.last %}
-                    <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
-                  {% else %}
-                    <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
-                  {% endif %}
-                {% endfor %}
+                  {% for text, url in breadcrumbs %}
+                    {% if loop.last %}
+                      <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
+                    {% else %}
+                      <li class="breadcrumb-item"><a href="{{ url }}">{{ text }}</a></li>
+                    {% endif %}
+                  {% endfor %}
               </ol>
             </nav>
             {% endif %}
@@ -275,7 +275,11 @@
             boton.addEventListener('click', function() {
                 const preguntaId = this.dataset.preguntaId;
                 const icono = this.querySelector('i');
-                fetch("{{ url_for('main.toggle_favorito', pregunta_id=0) }}".slice(0, -1) + preguntaId, { 
+                
+                const url_plantilla = "{{ url_for('main.toggle_favorito', pregunta_id='ID_PLACEHOLDER') }}";
+                const url_final = url_plantilla.replace('ID_PLACEHOLDER', preguntaId);
+
+                fetch(url_final, { 
                     method: 'POST',
                     headers: {'X-CSRFToken': csrfToken}
                 })
@@ -293,7 +297,11 @@
             boton.addEventListener('click', function() {
                 const preguntaId = this.dataset.preguntaId;
                 if (!confirm('¿Estás seguro de que quieres reportar esta pregunta para su revisión?')) { return; }
-                fetch("{{ url_for('main.reportar_pregunta', pregunta_id=0) }}".slice(0, -1) + preguntaId, { 
+
+                const url_plantilla = "{{ url_for('main.reportar_pregunta', pregunta_id='ID_PLACEHOLDER') }}";
+                const url_final = url_plantilla.replace('ID_PLACEHOLDER', preguntaId);
+
+                fetch(url_final, { 
                     method: 'POST', 
                     headers: {'X-CSRFToken': csrfToken}
                 })
