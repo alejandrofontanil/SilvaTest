@@ -215,20 +215,20 @@ def crear_tema():
     form.parent.query = Tema.query.order_by(Tema.posicion)
     if form.validate_on_submit():
         max_pos = db.session.query(db.func.max(Tema.posicion)).filter_by(bloque_id=form.bloque.data.id).scalar() or -1
-        # --- CORRECCIÓN 1: Se elimina 'pdf_url' de la inicialización directa de Tema para evitar TypeError ---
+        # --- CORRECCIÓN: Inicialización de Tema ajustada para evitar TypeError con 'pdf_url' ---
         nuevo_tema = Tema(
             nombre=form.nombre.data, 
             parent=form.parent.data, 
             bloque=form.bloque.data, 
             es_simulacro=form.es_simulacro.data, 
             tiempo_limite_minutos=form.tiempo_limite_minutos.data, 
-            posicion=max_pos + 1,
-            # pdf_url=form.pdf_url.data # Asumimos que esta columna no existe en el modelo Tema.
+            posicion=max_pos + 1
         )
-        # Si la columna existe, se asignaría después de la inicialización, pero la eliminamos según el error original.
+        
+        # Asignar pdf_url si existe en el Form y en el Modelo (solo si se añadió más tarde)
         if hasattr(form, 'pdf_url') and hasattr(nuevo_tema, 'pdf_url'):
              nuevo_tema.pdf_url = form.pdf_url.data
-        
+
         db.session.add(nuevo_tema)
         db.session.commit()
         flash('¡El tema ha sido creado con éxito!', 'success')
@@ -541,7 +541,7 @@ def exportar_preguntas():
     """
     try:
         # 1. Consulta optimizada para obtener toda la información necesaria de una vez
-        # --- CORRECCIÓN 2: Añadir .join(Tema) explícito para que el ORDER BY funcione correctamente ---
+        # --- CORRECCIÓN: Añadir .join(Tema) explícito para que el ORDER BY funcione correctamente ---
         preguntas = Pregunta.query.join(Tema).options(
             selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
             selectinload(Pregunta.respuestas)
