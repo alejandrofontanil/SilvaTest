@@ -12,7 +12,6 @@
             {% endif %}
         </div>
         
-        <!-- Contadores de Preguntas (usa la propiedad 'conteo_preguntas' del modelo) -->
         {% if tema.subtemas|length > 0 %}
              <span class="badge bg-secondary rounded-pill">{{ tema.conteo_preguntas }} preguntas en total</span>
         {% else %}
@@ -20,7 +19,6 @@
         {% endif %}
     </a>
     
-    <!-- Recorrer Subtemas si existen -->
     {% if tema.subtemas|length > 0 %}
         <div class="list-group" style="margin-left: 20px;">
             {% for subtema in tema.subtemas %}
@@ -46,6 +44,7 @@
     </ol>
 </nav>
 {% endif %}
+
 <div class="card shadow-sm">
     <div class="card-body p-4">
         <h1 class="display-5">{{ bloque.nombre }}</h1>
