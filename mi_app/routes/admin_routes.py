@@ -215,7 +215,7 @@ def crear_tema():
     form.parent.query = Tema.query.order_by(Tema.posicion)
     if form.validate_on_submit():
         max_pos = db.session.query(db.func.max(Tema.posicion)).filter_by(bloque_id=form.bloque.data.id).scalar() or -1
-        # --- CORRECCIÓN: Inicialización de Tema ajustada para evitar TypeError con 'pdf_url' ---
+        # Se asegura que solo se pasan argumentos válidos al constructor de Tema
         nuevo_tema = Tema(
             nombre=form.nombre.data, 
             parent=form.parent.data, 
@@ -225,7 +225,7 @@ def crear_tema():
             posicion=max_pos + 1
         )
         
-        # Asignar pdf_url si existe en el Form y en el Modelo (solo si se añadió más tarde)
+        # Asignar pdf_url si existe en el Form y en el Modelo
         if hasattr(form, 'pdf_url') and hasattr(nuevo_tema, 'pdf_url'):
              nuevo_tema.pdf_url = form.pdf_url.data
 
@@ -453,216 +453,218 @@ def subir_sheets():
             # Buscamos el ID del tema o bloque, asumiendo una columna 'tema_id' o similar
             # ESTA ES UNA IMPLEMENTACIÓN BÁSICA Y REQUIERE QUE LAS COLUMNAS SEAN EXACTAS
             for row in data_rows:
-                if len(row) < len(headers) or not row[0]: # Se salta filas vacías
+                # Nos aseguramos de que haya suficientes datos en la fila
+                if len(row) < len(headers) or not any(row): 
                     continue
 
                 row_dict = dict(zip(headers, row))
                 
-                # Ejemplo de cómo buscar un tema existente por nombre (o crear uno)
-                # NOTA: Necesitarías saber cómo mapear tu hoja de cálculo a Tema y Bloque.
-                # Aquí asumimos que tienes la columna 'tema_nombre' y que ya existe.
+                # Buscamos el tema por nombre
                 tema_nombre = row_dict.get('tema_nombre')
-                if not tema_nombre: continue 
+                if not tema_nombre or not row_dict.get('enunciado'): 
+                    continue 
                 
                 tema = Tema.query.filter_by(nombre=tema_nombre).first()
+                
                 if not tema:
-                    flash(f"Error: Tema '{tema_nombre}' no encontrado.", 'warning')
+                    # En lugar de hacer 'flash' que es lento en un bucle, lo imprimimos
+                    print(f"DEBUG: Tema '{tema_nombre}' no encontrado. Saltando fila.")
                     continue
                 
-                # Si la pregunta tiene un enunciado, la creamos
-                if row_dict.get('enunciado'):
-                    nueva_pregunta = Pregunta(
-                        texto=row_dict['enunciado'], 
-                        tema_id=tema.id,
-                        # Aquí puedes mapear otras columnas (posicion, retroalimentacion, etc.)
-                        retroalimentacion=row_dict.get('retroalimentacion', '')
-                    )
-                    db.session.add(nueva_pregunta)
-                    db.session.flush() # Obtiene el ID antes del commit
+                # Creamos la nueva pregunta
+                nueva_pregunta = Pregunta(
+                    texto=row_dict['enunciado'], 
+                    tema_id=tema.id,
+                    retroalimentacion=row_dict.get('retroalimentacion', '')
+                )
+                db.session.add(nueva_pregunta)
+                db.session.flush() # Obtiene el ID de la nueva_pregunta
 
-                    # Asumimos que las respuestas son Opción A, Opción B, etc.
-                    for i, opcion_letra in enumerate(['opcion a', 'opcion b', 'opcion c', 'opcion d']):
-                        opcion_texto = row_dict.get(opcion_letra)
-                        
-                        if opcion_texto:
-                            es_correcta = (opcion_letra.replace('opción ', '') == row_dict.get('respuesta_correcta', '').lower())
-                            
-                            respuesta = Respuesta(
-                                texto=opcion_texto, 
-                                es_correcta=es_correcta, 
-                                pregunta=nueva_pregunta
-                            )
-                            db.session.add(respuesta)
+                # Asumimos que las respuestas son Opción A, Opción B, etc.
+                for i, opcion_letra in enumerate(['opción a', 'opción b', 'opción c', 'opción d']):
+                    opcion_texto = row_dict.get(opcion_letra)
                     
-                    preguntas_creadas += 1
+                    if opcion_texto:
+                        # La columna debe ser 'respuesta_correcta' o la que uses para indicar la letra correcta
+                        respuesta_correcta_str = row_dict.get('respuesta_correcta', '').lower()
+                        es_correcta = (opcion_letra.replace('opción ', '') == respuesta_correcta_str)
+                        
+                        respuesta = Respuesta(
+                            texto=opcion_texto, 
+                            es_correcta=es_correcta, 
+                            pregunta=nueva_pregunta
+                        )
+                        db.session.add(respuesta)
+                
+                preguntas_creadas += 1
 
             # --- FIN LÓGICA DE IMPORTACIÓN ---
             
             db.session.commit()
             flash(f'¡Sincronización completada! Se procesaron {len(data_rows)} filas. Se crearon {preguntas_creadas} preguntas.', 'success')
 
-        except Exception as e:
-            db.session.rollback()
-            print(f"ERROR DURANTE LA IMPORTACIÓN:\n{traceback.format_exc()}") 
-            flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
-        
-        return redirect(url_for('admin.admin_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            print(f"ERROR DURANTE LA IMPORTACIÓN:\n{traceback.format_exc()}") 
+            flash(f'Ha ocurrido un error inesperado y crítico: {e}', 'danger')
+        
+        return redirect(url_for('admin.admin_dashboard'))
 
-    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
+    return render_template('subir_sheets.html', title="Importar desde Google Sheets", form=form)
 
 
 @admin_bp.route('/tema/eliminar_preguntas_masivo', methods=['POST'])
 @admin_required
 def eliminar_preguntas_masivo():
-    tema_id = request.form.get('tema_id')
-    ids_a_borrar = request.form.getlist('preguntas_ids')
-    if not ids_a_borrar:
-        flash('No seleccionaste ninguna pregunta para borrar.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin_dashboard'))
-    try:
-        ids_a_borrar_int = [int(i) for i in ids_a_borrar]
-        # Lógica de borrado masivo
-        flash(f"¡Éxito! Se eliminaron {len(ids_a_borrar_int)} preguntas.", 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Ocurrió un error inesperado durante el borrado: {e}", 'danger')
-    return redirect(request.referrer or url_for('admin.admin_dashboard'))
+    tema_id = request.form.get('tema_id')
+    ids_a_borrar = request.form.getlist('preguntas_ids')
+    if not ids_a_borrar:
+        flash('No seleccionaste ninguna pregunta para borrar.', 'warning')
+        return redirect(request.referrer or url_for('admin.admin_dashboard'))
+    try:
+        ids_a_borrar_int = [int(i) for i in ids_a_borrar]
+        # Lógica de borrado masivo
+        flash(f"¡Éxito! Se eliminaron {len(ids_a_borrar_int)} preguntas.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Ocurrió un error inesperado durante el borrado: {e}", 'danger')
+    return redirect(request.referrer or url_for('admin.admin_dashboard'))
 
 
 @admin_bp.route('/super-admin-temporal-2025')
 @login_required
 def hacerme_admin_temporalmente():
-    if current_user.email != 'alejandrofontanil@gmail.com':
-        flash('Acción no permitida.', 'danger')
-        return redirect(url_for('main.home'))
-    try:
-        current_user.es_admin = True
-        db.session.commit()
-        flash(f'¡Éxito! El usuario {current_user.email} ahora es administrador.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
-    return redirect(url_for('admin.admin_dashboard'))
+    if current_user.email != 'alejandrofontanil@gmail.com':
+        flash('Acción no permitida.', 'danger')
+        return redirect(url_for('main.home'))
+    try:
+        current_user.es_admin = True
+        db.session.commit()
+        flash(f'¡Éxito! El usuario {current_user.email} ahora es administrador.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al asignarte como admin: {e}', 'danger')
+    return redirect(url_for('admin.admin_dashboard'))
 
 @admin_bp.route('/usuario/<int:usuario_id>/eliminar', methods=['POST'])
 @admin_required
 def eliminar_usuario(usuario_id):
-    usuario_a_eliminar = Usuario.query.get_or_404(usuario_id)
+    usuario_a_eliminar = Usuario.query.get_or_404(usuario_id)
 
-    if usuario_a_eliminar.es_admin:
-        flash('No se pueden eliminar cuentas de administrador.', 'danger')
-        return redirect(url_for('admin.admin_usuarios'))
-    
-    if usuario_a_eliminar.nombre == 'Invitado':
-        flash('La cuenta de invitado no puede ser eliminada.', 'warning')
-        return redirect(url_for('admin.admin_usuarios'))
+    if usuario_a_eliminar.es_admin:
+        flash('No se pueden eliminar cuentas de administrador.', 'danger')
+        return redirect(url_for('admin.admin_usuarios'))
+    
+    if usuario_a_eliminar.nombre == 'Invitado':
+        flash('La cuenta de invitado no puede ser eliminada.', 'warning')
+        return redirect(url_for('admin.admin_usuarios'))
 
-    try:
-        db.session.delete(usuario_a_eliminar)
-        db.session.commit()
-        flash(f'El usuario "{usuario_a_eliminar.nombre}" ha sido eliminado con éxito.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Ocurrió un error al eliminar al usuario: {e}', 'danger')
+    try:
+        db.session.delete(usuario_a_eliminar)
+        db.session.commit()
+        flash(f'El usuario "{usuario_a_eliminar.nombre}" ha sido eliminado con éxito.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocurrió un error al eliminar al usuario: {e}', 'danger')
 
-    return redirect(url_for('admin.admin_usuarios'))
+    return redirect(url_for('admin.admin_usuarios'))
 
 @admin_bp.route('/usuario/<int:usuario_id>/toggle-ia', methods=['POST'])
 @admin_required
 def toggle_acceso_ia(usuario_id):
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.es_admin:
-        flash('No se puede modificar el acceso a la IA para un administrador.', 'warning')
-        return redirect(url_for('admin.admin_usuarios'))
+    usuario = Usuario.query.get_or_404(usuario_id)
+    if usuario.es_admin:
+        flash('No se puede modificar el acceso a la IA para un administrador.', 'warning')
+        return redirect(url_for('admin.admin_usuarios'))
 
-    usuario.tiene_acceso_ia = not usuario.tiene_acceso_ia
-    db.session.commit()
-    
-    estado = "activado" if usuario.tiene_acceso_ia else "desactivado"
-    flash(f'El acceso a la IA para {usuario.nombre} ha sido {estado}.', 'success')
-    return redirect(url_for('admin.admin_usuarios'))
+    usuario.tiene_acceso_ia = not usuario.tiene_acceso_ia
+    db.session.commit()
+    
+    estado = "activado" if usuario.tiene_acceso_ia else "desactivado"
+    flash(f'El acceso a la IA para {usuario.nombre} ha sido {estado}.', 'success')
+    return redirect(url_for('admin.admin_usuarios'))
 
 @admin_bp.route('/exportar-preguntas')
 @admin_required
 def exportar_preguntas():
-    """
-    Exporta todas las preguntas y respuestas a un archivo Excel con la jerarquía completa.
-    """
-    try:
-        # 1. Consulta optimizada para obtener toda la información necesaria de una vez
-        # --- CORRECCIÓN: Añadir .join(Tema) explícito para que el ORDER BY funcione correctamente ---
-        preguntas = Pregunta.query.join(Tema).options(
-            selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
-            selectinload(Pregunta.respuestas)
-        ).order_by(Tema.id, Pregunta.id).all()
+    """
+    Exporta todas las preguntas y respuestas a un archivo Excel con la jerarquía completa.
+    """
+    try:
+        # 1. Consulta optimizada para obtener toda la información necesaria de una vez
+        # --- CORRECCIÓN: Añadir .join(Tema) explícito para que el ORDER BY funcione correctamente ---
+        preguntas = Pregunta.query.join(Tema).options(
+            selectinload(Pregunta.tema).selectinload(Tema.bloque).selectinload(Bloque.convocatoria),
+            selectinload(Pregunta.respuestas)
+        ).order_by(Tema.id, Pregunta.id).all()
 
-        # 2. Preparar los datos para el Excel
-        data_para_excel = []
-        for p in preguntas:
-            # Construir la jerarquía
-            tema_actual = p.tema
-            bloque = tema_actual.bloque
-            convocatoria = bloque.convocatoria if bloque else None
-            
-            # Determinar si es un subtema y quién es su padre
-            tema_padre_nombre = tema_actual.parent.nombre if tema_actual.parent else ''
+        # 2. Preparar los datos para el Excel
+        data_para_excel = []
+        for p in preguntas:
+            # Construir la jerarquía
+            tema_actual = p.tema
+            bloque = tema_actual.bloque
+            convocatoria = bloque.convocatoria if bloque else None
+            
+            # Determinar si es un subtema y quién es su padre
+            tema_padre_nombre = tema_actual.parent.nombre if tema_actual.parent else ''
 
-            fila = {
-                'ID Pregunta': p.id,
-                'Enunciado': p.texto,
-                'Convocatoria': convocatoria.nombre if convocatoria else 'N/A',
-                'Bloque': bloque.nombre if bloque else 'N/A',
-                'Tema Padre': tema_padre_nombre,
-                'Tema/Subtema': tema_actual.nombre,
-                'Tema ID': tema_actual.id,
-                'Opción A': '',
-                'Opción B': '',
-                'Opción C': '',
-                'Opción D': '',
-                'Respuesta Correcta': '',
-                'Retroalimentación': p.retroalimentacion or ''
-            }
-            
-            opciones = ['Opción A', 'Opción B', 'Opción C', 'Opción D']
-            # Aseguramos un orden consistente en las respuestas
-            respuestas_ordenadas = sorted(p.respuestas, key=lambda r: r.id)
-            for i, r in enumerate(respuestas_ordenadas):
-                if i < len(opciones):
-                    fila[opciones[i]] = r.texto
-                    if r.es_correcta:
-                        # Asigna la letra A, B, C, o D
-                        fila['Respuesta Correcta'] = chr(65 + i)
-            
-            data_para_excel.append(fila)
+            fila = {
+                'ID Pregunta': p.id,
+                'Enunciado': p.texto,
+                'Convocatoria': convocatoria.nombre if convocatoria else 'N/A',
+                'Bloque': bloque.nombre if bloque else 'N/A',
+                'Tema Padre': tema_padre_nombre,
+                'Tema/Subtema': tema_actual.nombre,
+                'Tema ID': tema_actual.id,
+                'Opción A': '',
+                'Opción B': '',
+                'Opción C': '',
+                'Opción D': '',
+                'Respuesta Correcta': '',
+                'Retroalimentación': p.retroalimentacion or ''
+            }
+            
+            opciones = ['Opción A', 'Opción B', 'Opción C', 'Opción D']
+            # Aseguramos un orden consistente en las respuestas
+            respuestas_ordenadas = sorted(p.respuestas, key=lambda r: r.id)
+            for i, r in enumerate(respuestas_ordenadas):
+                if i < len(opciones):
+                    fila[opciones[i]] = r.texto
+                    if r.es_correcta:
+                        # Asigna la letra A, B, C, o D
+                        fila['Respuesta Correcta'] = chr(65 + i)
+            
+            data_para_excel.append(fila)
 
-        if not data_para_excel:
-            flash("No hay preguntas para exportar.", "warning")
-            return redirect(url_for('admin.admin_temas'))
+        if not data_para_excel:
+            flash("No hay preguntas para exportar.", "warning")
+            return redirect(url_for('admin.admin_temas'))
 
-        # 3. Crear el archivo Excel en memoria
-        df = pd.DataFrame(data_para_excel)
-        output = io.BytesIO()
-        writer = pd.ExcelWriter(output, engine='openpyxl')
-        df.to_excel(writer, index=False, sheet_name='Preguntas')
-        
-        # Ajustar el ancho de las columnas para que sea más legible
-        worksheet = writer.sheets['Preguntas']
-        for column_cells in worksheet.columns:
-            length = max(len(str(cell.value)) for cell in column_cells)
-            worksheet.column_dimensions[column_cells[0].column_letter].width = length + 2
+        # 3. Crear el archivo Excel en memoria
+        df = pd.DataFrame(data_para_excel)
+        output = io.BytesIO()
+        writer = pd.ExcelWriter(output, engine='openpyxl')
+        df.to_excel(writer, index=False, sheet_name='Preguntas')
+        
+        # Ajustar el ancho de las columnas para que sea más legible
+        worksheet = writer.sheets['Preguntas']
+        for column_cells in worksheet.columns:
+            length = max(len(str(cell.value)) for cell in column_cells)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = length + 2
 
-        writer.close()
-        output.seek(0)
+        writer.close()
+        output.seek(0)
 
-        # 4. Devolver el archivo para su descarga
-        return Response(
-            output,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment;filename=export_preguntas_silvatest.xlsx"}
-        )
+        # 4. Devolver el archivo para su descarga
+        return Response(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment;filename=export_preguntas_silvatest.xlsx"}
+        )
 
-    except Exception as e:
-        print(f"Error al generar el archivo Excel: {e}")
-        traceback.print_exc()
-        flash(f"Error al generar el archivo Excel: {e}", "danger")
-        return redirect(url_for('admin.admin_temas'))
+    except Exception as e:
+        print(f"Error al generar el archivo Excel: {e}")
+        traceback.print_exc()
+        flash(f"Error al generar el archivo Excel: {e}", "danger")
+        return redirect(url_for('admin.admin_temas'))
