@@ -1,31 +1,46 @@
 {% extends "base.html" %}
 
 {% macro render_tema_publico(tema) %}
-    {# Enlace del tema/subtema. La clase 'disabled' si tiene subtemas evita que sea clicable #}
-    <a href="{{ url_for('main.hacer_test', tema_id=tema.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center 
-        {% if tema.subtemas|length > 0 %} disabled bg-light text-muted{% endif %}">
-        <div>
-            {% if tema.parent_id %}
-                <span class="ps-4">- {{ tema.nombre }}</span>
-            {% else %}
+    
+    {# --- INICIO DE LA LÓGICA MODIFICADA --- #}
+
+    {% if tema.subtemas %}
+        {# CASO 1: Es un TEMA PADRE (tiene subtemas) #}
+        {# Mostramos un elemento no clicable con el botón de "Modo Examen" #}
+        <div class="list-group-item d-flex justify-content-between align-items-center bg-light text-muted">
+            <div>
                 <span class="fw-bold">{{ tema.nombre }}</span>
-            {% endif %}
+            </div>
+            <a href="{{ url_for('main.examen_resumen', tema_id=tema.id) }}" class="btn btn-sm btn-success" title="Iniciar un test de 30 preguntas aleatorias de todos los subtemas">
+                <i class="bi bi-shuffle"></i> Modo Examen <span class="badge bg-light text-dark ms-1">30</span>
+            </a>
         </div>
         
-        {% if tema.subtemas|length > 0 %}
-             <span class="badge bg-secondary rounded-pill">{{ tema.conteo_preguntas }} preguntas en total</span>
-        {% else %}
-            <span class="badge bg-primary rounded-pill">{{ tema.conteo_preguntas }} preguntas</span>
-        {% endif %}
-    </a>
-    
-    {% if tema.subtemas|length > 0 %}
+        {# Renderizamos recursivamente sus subtemas anidados #}
         <div class="list-group" style="margin-left: 20px;">
             {% for subtema in tema.subtemas %}
                 {{ render_tema_publico(subtema) }}
             {% endfor %}
         </div>
+
+    {% else %}
+        {# CASO 2: Es un TEMA HIJO o un tema normal sin hijos #}
+        {# Mostramos el enlace normal para hacer el test con su contador de preguntas #}
+        <a href="{{ url_for('main.hacer_test', tema_id=tema.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div>
+                {% if tema.parent_id %}
+                    <span class="ps-4">- {{ tema.nombre }}</span>
+                {% else %}
+                    {# Para un tema sin hijos ni padre #}
+                    <span class="fw-bold">{{ tema.nombre }}</span>
+                {% endif %}
+            </div>
+            <span class="badge bg-primary rounded-pill">{{ tema.conteo_preguntas }} preguntas</span>
+        </a>
     {% endif %}
+
+    {# --- FIN DE LA LÓGICA MODIFICADA --- #}
+
 {% endmacro %}
 
 
