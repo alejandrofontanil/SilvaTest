@@ -29,11 +29,11 @@ google-generativeai>=0.5.0
 langchain-google-community>=1.0.0
 
 
-langchain>=0.2.0
-langchain-core>=0.2.0
-langchain-community>=0.2.0
-langchain-google-vertexai>=2.1.0
-langchain-text-splitters>=0.2.0
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-core==0.2.38
+langchain-text-splitters==0.2.2
+langchain-google-vertexai==1.0.8
 
 # --- GOOGLE (Otras APIs, ej: GSpread) ---
 google-api-python-client
