@@ -27,6 +27,8 @@ langchain-community==0.2.16
 langchain-core==0.2.38
 langchain-text-splitters==0.2.2
 langchain-google-vertexai==1.0.8
+# AÑADIDO: Necesario para que funcione tu buscador
+langchain-google-community==1.0.8
 
 # --- GOOGLE CLOUD (Ajustado para compatibilidad) ---
 google-cloud-aiplatform==1.59.0
