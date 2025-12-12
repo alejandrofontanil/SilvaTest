@@ -49,3 +49,4 @@ cloudinary
 pandas
 openpyxl
 pypdf
+pydantic==2.9.2
