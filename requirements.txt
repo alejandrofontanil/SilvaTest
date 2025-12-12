@@ -21,21 +21,24 @@ Flask-Bcrypt==1.0.1
 bcrypt==4.1.2
 email_validator
 
-# --- LANGCHAIN & GOOGLE CLOUD AI (VERSIÓN CORREGIDA) ---
-google-cloud-aiplatform>=1.38.0
-google-cloud-storage>=2.14.0
-google-cloud-discoveryengine>=0.11.0
-google-generativeai>=0.5.0
-langchain-google-community>=1.0.0
-
-
+# --- LANGCHAIN (Versiones estables) ---
 langchain==0.2.16
 langchain-community==0.2.16
 langchain-core==0.2.38
 langchain-text-splitters==0.2.2
 langchain-google-vertexai==1.0.8
 
-# --- GOOGLE (Otras APIs, ej: GSpread) ---
+# --- GOOGLE CLOUD (Versiones congeladas para evitar conflicto de SafetySettings) ---
+# IMPORTANTE: La versión 1.59.0 es la última segura para esta configuración
+google-cloud-aiplatform==1.59.0
+google-cloud-storage==2.14.0
+google-cloud-discoveryengine>=0.11.0
+google-generativeai>=0.5.0
+
+# --- COMPATIBILIDAD CRÍTICA ---
+pydantic==2.9.2
+
+# --- GOOGLE (Otras APIs) ---
 google-api-python-client
 google-auth-httplib2
 gspread
@@ -49,4 +52,3 @@ cloudinary
 pandas
 openpyxl
 pypdf
-pydantic==2.9.2
